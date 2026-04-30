@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 function readForm(form: FormData) {
   return {
     name: String(form.get("name") ?? "").trim(),
+    alias: String(form.get("alias") ?? "").trim() || null,
     persona: String(form.get("persona") ?? "").trim(),
     greeting: String(form.get("greeting") ?? "").trim() || null,
     scenario: String(form.get("scenario") ?? "").trim() || null,

@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Roleplay Chatbot
 
-## Getting Started
+Persistent-memory roleplay app built with Next.js + Supabase + OpenRouter.
 
-First, run the development server:
+## Features
+
+- Google OAuth sign-in (open signup, no invite code required)
+- Public seed characters available to all users
+- User-created private characters
+- Character alias support (bot can self-reference by alias, e.g. `Kael`)
+- Per-user chat history isolation via Supabase RLS
+- Streaming chat responses with stop control and anti-spam cooldown
+- Summarization + memory facts to keep long chats coherent
+
+## Tech Stack
+
+- Next.js App Router
+- Supabase (Auth, Postgres, RLS)
+- Vercel AI SDK + OpenRouter
+- Tailwind CSS
+
+## Environment Variables
+
+Create `.env` with:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+OPENROUTER_API_KEY=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Optional:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1:free
+OPENROUTER_FALLBACK_MODELS=inclusionai/ling-2.6-1t:free,openai/gpt-oss-120b:free,nvidia/nemotron-3-super-120b-a12b:free
+OPENROUTER_SITE_URL=
+OPENROUTER_APP_NAME=Roleplay Chatbot
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local Development
 
-## Learn More
+```bash
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open `http://localhost:3000`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database Migrations
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run migrations against your target database:
 
-## Deploy on Vercel
+```bash
+supabase migration up
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Or run a specific migration file with `psql` against `SUPABASE_DB_URL`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy (Vercel CLI)
+
+```bash
+vercel link
+vercel --prod
+```
+
+Set all required environment variables in Vercel Project Settings before deploying.
+
+## Security Notes
+
+- Chat access is protected by Supabase RLS policies (`chats/messages/memories` owner-only).
+- OAuth callback `next` redirect is sanitized to internal paths only.
+- Security headers are applied in middleware (CSP, frame protection, nosniff, referrer policy).

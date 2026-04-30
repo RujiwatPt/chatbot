@@ -10,6 +10,7 @@ export type ChatMessage = {
 
 export type Character = {
   name: string;
+  alias: string | null;
   persona: string;
   scenario: string | null;
   greeting: string | null;
@@ -34,8 +35,9 @@ export function buildSystemPrompt(opts: {
   summary: string | null;
 }) {
   const { character, facts, summary } = opts;
+  const selfName = character.alias?.trim() || character.name;
   const parts: string[] = [];
-  parts.push(`You are roleplaying as ${character.name}.`);
+  parts.push(`You are roleplaying as ${selfName}.`);
   parts.push(character.persona);
   if (character.scenario) {
     parts.push(`Scenario: ${character.scenario}`);
@@ -53,6 +55,12 @@ export function buildSystemPrompt(opts: {
   parts.push(
     "Stay fully in character. Write evocative, natural prose. Do not break the fourth wall unless the user explicitly asks an out-of-character question.",
   );
+  parts.push(
+    `Self-reference rule: never use first-person pronouns for the character (no "I", "me", "my", "mine", "myself"). Refer to ${selfName} by name instead, including in actions and dialogue narration.`,
+  );
+  parts.push(
+    `Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Do not call the user "${selfName}". Address the user as "you" unless the user explicitly provides their own name.`,
+  );
   return parts.join("\n\n");
 }
 
@@ -67,7 +75,7 @@ export async function loadChatContext(
 } | null> {
   const { data: chat } = await supabase
     .from("chats")
-    .select("character:characters(name, persona, scenario, greeting, model)")
+    .select("character:characters(name, alias, persona, scenario, greeting, model)")
     .eq("id", chatId)
     .maybeSingle();
 

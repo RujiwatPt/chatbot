@@ -1,6 +1,7 @@
 type Character = {
   id?: string;
   name?: string | null;
+  alias?: string | null;
   persona?: string | null;
   greeting?: string | null;
   scenario?: string | null;
@@ -24,6 +25,16 @@ export default function CharacterForm({
           required
           maxLength={120}
           defaultValue={initial?.name ?? ""}
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium">Alias (optional)</label>
+        <input
+          name="alias"
+          maxLength={120}
+          defaultValue={initial?.alias ?? ""}
+          placeholder="Used by the bot for self-reference (e.g., Kael)"
           className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         />
       </div>

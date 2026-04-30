@@ -15,7 +15,7 @@ export default async function CharacterDetailPage({
 
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, persona, scenario, is_public")
+    .select("id, name, alias, persona, scenario, is_public")
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
@@ -40,6 +40,9 @@ export default async function CharacterDetailPage({
       <header className="panel reveal-up space-y-3 p-5 sm:p-6">
         <div className="flex items-center gap-2">
           <h1 className="page-title">{character.name}</h1>
+          {character.alias && (
+            <span className="text-xs text-neutral-500">({character.alias})</span>
+          )}
           {character.is_public && (
             <span className="text-[10px] uppercase tracking-wide rounded bg-neutral-200 px-1.5 py-0.5 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
               Featured

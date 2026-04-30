@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ChatClient from "./ChatClient";
 import { deleteChat } from "../actions";
+import DeleteChatButton from "./DeleteChatButton";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function ChatPage({
 
   const { data: chat } = await supabase
     .from("chats")
-    .select("id, title, character:characters(name)")
+    .select("id, title, character:characters(name, alias)")
     .eq("id", chatId)
     .maybeSingle();
 
@@ -55,16 +56,14 @@ export default async function ChatPage({
             All chats
           </Link>
           <form action={deleteChat.bind(null, chatId)}>
-            <button type="submit" className="btn-text text-xs text-red-600">
-              Delete
-            </button>
+            <DeleteChatButton />
           </form>
         </div>
       </header>
       <ChatClient
         chatId={chatId}
         initialMessages={initialMessages}
-        chatbotName={character?.name ?? "Chatbot"}
+        chatbotName={character?.alias ?? character?.name ?? "Chatbot"}
       />
     </main>
   );

@@ -15,7 +15,7 @@ export default async function EditCharacterPage({
   const supabase = await createClient();
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, persona, greeting, scenario, is_public")
+    .select("id, name, alias, persona, greeting, scenario, is_public")
     .eq("id", id)
     .maybeSingle();
 
