@@ -26,17 +26,19 @@ export default async function EditCharacterPage({
   const remove = deleteCharacter.bind(null, id);
 
   return (
-    <main className="max-w-2xl mx-auto p-8 space-y-6">
+    <main className="shell space-y-6 px-1 py-8">
       <Link
         href={`/characters/${id}`}
-        className="text-xs text-neutral-500 hover:underline"
+        className="btn-text text-xs text-neutral-500"
       >
         ← Back to {character.name}
       </Link>
-      <h1 className="text-2xl font-semibold">Edit character</h1>
-      <CharacterForm action={update} initial={character} submitLabel="Save" />
+      <h1 className="page-title">Edit character</h1>
+      <div className="panel p-5 sm:p-6">
+        <CharacterForm action={update} initial={character} submitLabel="Save" />
+      </div>
       <form action={remove}>
-        <button type="submit" className="text-xs text-red-600 underline">
+        <button type="submit" className="btn-text text-xs text-red-600">
           Delete character
         </button>
       </form>

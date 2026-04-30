@@ -40,8 +40,8 @@ export default async function ChatPage({
   }));
 
   return (
-    <main className="min-h-screen flex flex-col">
-      <header className="border-b border-neutral-200 dark:border-neutral-800 p-3 flex items-center justify-between max-w-2xl mx-auto w-full">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-4">
+      <header className="panel shell flex w-full items-center justify-between px-4 py-3">
         <div className="min-w-0">
           <div className="text-sm font-medium truncate">
             {chat.title ?? character?.name ?? "Chat"}
@@ -51,17 +51,21 @@ export default async function ChatPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/chat" className="text-xs underline">
+          <Link href="/chat" className="btn-text text-xs">
             All chats
           </Link>
           <form action={deleteChat.bind(null, chatId)}>
-            <button type="submit" className="text-xs text-red-600 underline">
+            <button type="submit" className="btn-text text-xs text-red-600">
               Delete
             </button>
           </form>
         </div>
       </header>
-      <ChatClient chatId={chatId} initialMessages={initialMessages} />
+      <ChatClient
+        chatId={chatId}
+        initialMessages={initialMessages}
+        chatbotName={character?.name ?? "Chatbot"}
+      />
     </main>
   );
 }

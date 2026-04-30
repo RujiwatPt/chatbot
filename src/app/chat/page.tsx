@@ -11,10 +11,10 @@ export default async function ChatListPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="max-w-2xl mx-auto p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Chats</h1>
-        <Link href="/characters" className="text-sm underline">
+    <main className="shell space-y-6 px-1 py-8">
+      <div className="reveal-up flex items-center justify-between">
+        <h1 className="page-title">Chats</h1>
+        <Link href="/characters" className="btn-text text-sm">
           Characters →
         </Link>
       </div>
@@ -25,18 +25,19 @@ export default async function ChatListPage() {
         </p>
       ) : (
         <ul className="space-y-2">
-          {chats.map((c) => {
+          {chats.map((c, i) => {
             const character = Array.isArray(c.character)
               ? c.character[0]
               : c.character;
             return (
               <li
                 key={c.id}
-                className="rounded-md border border-neutral-200 dark:border-neutral-800"
+                className="panel stagger-item overflow-hidden"
+                style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
               >
                 <Link
                   href={`/chat/${c.id}`}
-                  className="block p-3 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                  className="block p-4 transition-colors hover:bg-white/40 dark:hover:bg-slate-900/40"
                 >
                   <div className="font-medium">
                     {c.title ?? character?.name ?? "Untitled"}

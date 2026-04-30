@@ -60,7 +60,7 @@ export default function CharacterForm({
       </div>
       <button
         type="submit"
-        className="rounded-md bg-black px-4 py-2 text-sm text-white dark:bg-white dark:text-black"
+        className="btn-primary"
       >
         {submitLabel}
       </button>

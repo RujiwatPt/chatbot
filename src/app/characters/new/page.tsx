@@ -4,15 +4,17 @@ import { createCharacter } from "../actions";
 
 export default function NewCharacterPage() {
   return (
-    <main className="max-w-2xl mx-auto p-8 space-y-6">
+    <main className="shell space-y-6 px-1 py-8">
       <Link
         href="/characters"
-        className="text-xs text-neutral-500 hover:underline"
+        className="btn-text text-xs text-neutral-500"
       >
         ← All characters
       </Link>
-      <h1 className="text-2xl font-semibold">New character</h1>
-      <CharacterForm action={createCharacter} submitLabel="Create" />
+      <h1 className="page-title">New character</h1>
+      <div className="panel p-5 sm:p-6">
+        <CharacterForm action={createCharacter} submitLabel="Create" />
+      </div>
     </main>
   );
 }

@@ -7,16 +7,22 @@ type Msg = { id: string; role: "user" | "assistant"; content: string };
 export default function ChatClient({
   chatId,
   initialMessages,
+  chatbotName,
 }: {
   chatId: string;
   initialMessages: Msg[];
+  chatbotName: string;
 }) {
+  const COOLDOWN_MS = 1200;
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [now, setNow] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inFlightRef = useRef(false);
 
   function stop() {
     abortRef.current?.abort();
@@ -29,10 +35,21 @@ export default function ChatClient({
     });
   }, [messages]);
 
+  useEffect(() => {
+    if (cooldownUntil <= Date.now()) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 150);
+    return () => window.clearInterval(timer);
+  }, [cooldownUntil]);
+
+  const cooldownMsLeft = Math.max(0, cooldownUntil - now);
+  const onCooldown = cooldownMsLeft > 0;
+  const canSend = Boolean(input.trim()) && !onCooldown && !busy;
+
   async function send(e?: React.FormEvent) {
     e?.preventDefault();
     const text = input.trim();
-    if (!text || busy) return;
+    if (!text || inFlightRef.current || Date.now() < cooldownUntil) return;
+    inFlightRef.current = true;
     setInput("");
     setBusy(true);
     setError(null);
@@ -96,13 +113,16 @@ export default function ChatClient({
       }
     } finally {
       abortRef.current = null;
+      setCooldownUntil(Date.now() + COOLDOWN_MS);
+      setNow(Date.now());
+      inFlightRef.current = false;
       setBusy(false);
     }
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-2xl mx-auto">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="shell mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div ref={scrollRef} className="panel flex-1 space-y-4 overflow-y-auto p-4">
         {messages.length === 0 && (
           <p className="text-sm text-neutral-500 text-center pt-10">
             Say something to begin.
@@ -111,19 +131,23 @@ export default function ChatClient({
         {messages.map((m) => (
           <div
             key={m.id}
-            className={
-              m.role === "user"
-                ? "rounded-md bg-neutral-100 dark:bg-neutral-900 p-3 ml-12"
-                : "rounded-md border border-neutral-200 dark:border-neutral-800 p-3 mr-12"
-            }
+            className={`${m.role === "user" ? "flex justify-end" : "flex justify-start"} message-in`}
           >
-            <div className="text-xs uppercase text-neutral-500 mb-1">
-              {m.role}
+            <div
+              className={
+                m.role === "user"
+                  ? "w-fit max-w-[85%] rounded-xl bg-white/75 p-3 dark:bg-slate-900/70"
+                  : "w-fit max-w-[85%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3"
+              }
+            >
+            <div className="mb-1 text-xs uppercase text-neutral-500">
+              {m.role === "assistant" ? chatbotName : "You"}
             </div>
             <div className="whitespace-pre-wrap text-sm">
               {m.content || (
                 <span className="text-neutral-400">…</span>
               )}
+            </div>
             </div>
           </div>
         ))}
@@ -133,7 +157,7 @@ export default function ChatClient({
       </div>
       <form
         onSubmit={send}
-        className="border-t border-neutral-200 dark:border-neutral-800 p-3 flex gap-2"
+        className="panel mt-3 flex items-end gap-2 p-3"
       >
         <textarea
           value={input}
@@ -152,17 +176,17 @@ export default function ChatClient({
           <button
             type="button"
             onClick={stop}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700"
+            className="btn-outline min-w-20"
           >
             Stop
           </button>
         ) : (
           <button
             type="submit"
-            disabled={!input.trim()}
-            className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            disabled={!canSend}
+            className="btn-primary"
           >
-            Send
+            {onCooldown ? `Wait ${Math.ceil(cooldownMsLeft / 1000)}s` : "Send"}
           </button>
         )}
       </form>

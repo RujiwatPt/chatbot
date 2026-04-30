@@ -12,12 +12,12 @@ export default async function CharactersPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="max-w-2xl mx-auto p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Characters</h1>
+    <main className="shell space-y-6 px-1 py-8">
+      <div className="reveal-up flex items-center justify-between">
+        <h1 className="page-title">Characters</h1>
         <Link
           href="/characters/new"
-          className="rounded-md bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
+          className="btn-primary px-3 py-1.5 text-sm"
         >
           New
         </Link>
@@ -29,14 +29,15 @@ export default async function CharactersPage() {
         </p>
       ) : (
         <ul className="space-y-2">
-          {characters.map((c) => (
+          {characters.map((c, i) => (
             <li
               key={c.id}
-              className="rounded-md border border-neutral-200 dark:border-neutral-800"
+              className="panel stagger-item overflow-hidden"
+              style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
             >
               <Link
                 href={`/characters/${c.id}`}
-                className="block p-3 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                className="block p-4 transition-colors hover:bg-white/40 dark:hover:bg-slate-900/40"
               >
                 <div className="font-medium truncate flex items-center gap-2">
                   <span className="truncate">{c.name}</span>

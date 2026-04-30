@@ -29,17 +29,17 @@ export default async function CharacterDetailPage({
   const start = startChat.bind(null, id);
 
   return (
-    <main className="max-w-2xl mx-auto p-8 space-y-6">
+    <main className="shell space-y-6 px-1 py-8">
       <Link
         href="/characters"
-        className="text-xs text-neutral-500 hover:underline"
+        className="btn-text text-xs text-neutral-500"
       >
         ← All characters
       </Link>
 
-      <header className="space-y-2">
+      <header className="panel reveal-up space-y-3 p-5 sm:p-6">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{character.name}</h1>
+          <h1 className="page-title">{character.name}</h1>
           {character.is_public && (
             <span className="text-[10px] uppercase tracking-wide rounded bg-neutral-200 px-1.5 py-0.5 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
               Featured
@@ -57,7 +57,7 @@ export default async function CharacterDetailPage({
         {!character.is_public && (
           <Link
             href={`/characters/${id}/edit`}
-            className="inline-block text-xs underline text-neutral-500"
+            className="btn-text inline-block text-xs text-neutral-500"
           >
             Edit character
           </Link>
@@ -70,7 +70,7 @@ export default async function CharacterDetailPage({
           <form action={start}>
             <button
               type="submit"
-              className="rounded-md bg-black px-3 py-1.5 text-xs text-white dark:bg-white dark:text-black"
+              className="btn-primary px-3 py-1.5 text-xs"
             >
               Start new chat
             </button>
@@ -83,14 +83,15 @@ export default async function CharacterDetailPage({
           </p>
         ) : (
           <ul className="space-y-2">
-            {chats.map((c) => (
+            {chats.map((c, i) => (
               <li
                 key={c.id}
-                className="rounded-md border border-neutral-200 dark:border-neutral-800"
+                className="panel stagger-item overflow-hidden"
+                style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
               >
                 <Link
                   href={`/chat/${c.id}`}
-                  className="block p-3 hover:bg-neutral-50 dark:hover:bg-neutral-900"
+                  className="block p-4 transition-colors hover:bg-white/40 dark:hover:bg-slate-900/40"
                 >
                   <div className="text-sm font-medium">
                     {c.title ?? "Untitled"}
