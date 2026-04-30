@@ -11,7 +11,7 @@ export default async function ChatListPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="shell space-y-6 px-1 py-8">
+    <main className="shell space-y-5 px-1 py-5 sm:space-y-6 sm:py-8">
       <div className="reveal-up flex items-center justify-between">
         <h1 className="page-title">Chats</h1>
         <Link href="/characters" className="btn-text text-sm">

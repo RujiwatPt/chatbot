@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateText } from "ai";
 import { model } from "@/lib/openrouter";
-import { SUMMARIZER_SYSTEM } from "@/lib/prompts";
+import { SCENE_STATE_SYSTEM, SUMMARIZER_SYSTEM } from "@/lib/prompts";
 
 export type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -15,6 +15,13 @@ export type Character = {
   scenario: string | null;
   greeting: string | null;
   model: string;
+};
+
+export type SceneState = {
+  location: string;
+  tone: string;
+  relationship: string;
+  goal: string;
 };
 
 // How many recent messages we leave un-summarized at the tail when the
@@ -32,15 +39,24 @@ const SUMMARIZE_MIN_NEW = 10;
 export function buildSystemPrompt(opts: {
   character: Character;
   facts: string[];
+  sceneState: SceneState | null;
   summary: string | null;
 }) {
-  const { character, facts, summary } = opts;
+  const { character, facts, sceneState, summary } = opts;
   const selfName = character.alias?.trim() || character.name;
   const parts: string[] = [];
   parts.push(`You are roleplaying as ${selfName}.`);
+  parts.push(
+    `RESPONSE CONTRACT:\n- Stay fully in character for every line.\n- Write vivid but concise prose (about 2-6 short paragraphs unless the user asks for more).\n- Prefer concrete sensory/action details over generic filler.\n- Do not sound like a generic AI assistant.`,
+  );
   parts.push(character.persona);
   if (character.scenario) {
     parts.push(`Scenario: ${character.scenario}`);
+  }
+  if (sceneState) {
+    parts.push(
+      `SCENE STATE:\n- Location: ${sceneState.location}\n- Tone: ${sceneState.tone}\n- Relationship: ${sceneState.relationship}\n- Immediate goal: ${sceneState.goal}`,
+    );
   }
   if (facts.length) {
     parts.push(
@@ -71,6 +87,7 @@ export async function loadChatContext(
   character: Character;
   recent: ChatMessage[];
   facts: string[];
+  sceneState: SceneState | null;
   summary: string | null;
 } | null> {
   const { data: chat } = await supabase
@@ -93,11 +110,32 @@ export async function loadChatContext(
     .order("id", { ascending: false });
 
   const facts: string[] = [];
+  let sceneState: SceneState | null = null;
   let summary: string | null = null;
   let summaryUpTo = 0;
   for (const m of memoryRows ?? []) {
-    if (m.kind === "fact") facts.push(m.content);
-    else if (m.kind === "summary" && summary === null) {
+    if (m.kind === "fact") {
+      facts.push(m.content);
+    } else if (m.kind === "scene" && sceneState === null) {
+      try {
+        const parsed = JSON.parse(m.content) as Partial<SceneState>;
+        if (
+          typeof parsed.location === "string" &&
+          typeof parsed.tone === "string" &&
+          typeof parsed.relationship === "string" &&
+          typeof parsed.goal === "string"
+        ) {
+          sceneState = {
+            location: parsed.location,
+            tone: parsed.tone,
+            relationship: parsed.relationship,
+            goal: parsed.goal,
+          };
+        }
+      } catch {
+        // ignore malformed scene rows
+      }
+    } else if (m.kind === "summary" && summary === null) {
       summary = m.content;
       summaryUpTo = (m.up_to_message_id as number | null) ?? 0;
     }
@@ -115,7 +153,16 @@ export async function loadChatContext(
 
   const recent = (messages ?? []) as ChatMessage[];
 
-  return { character, recent, facts, summary };
+  // Prioritize durable fact categories if present.
+  const rank = (fact: string) => {
+    if (fact.startsWith("[identity]")) return 0;
+    if (fact.startsWith("[promise]")) return 1;
+    if (fact.startsWith("[world]")) return 2;
+    return 3;
+  };
+  facts.sort((a, b) => rank(a) - rank(b));
+
+  return { character, recent, facts, sceneState, summary };
 }
 
 function extractJson(text: string): unknown | null {
@@ -131,6 +178,65 @@ function extractJson(text: string): unknown | null {
   } catch {
     return null;
   }
+}
+
+export function looksRepetitive(text: string, priorAssistant: string[]): boolean {
+  const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!normalized) return false;
+  for (const prev of priorAssistant.slice(-3)) {
+    const p = prev.toLowerCase().replace(/\s+/g, " ").trim();
+    if (!p) continue;
+    if (normalized === p) return true;
+    if (normalized.includes(p) && p.length > 80) return true;
+    const a = new Set(normalized.split(" "));
+    const b = new Set(p.split(" "));
+    const inter = [...a].filter((x) => b.has(x)).length;
+    const union = new Set([...a, ...b]).size;
+    if (union > 0 && inter / union > 0.82) return true;
+  }
+  return false;
+}
+
+export function validateInCharacterOutput(params: {
+  output: string;
+  selfName: string;
+  sceneState: SceneState | null;
+}): { ok: boolean; reasons: string[] } {
+  const { output, selfName, sceneState } = params;
+  const text = output.trim();
+  const reasons: string[] = [];
+  if (!text) reasons.push("empty");
+
+  if (/\b(I|me|my|mine|myself)\b/i.test(text)) {
+    reasons.push("first_person_self_reference");
+  }
+
+  const banned = [
+    "as an ai",
+    "language model",
+    "i can't help with that",
+    "i cannot help with that",
+  ];
+  for (const phrase of banned) {
+    if (text.toLowerCase().includes(phrase)) {
+      reasons.push(`ooc_phrase:${phrase}`);
+      break;
+    }
+  }
+
+  const lowered = text.toLowerCase();
+  if (new RegExp(`\\b${selfName.toLowerCase()}\\b`).test(lowered) && /\byou\s+are\s+/.test(lowered)) {
+    reasons.push("alias_as_user_name");
+  }
+
+  if (sceneState?.location && sceneState.location.length > 0) {
+    const hint = sceneState.location.toLowerCase().split(" ")[0];
+    if (hint.length >= 4 && lowered.includes("teleport") && !lowered.includes(hint)) {
+      reasons.push("scene_drift");
+    }
+  }
+
+  return { ok: reasons.length === 0, reasons };
 }
 
 export async function maybeSummarize(
@@ -188,28 +294,32 @@ export async function maybeSummarize(
     "NEW MESSAGES TO FOLD IN:",
     transcript,
     "",
-    'Respond with only a JSON object: {"summary": "...", "facts": ["..."]}',
+    'Respond with only a JSON object: {"summary": "...", "facts": [{"category":"identity|promise|world|other","content":"..."}]}',
   ]
     .filter(Boolean)
     .join("\n");
 
   let rawText = "";
   let raw: unknown = null;
-  try {
-    const { text } = await generateText({
-      model: model(character.model),
-      system: SUMMARIZER_SYSTEM,
-      prompt: userPrompt,
-    });
-    rawText = text;
-    raw = extractJson(text);
-  } catch (err) {
-    console.warn("[summarizer] generation failed", {
-      chatId,
-      model: character.model,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return; // free-tier rate limit etc — try again next turn
+  let attempts = 0;
+  while (attempts < 2 && !raw) {
+    attempts += 1;
+    try {
+      const { text } = await generateText({
+        model: model(character.model),
+        system: SUMMARIZER_SYSTEM,
+        prompt: userPrompt,
+      });
+      rawText = text;
+      raw = extractJson(text);
+    } catch (err) {
+      console.warn("[summarizer] generation failed", {
+        chatId,
+        model: character.model,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (attempts >= 2) return;
+    }
   }
   if (!raw || typeof raw !== "object") {
     console.warn("[summarizer] could not parse JSON from model output", {
@@ -225,9 +335,23 @@ export async function maybeSummarize(
     typeof parsed.summary === "string" ? parsed.summary.trim() : "";
   const factsList: string[] = Array.isArray(parsed.facts)
     ? (parsed.facts as unknown[])
-        .filter((f): f is string => typeof f === "string")
-        .map((f) => f.trim())
-        .filter(Boolean)
+        .map((item) => {
+          if (typeof item === "string") return `[other] ${item.trim()}`;
+          if (!item || typeof item !== "object") return null;
+          const c = item as { category?: unknown; content?: unknown };
+          if (typeof c.content !== "string") return null;
+          const category =
+            typeof c.category === "string" ? c.category.toLowerCase() : "other";
+          const normalized =
+            category === "identity" ||
+            category === "promise" ||
+            category === "world"
+              ? category
+              : "other";
+          return `[${normalized}] ${c.content.trim()}`;
+        })
+        .filter((f): f is string => Boolean(f))
+        .filter((f) => f.length > 10)
     : [];
 
   if (!summaryText) {
@@ -235,6 +359,11 @@ export async function maybeSummarize(
       chatId,
       model: character.model,
     });
+    return;
+  }
+
+  if (toFold.length >= 20 && !/[A-Z][a-z]+/.test(summaryText)) {
+    console.warn("[summarizer] summary quality gate failed", { chatId });
     return;
   }
 
@@ -260,5 +389,47 @@ export async function maybeSummarize(
         up_to_message_id: upTo,
       })),
     );
+  }
+
+  // Refresh scene state from the recent transcript tail.
+  const tail = toFold
+    .slice(-10)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n");
+  try {
+    const { text } = await generateText({
+      model: model(character.model),
+      system: SCENE_STATE_SYSTEM,
+      prompt: `Character: ${character.name}\nPersona: ${character.persona}\nRecent turns:\n${tail}`,
+    });
+    const sceneRaw = extractJson(text);
+    if (sceneRaw && typeof sceneRaw === "object") {
+      const s = sceneRaw as Partial<SceneState>;
+      if (
+        typeof s.location === "string" &&
+        typeof s.tone === "string" &&
+        typeof s.relationship === "string" &&
+        typeof s.goal === "string"
+      ) {
+        await supabase
+          .from("memories")
+          .delete()
+          .eq("chat_id", chatId)
+          .eq("kind", "scene");
+        await supabase.from("memories").insert({
+          chat_id: chatId,
+          kind: "scene",
+          content: JSON.stringify({
+            location: s.location,
+            tone: s.tone,
+            relationship: s.relationship,
+            goal: s.goal,
+          }),
+          up_to_message_id: upTo,
+        });
+      }
+    }
+  } catch {
+    // best effort only
   }
 }

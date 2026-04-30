@@ -13,14 +13,14 @@ export default async function Home() {
   }
 
   return (
-    <main className="px-4 pb-10 pt-8 sm:px-6 sm:pt-12">
-      <section className="panel shell reveal-up overflow-hidden p-7 sm:p-10">
+    <main className="px-3 pb-[calc(var(--safe-bottom)+1.5rem)] pt-5 sm:px-6 sm:pb-10 sm:pt-12">
+      <section className="panel shell reveal-up overflow-hidden p-5 sm:p-10">
         <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-end">
           <div className="space-y-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">
               Roleplay Chatbot
             </p>
-            <h1 className="page-title text-4xl sm:text-5xl">
+            <h1 className="page-title text-3xl sm:text-5xl">
               Build characters.
               <br />
               Run immersive chats.
@@ -29,11 +29,11 @@ export default async function Home() {
               A persistent-memory chatbot app where every character has their
               own voice, context, and long-running chat history.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href="/login" className="btn-primary">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              <Link href="/login" className="btn-primary min-h-11">
                 Start chatting
               </Link>
-              <Link href="/characters" className="btn-outline">
+              <Link href="/characters" className="btn-outline min-h-11">
                 Browse characters
               </Link>
             </div>
@@ -49,10 +49,10 @@ export default async function Home() {
               </span>
             </div>
             <div className="space-y-2 text-sm">
-              <div className="ml-6 rounded-2xl rounded-br-md bg-white/80 px-3 py-2 text-slate-800 shadow-sm dark:bg-slate-100 dark:text-slate-900">
+              <div className="ml-2 rounded-2xl rounded-br-md bg-white/80 px-3 py-2 text-slate-800 shadow-sm sm:ml-6 dark:bg-slate-100 dark:text-slate-900">
                 Plan tomorrow&apos;s mission briefing.
               </div>
-              <div className="mr-6 rounded-2xl rounded-bl-md border border-[var(--line)] bg-[color:var(--surface)] px-3 py-2">
+              <div className="mr-2 rounded-2xl rounded-bl-md border border-[var(--line)] bg-[color:var(--surface)] px-3 py-2 sm:mr-6">
                 At dawn. We gather intel first, then move in with zero noise.
               </div>
             </div>

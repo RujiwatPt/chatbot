@@ -29,7 +29,7 @@ export default async function CharacterDetailPage({
   const start = startChat.bind(null, id);
 
   return (
-    <main className="shell space-y-6 px-1 py-8">
+    <main className="shell space-y-5 px-1 py-5 sm:space-y-6 sm:py-8">
       <Link
         href="/characters"
         className="btn-text text-xs text-neutral-500"
@@ -68,7 +68,7 @@ export default async function CharacterDetailPage({
       </header>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium">Your chats with {character.name}</h2>
           <form action={start}>
             <button

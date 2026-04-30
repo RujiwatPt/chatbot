@@ -41,8 +41,8 @@ export default async function ChatPage({
   }));
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-4">
-      <header className="panel shell flex w-full items-center justify-between px-4 py-3">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-2 sm:py-4">
+      <header className="panel shell flex w-full flex-wrap items-center justify-between gap-2 px-3 py-3 sm:px-4">
         <div className="min-w-0">
           <div className="text-sm font-medium truncate">
             {chat.title ?? character?.name ?? "Chat"}
@@ -51,7 +51,7 @@ export default async function ChatPage({
             {character?.name}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pl-1">
           <Link href="/chat" className="btn-text text-xs">
             All chats
           </Link>

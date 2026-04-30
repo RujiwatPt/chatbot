@@ -26,7 +26,7 @@ export default async function EditCharacterPage({
   const remove = deleteCharacter.bind(null, id);
 
   return (
-    <main className="shell space-y-6 px-1 py-8">
+    <main className="shell space-y-5 px-1 py-5 sm:space-y-6 sm:py-8">
       <Link
         href={`/characters/${id}`}
         className="btn-text text-xs text-neutral-500"

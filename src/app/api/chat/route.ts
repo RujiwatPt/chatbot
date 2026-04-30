@@ -1,13 +1,12 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { streamText } from "ai";
 import { createClient } from "@/lib/supabase/server";
-import { model } from "@/lib/openrouter";
 import {
   buildSystemPrompt,
   loadChatContext,
   maybeSummarize,
 } from "@/lib/memory";
+import { generateAssistantText, toSmoothWordStream } from "@/lib/chat-quality";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -58,6 +57,7 @@ export async function POST(request: Request) {
   const system = buildSystemPrompt({
     character: ctx.character,
     facts: ctx.facts,
+    sceneState: ctx.sceneState,
     summary: ctx.summary,
   });
 
@@ -66,43 +66,48 @@ export async function POST(request: Request) {
     { role: "user" as const, content: message },
   ];
 
-  // Accumulate tokens server-side so we can persist a partial reply if the
-  // client aborts the stream mid-flight.
-  let accumulated = "";
-  let completedCleanly = false;
-  const result = streamText({
-    model: model(ctx.character.model),
-    system,
-    messages,
-    onChunk({ chunk }) {
-      if (chunk.type === "text-delta") accumulated += chunk.text;
-    },
-    onFinish() {
-      completedCleanly = true;
-    },
-  });
+  let generated;
+  try {
+    generated = await generateAssistantText({
+      character: ctx.character,
+      sceneState: ctx.sceneState,
+      system,
+      messages,
+      priorAssistant: ctx.recent
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content),
+    });
+  } catch (err) {
+    return new Response(
+      err instanceof Error ? err.message : "generation_failed",
+      { status: 500 },
+    );
+  }
+  const finalText = generated.text;
 
   after(async () => {
-    // Drain the stream so all chunks fire even if the client aborted reading.
-    try {
-      await result.consumeStream();
-    } catch {
-      // upstream error — we persist whatever we got
-    }
-    if (accumulated) {
-      const content = completedCleanly
-        ? accumulated
-        : `${accumulated}\n\n[…interrupted]`;
-      await supabase
-        .from("messages")
-        .insert({ chat_id: chatId, role: "assistant", content });
+    if (finalText) {
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        role: "assistant",
+        content: finalText,
+      });
     }
     try {
       await maybeSummarize(supabase, chatId, ctx.character);
     } catch {
       // best-effort — failures are logged inside maybeSummarize
     }
+    console.log("[chat_quality]", {
+      chatId,
+      model: generated.modelId,
+      hadRewrite: !generated.validation.ok || generated.repetitive,
+      validationOk: generated.validation.ok,
+      repetitive: generated.repetitive,
+    });
   });
 
-  return result.toTextStreamResponse();
+  return new Response(toSmoothWordStream(finalText), {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
 }

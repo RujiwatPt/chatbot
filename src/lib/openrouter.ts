@@ -21,6 +21,7 @@ const FALLBACK_MODELS = (
 // Inject the fallback chain into every chat-completions request so the
 // upstream API tries each model in order if the primary fails.
 const openrouterFetch: typeof fetch = async (input, init) => {
+  let chainUsed: string[] | null = null;
   if (
     init?.body &&
     typeof init.body === "string" &&
@@ -36,13 +37,21 @@ const openrouterFetch: typeof fetch = async (input, init) => {
           ...FALLBACK_MODELS.filter((m) => m !== body.model),
         ].slice(0, 3);
         body.models = chain;
+        chainUsed = chain;
         init = { ...init, body: JSON.stringify(body) };
       }
     } catch {
       // not JSON we recognize — pass through
     }
   }
-  return fetch(input, init);
+  const res = await fetch(input, init);
+  if (chainUsed) {
+    console.log("[openrouter_fallback_chain]", {
+      models: chainUsed,
+      status: res.status,
+    });
+  }
+  return res;
 };
 
 export const openrouter = createOpenAICompatible({
