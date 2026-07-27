@@ -300,7 +300,7 @@ export default function ChatClient({
                 <span className="text-neutral-400">…</span>
               )}
             </div>
-            {m.role === "assistant" && /^\\d+$/.test(m.id) && (
+            {m.role === "assistant" && /^\d+$/.test(m.id) && (
               <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-neutral-500">
                 <button
                   type="button"

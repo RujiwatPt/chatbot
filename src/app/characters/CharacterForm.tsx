@@ -5,6 +5,7 @@ type Character = {
   persona?: string | null;
   greeting?: string | null;
   scenario?: string | null;
+  is_public?: boolean | null;
 };
 
 export default function CharacterForm({
@@ -69,6 +70,20 @@ export default function CharacterForm({
           className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         />
       </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="is_public"
+          defaultChecked={initial?.is_public ?? false}
+          className="mt-0.5"
+        />
+        <span>
+          <span className="font-medium">Make public</span>
+          <span className="block text-xs text-neutral-500">
+            Other users can discover and chat with this character.
+          </span>
+        </span>
+      </label>
       <button
         type="submit"
         className="btn-primary"

@@ -13,14 +13,19 @@ export default async function EditCharacterPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, greeting, scenario, is_public")
+    .select("id, name, alias, persona, greeting, scenario, is_public, user_id")
     .eq("id", id)
     .maybeSingle();
 
-  // Public seed characters are read-only — no edit page.
-  if (!character || character.is_public) notFound();
+  // System seed characters are read-only — no edit page.
+  if (!character || character.user_id === null || character.user_id !== user?.id) {
+    notFound();
+  }
 
   const update = updateCharacter.bind(null, id);
   const remove = deleteCharacter.bind(null, id);

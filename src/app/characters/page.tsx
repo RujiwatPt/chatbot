@@ -7,7 +7,7 @@ export default async function CharactersPage() {
   const supabase = await createClient();
   const { data: characters } = await supabase
     .from("characters")
-    .select("id, name, persona, is_public, created_at")
+    .select("id, name, persona, is_public, user_id, created_at")
     .order("is_public", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -43,7 +43,7 @@ export default async function CharactersPage() {
                   <span className="truncate">{c.name}</span>
                   {c.is_public && (
                     <span className="text-[10px] uppercase tracking-wide rounded bg-neutral-200 px-1.5 py-0.5 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                      Featured
+                      {c.user_id === null ? "Featured" : "Public"}
                     </span>
                   )}
                 </div>

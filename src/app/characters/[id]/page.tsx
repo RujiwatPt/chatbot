@@ -12,13 +12,18 @@ export default async function CharacterDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, scenario, is_public")
+    .select("id, name, alias, persona, scenario, is_public, user_id")
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
+
+  const isOwner = character.user_id === user?.id;
 
   const { data: chats } = await supabase
     .from("chats")
@@ -45,7 +50,7 @@ export default async function CharacterDetailPage({
           )}
           {character.is_public && (
             <span className="text-[10px] uppercase tracking-wide rounded bg-neutral-200 px-1.5 py-0.5 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-              Featured
+              {character.user_id === null ? "Featured" : "Public"}
             </span>
           )}
         </div>
@@ -57,7 +62,7 @@ export default async function CharacterDetailPage({
         <p className="text-sm whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
           {character.persona}
         </p>
-        {!character.is_public && (
+        {isOwner && (
           <Link
             href={`/characters/${id}/edit`}
             className="btn-text inline-block text-xs text-neutral-500"
