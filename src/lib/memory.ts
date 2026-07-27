@@ -26,11 +26,10 @@ export type SceneState = {
 
 // How many recent messages we leave un-summarized at the tail when the
 // summarizer runs. Below this many post-summary messages, we don't summarize.
-export const RECENT_WINDOW = 20;
+export const RECENT_WINDOW = 30;
 
-// Hard cap on messages sent verbatim in a turn. Protects prompt size if the
-// summarizer is failing repeatedly (rate limits, model errors).
-const POST_SUMMARY_CAP = 60;
+// Hard cap on messages sent verbatim in a turn. Leverages high-context 70B models.
+const POST_SUMMARY_CAP = 100;
 
 // Re-summarize when there are at least this many messages past the recent
 // window since the last summary (i.e. older than the tail-N we keep verbatim).
@@ -184,7 +183,7 @@ export async function loadChatContext(
 
   const recent = ((messages ?? []).reverse()) as ChatMessage[];
 
-  // Prioritize durable fact categories and deduplicate/cap to top 15 to preserve context budget
+  // Prioritize durable fact categories and deduplicate/cap to top 30 to preserve context budget
   const uniqueFacts = Array.from(new Set(facts));
   const rank = (fact: string) => {
     if (fact.startsWith("[identity]")) return 0;
@@ -193,7 +192,7 @@ export async function loadChatContext(
     return 3;
   };
   uniqueFacts.sort((a, b) => rank(a) - rank(b));
-  const cappedFacts = uniqueFacts.slice(0, 15);
+  const cappedFacts = uniqueFacts.slice(0, 30);
 
   return { character, recent, facts: cappedFacts, sceneState, summary, feedback };
 }

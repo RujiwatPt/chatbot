@@ -8,15 +8,7 @@ import {
 import { REWRITE_SYSTEM } from "@/lib/prompts";
 
 export function pickModelId(persona: string, configured: string) {
-  const p = persona.toLowerCase();
-  const emotionallyComplex =
-    p.includes("therap") ||
-    p.includes("trauma") ||
-    p.includes("grief") ||
-    p.includes("deeply") ||
-    p.includes("reflect");
-  if (emotionallyComplex) return configured || "nvidia/nemotron-3-super-120b-a12b:free";
-  return configured || "google/gemma-4-31b-it:free";
+  return configured || "sao10k/l3.3-euryale-70b";
 }
 
 export async function generateAssistantText(params: {

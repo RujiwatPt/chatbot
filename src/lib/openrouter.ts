@@ -1,14 +1,14 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 export const DEFAULT_MODEL =
-  process.env.OPENROUTER_MODEL ?? "google/gemma-4-31b-it:free";
+  process.env.OPENROUTER_MODEL ?? "sao10k/l3.3-euryale-70b";
 
 // Fallback chain. OpenRouter accepts a `models` array in the request body
 // and tries each in order if the primary errors or is unavailable. The
 // primary model is always prepended at request time.
 const DEFAULT_FALLBACKS = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "inclusionai/ling-3.0-flash:free",
+  "sophosympatheia/midnight-rose-70b",
+  "google/gemma-4-31b-it:free",
   "openrouter/free",
 ];
 
