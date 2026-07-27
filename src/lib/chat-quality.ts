@@ -15,8 +15,8 @@ export function pickModelId(persona: string, configured: string) {
     p.includes("grief") ||
     p.includes("deeply") ||
     p.includes("reflect");
-  if (emotionallyComplex) return configured || "openai/gpt-oss-120b:free";
-  return configured || "deepseek/deepseek-chat-v3.1:free";
+  if (emotionallyComplex) return configured || "nvidia/nemotron-3-super-120b-a12b:free";
+  return configured || "google/gemma-4-31b-it:free";
 }
 
 export async function generateAssistantText(params: {

@@ -1,15 +1,15 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 export const DEFAULT_MODEL =
-  process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-chat-v3.1:free";
+  process.env.OPENROUTER_MODEL ?? "google/gemma-4-31b-it:free";
 
 // Fallback chain. OpenRouter accepts a `models` array in the request body
 // and tries each in order if the primary errors or is unavailable. The
 // primary model is always prepended at request time.
 const DEFAULT_FALLBACKS = [
-  "inclusionai/ling-2.6-1t:free",
-  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "inclusionai/ling-3.0-flash:free",
+  "openrouter/free",
 ];
 
 const FALLBACK_MODELS = (
