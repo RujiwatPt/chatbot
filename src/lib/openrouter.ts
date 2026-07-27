@@ -4,14 +4,12 @@ export const DEFAULT_MODEL =
   process.env.OPENROUTER_MODEL ?? "sao10k/l3.3-euryale-70b";
 
 // Fallback chain. OpenRouter accepts a `models` array in the request body
-// and tries each in order if the primary errors or is unavailable. The
-// primary model is always prepended at request time.
+// and tries each in order if the primary errors or is unavailable. OpenRouter
+// caps `models` at 3 entries total (primary + up to 2 fallbacks).
 const DEFAULT_FALLBACKS = [
   "sophosympatheia/midnight-rose-70b",
   "neversleep/llama-3-lumimaid-70b",
   "gryphe/mythomax-l2-13b",
-  "google/gemma-4-31b-it:free",
-  "openrouter/free",
 ];
 
 const FALLBACK_MODELS = (
@@ -33,10 +31,11 @@ const openrouterFetch: typeof fetch = async (input, init) => {
     try {
       const body = JSON.parse(init.body);
       if (typeof body?.model === "string" && !body.models) {
+        // OpenRouter API caps `models` at 3 items total (primary + up to 2 fallbacks).
         const chain = [
           body.model,
           ...FALLBACK_MODELS.filter((m) => m !== body.model),
-        ].slice(0, 5);
+        ].slice(0, 3);
         body.models = chain;
         chainUsed = chain;
         init = { ...init, body: JSON.stringify(body) };
