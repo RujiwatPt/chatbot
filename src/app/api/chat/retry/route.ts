@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     facts: ctx.facts,
     sceneState: ctx.sceneState,
     summary: ctx.summary,
+    feedback: ctx.feedback,
   });
   const messages = ctx.recent.map((m) => ({ role: m.role, content: m.content }));
 

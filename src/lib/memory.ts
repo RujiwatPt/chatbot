@@ -41,8 +41,9 @@ export function buildSystemPrompt(opts: {
   facts: string[];
   sceneState: SceneState | null;
   summary: string | null;
+  feedback?: string[];
 }) {
-  const { character, facts, sceneState, summary } = opts;
+  const { character, facts, sceneState, summary, feedback } = opts;
   const selfName = character.alias?.trim() || character.name;
   const parts: string[] = [];
   parts.push(`You are roleplaying as ${selfName}.`);
@@ -68,6 +69,24 @@ export function buildSystemPrompt(opts: {
   if (summary) {
     parts.push(`PRIOR EVENTS (summary of earlier roleplay):\n${summary}`);
   }
+  if (feedback && feedback.length > 0) {
+    const feedbackDirectives: string[] = [];
+    if (feedback.includes("too_verbose")) {
+      feedbackDirectives.push(
+        "- Keep responses concise and punchy (1-3 short paragraphs maximum). Avoid long-winded monologues.",
+      );
+    }
+    if (feedback.includes("more_in_character") || feedback.includes("too_generic")) {
+      feedbackDirectives.push(
+        "- Emphasize distinct character voice, mannerisms, and emotional reactions. Avoid neutral or generic phrasing.",
+      );
+    }
+    if (feedbackDirectives.length > 0) {
+      parts.push(
+        `USER FEEDBACK INSTRUCTIONS (adapt output style based on user preferences):\n${feedbackDirectives.join("\n")}`,
+      );
+    }
+  }
   parts.push(
     "Stay fully in character. Write evocative, natural prose. Do not break the fourth wall unless the user explicitly asks an out-of-character question.",
   );
@@ -89,6 +108,7 @@ export async function loadChatContext(
   facts: string[];
   sceneState: SceneState | null;
   summary: string | null;
+  feedback: string[];
 } | null> {
   const { data: chat } = await supabase
     .from("chats")
@@ -141,42 +161,64 @@ export async function loadChatContext(
     }
   }
 
-  // Send all messages newer than the summary's coverage. With no summary,
-  // that's the entire chat. Capped to keep prompts bounded.
+  // Fetch recent user feedback for this chat to tune response style
+  const { data: feedbackRows } = await supabase
+    .from("message_feedback")
+    .select("feedback")
+    .eq("chat_id", chatId)
+    .order("id", { ascending: false })
+    .limit(10);
+  const feedback = Array.from(
+    new Set((feedbackRows ?? []).map((f) => f.feedback as string)),
+  );
+
+  // Send all messages newer than the summary's coverage, taking the MOST RECENT
+  // messages up to POST_SUMMARY_CAP and reversing to chronological order.
   const { data: messages } = await supabase
     .from("messages")
     .select("role, content")
     .eq("chat_id", chatId)
     .gt("id", summaryUpTo)
-    .order("id", { ascending: true })
+    .order("id", { ascending: false })
     .limit(POST_SUMMARY_CAP);
 
-  const recent = (messages ?? []) as ChatMessage[];
+  const recent = ((messages ?? []).reverse()) as ChatMessage[];
 
-  // Prioritize durable fact categories if present.
+  // Prioritize durable fact categories and deduplicate/cap to top 15 to preserve context budget
+  const uniqueFacts = Array.from(new Set(facts));
   const rank = (fact: string) => {
     if (fact.startsWith("[identity]")) return 0;
     if (fact.startsWith("[promise]")) return 1;
     if (fact.startsWith("[world]")) return 2;
     return 3;
   };
-  facts.sort((a, b) => rank(a) - rank(b));
+  uniqueFacts.sort((a, b) => rank(a) - rank(b));
+  const cappedFacts = uniqueFacts.slice(0, 15);
 
-  return { character, recent, facts, sceneState, summary };
+  return { character, recent, facts: cappedFacts, sceneState, summary, feedback };
 }
 
 function extractJson(text: string): unknown | null {
+  if (!text) return null;
   // Free models sometimes wrap JSON in ```json fences or add prose. Find the
   // outermost {...} and try to parse.
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const raw = fenced ? fenced[1] : text;
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end === -1 || end <= start) return null;
+  const snippet = raw.slice(start, end + 1);
   try {
-    return JSON.parse(raw.slice(start, end + 1));
+    return JSON.parse(snippet);
   } catch {
-    return null;
+    try {
+      const sanitized = snippet
+        .replace(/,\s*([}\]])/g, "$1")
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+      return JSON.parse(sanitized);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -391,11 +433,18 @@ export async function maybeSummarize(
     );
   }
 
-  // Refresh scene state from the recent transcript tail.
-  const tail = toFold
-    .slice(-10)
+  // Refresh scene state from the most recent chat turns (actual current scene)
+  const { data: currentSceneMessages } = await supabase
+    .from("messages")
+    .select("role, content")
+    .eq("chat_id", chatId)
+    .order("id", { ascending: false })
+    .limit(10);
+
+  const tail = ((currentSceneMessages ?? []).reverse())
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
+
   try {
     const { text } = await generateText({
       model: model(character.model),

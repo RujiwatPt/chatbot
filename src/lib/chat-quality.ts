@@ -91,7 +91,7 @@ export function toSmoothWordStream(text: string) {
       const enc = new TextEncoder();
       for (const part of parts) {
         controller.enqueue(enc.encode(part));
-        await new Promise((r) => setTimeout(r, 30));
+        await new Promise((r) => setTimeout(r, 12));
       }
       controller.close();
     },

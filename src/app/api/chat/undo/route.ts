@@ -35,5 +35,22 @@ export async function POST(request: Request) {
   const { error } = await supabase.from("messages").delete().in("id", toDelete);
   if (error) return new Response(error.message, { status: 500 });
 
+  // Sanitize memory progress pointers if deleted messages were past the memory checkpoint
+  const { data: maxMsg } = await supabase
+    .from("messages")
+    .select("id")
+    .eq("chat_id", chatId)
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const maxRemainingId = (maxMsg?.id as number | undefined) ?? 0;
+
+  await supabase
+    .from("memories")
+    .update({ up_to_message_id: maxRemainingId })
+    .eq("chat_id", chatId)
+    .gt("up_to_message_id", maxRemainingId);
+
   return Response.json({ ok: true, deletedIds: toDelete.map(String) });
 }
