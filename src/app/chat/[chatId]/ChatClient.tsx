@@ -4,6 +4,24 @@ import { useEffect, useRef, useState } from "react";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
+function renderRoleplayText(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(\*[^*]+\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return (
+        <span
+          key={idx}
+          className="italic text-neutral-600 dark:text-neutral-300 font-serif leading-relaxed"
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={idx}>{part}</span>;
+  });
+}
+
 export default function ChatClient({
   chatId,
   initialMessages,
@@ -23,6 +41,7 @@ export default function ChatClient({
   const [feedbackSent, setFeedbackSent] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const didInitialScrollRef = useRef(false);
@@ -31,14 +50,23 @@ export default function ChatClient({
     abortRef.current?.abort();
   }
 
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    userScrolledUpRef.current = !isAtBottom;
+  }
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({
-      top: el.scrollHeight,
-      behavior: didInitialScrollRef.current ? "smooth" : "auto",
-    });
-    didInitialScrollRef.current = true;
+    if (!userScrolledUpRef.current) {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: didInitialScrollRef.current ? "smooth" : "auto",
+      });
+      didInitialScrollRef.current = true;
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -242,7 +270,11 @@ export default function ChatClient({
         paddingBottom: `calc(var(--safe-bottom) + ${keyboardInset}px + 0.25rem)`,
       }}
     >
-      <div ref={scrollRef} className="panel flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="panel flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
+      >
         {messages.length === 0 && (
           <p className="text-sm text-neutral-500 text-center pt-10">
             Say something to begin.
@@ -260,11 +292,11 @@ export default function ChatClient({
                   : "w-fit max-w-[92%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3 sm:max-w-[85%]"
               }
             >
-            <div className="mb-1 text-xs uppercase text-neutral-500">
+            <div className="mb-1 text-xs uppercase text-neutral-500 font-medium">
               {m.role === "assistant" ? chatbotName : "You"}
             </div>
-            <div className="whitespace-pre-wrap text-sm">
-              {m.content || (
+            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+              {renderRoleplayText(m.content) || (
                 <span className="text-neutral-400">…</span>
               )}
             </div>
