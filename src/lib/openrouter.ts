@@ -8,6 +8,8 @@ export const DEFAULT_MODEL =
 // primary model is always prepended at request time.
 const DEFAULT_FALLBACKS = [
   "sophosympatheia/midnight-rose-70b",
+  "neversleep/llama-3-lumimaid-70b",
+  "gryphe/mythomax-l2-13b",
   "google/gemma-4-31b-it:free",
   "openrouter/free",
 ];
@@ -31,11 +33,10 @@ const openrouterFetch: typeof fetch = async (input, init) => {
     try {
       const body = JSON.parse(init.body);
       if (typeof body?.model === "string" && !body.models) {
-        // OpenRouter caps `models` at 3 entries (primary + up to 2 fallbacks).
         const chain = [
           body.model,
           ...FALLBACK_MODELS.filter((m) => m !== body.model),
-        ].slice(0, 3);
+        ].slice(0, 5);
         body.models = chain;
         chainUsed = chain;
         init = { ...init, body: JSON.stringify(body) };
