@@ -45,56 +45,64 @@ export function buildSystemPrompt(opts: {
   const { character, facts, sceneState, summary, feedback } = opts;
   const selfName = character.alias?.trim() || character.name;
   const parts: string[] = [];
-  parts.push(`You are roleplaying as ${selfName}.`);
+
   parts.push(
-    `RESPONSE CONTRACT:\n- Stay fully in character for every line.\n- Write vivid but concise prose (about 2-6 short paragraphs unless the user asks for more).\n- Prefer concrete sensory/action details over generic filler.\n- Do not sound like a generic AI assistant.`,
+    `[ROLEPLAY MODE: Active]\nYou are portraying ${selfName} in an ongoing immersive roleplay scenario. Maintain high engagement, emotional resonance, and strict character adherence.`,
   );
-  parts.push(character.persona);
-  if (character.scenario) {
-    parts.push(`Scenario: ${character.scenario}`);
-  }
+
+  parts.push(
+    `<character_definition>\nName: ${selfName}\nPersona & Traits:\n${character.persona}\n${
+      character.scenario ? `Scenario: ${character.scenario}\n` : ""
+    }${
+      character.greeting
+        ? `Greeting Anchor / Voice Reference:\n*${character.greeting}*\n`
+        : ""
+    }</character_definition>`,
+  );
+
   if (sceneState) {
     parts.push(
-      `SCENE STATE:\n- Location: ${sceneState.location}\n- Tone: ${sceneState.tone}\n- Relationship: ${sceneState.relationship}\n- Immediate goal: ${sceneState.goal}`,
+      `<scene_state>\nLocation: ${sceneState.location}\nEmotional Tone: ${sceneState.tone}\nRelationship: ${sceneState.relationship}\nCurrent Goal: ${sceneState.goal}\n</scene_state>`,
     );
   }
+
   if (facts.length) {
     parts.push(
-      `KNOWN FACTS (always true, do not contradict):\n${facts
-        .map((f) => `- ${f}`)
-        .join("\n")}`,
+      `<durable_facts>\n${facts.map((f) => `- ${f}`).join("\n")}\n</durable_facts>`,
     );
   }
+
   if (summary) {
-    parts.push(`PRIOR EVENTS (summary of earlier roleplay):\n${summary}`);
+    parts.push(`<narrative_summary>\n${summary}\n</narrative_summary>`);
   }
+
+  const directives: string[] = [
+    `RESPONSE CONTRACT:`,
+    `- Stay 100% in character as ${selfName} at all times. Never output AI disclaimers or assistant phrases.`,
+    `- Write evocative, sensory-rich prose. Describe actions, body language, facial expressions, and inner feelings.`,
+    `- Format narration/actions cleanly in *asterisks* (e.g. *scoffs and steps closer*) and dialogue in plain text.`,
+    `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
+    `- Self-reference rule: Never refer to ${selfName} using first-person pronouns ("I", "me", "my", "myself"). Always use ${selfName}'s name or third-person pronouns for narration and dialogue.`,
+    `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
+  ];
+
   if (feedback && feedback.length > 0) {
-    const feedbackDirectives: string[] = [];
     if (feedback.includes("too_verbose")) {
-      feedbackDirectives.push(
-        "- Keep responses concise and punchy (1-3 short paragraphs maximum). Avoid long-winded monologues.",
+      directives.push(
+        `- USER PREFERENCE: Keep responses concise and punchy (1-3 short paragraphs maximum). Avoid long monologues.`,
       );
     }
-    if (feedback.includes("more_in_character") || feedback.includes("too_generic")) {
-      feedbackDirectives.push(
-        "- Emphasize distinct character voice, mannerisms, and emotional reactions. Avoid neutral or generic phrasing.",
-      );
-    }
-    if (feedbackDirectives.length > 0) {
-      parts.push(
-        `USER FEEDBACK INSTRUCTIONS (adapt output style based on user preferences):\n${feedbackDirectives.join("\n")}`,
+    if (
+      feedback.includes("more_in_character") ||
+      feedback.includes("too_generic")
+    ) {
+      directives.push(
+        `- USER PREFERENCE: Emphasize distinct character voice, mannerisms, and emotional reactions. Avoid generic or neutral phrasing.`,
       );
     }
   }
-  parts.push(
-    "Stay fully in character. Write evocative, natural prose. Do not break the fourth wall unless the user explicitly asks an out-of-character question.",
-  );
-  parts.push(
-    `Self-reference rule: never use first-person pronouns for the character (no "I", "me", "my", "mine", "myself"). Refer to ${selfName} by name instead, including in actions and dialogue narration.`,
-  );
-  parts.push(
-    `Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Do not call the user "${selfName}". Address the user as "you" unless the user explicitly provides their own name.`,
-  );
+
+  parts.push(directives.join("\n"));
   return parts.join("\n\n");
 }
 

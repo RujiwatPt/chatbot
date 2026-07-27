@@ -26,6 +26,8 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
+    temperature: 0.8,
+    frequencyPenalty: 0.15,
   });
   finalText = first.text.trim();
 
@@ -56,6 +58,8 @@ export async function generateAssistantText(params: {
         model: model(routedModel),
         system: `${REWRITE_SYSTEM}\n\n${system}`,
         prompt: rewritePrompt,
+        temperature: 0.7,
+        frequencyPenalty: 0.15,
       });
       finalText = rewritten.text.trim();
       validation = validateInCharacterOutput({
