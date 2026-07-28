@@ -217,35 +217,36 @@ a {
   box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
-/* User chat bubble — brand gradient, refined for light & dark. */
+/* User chat bubble — deep indigo→violet so near-white text stays high-contrast
+   and legible. All text sits at >= AA contrast in both themes. */
 .user-bubble {
-  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
+  background: linear-gradient(135deg, #5850ec 0%, #7c3aed 100%);
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #ffffff;
-  box-shadow: 0 4px 16px color-mix(in oklab, var(--brand-1), transparent 68%);
+  box-shadow: 0 4px 16px rgba(88, 80, 236, 0.28);
 }
 
 .user-bubble .user-bubble-header {
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .user-bubble .user-roleplay-italic {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 @media (prefers-color-scheme: dark) {
   .user-bubble {
-    background: linear-gradient(
-      135deg,
-      color-mix(in oklab, var(--brand-1), #0a0a12 22%) 0%,
-      color-mix(in oklab, var(--brand-2), #0a0a12 30%) 100%
-    );
-    border: 1px solid color-mix(in oklab, var(--brand-1), transparent 55%);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #3f37c9 0%, #5b21b6 100%);
+    border: 1px solid rgba(165, 180, 252, 0.3);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  .user-bubble .user-bubble-header {
+    color: rgba(226, 224, 255, 0.75);
   }
 
   .user-bubble .user-roleplay-italic {
-    color: color-mix(in oklab, var(--brand-2), white 25%);
+    color: rgba(255, 255, 255, 0.9);
   }
 }
 
