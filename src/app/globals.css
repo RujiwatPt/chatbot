@@ -266,6 +266,48 @@ a {
   background: color-mix(in oklab, var(--brand-1), transparent 94%);
 }
 
+/* Chat message text — scales with the reader's chosen size. --chat-font-scale
+   is set on <html> by FontSizeControl (default 1). */
+.chat-message-text {
+  font-size: calc(0.875rem * var(--chat-font-scale, 1));
+}
+
+/* Segmented toggle (text-size control) — neutral, no accent color. */
+.seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.seg-btn {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--muted);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.seg-btn:hover {
+  color: var(--foreground);
+}
+
+.seg-btn[aria-pressed="true"] {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.seg-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-ring);
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;

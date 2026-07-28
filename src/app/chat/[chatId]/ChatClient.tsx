@@ -335,7 +335,7 @@ export default function ChatClient({
               >
                 <span>{m.role === "assistant" ? chatbotName : "You"}</span>
               </div>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+              <div className="chat-message-text whitespace-pre-wrap leading-relaxed">
                 {renderRoleplayText(m.content, m.role === "user") || (
                   <span className="muted">…</span>
                 )}

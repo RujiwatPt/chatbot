@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar } from "@/lib/avatar";
 import ChatClient from "./ChatClient";
+import FontSizeControl from "./FontSizeControl";
 import { deleteChat } from "../actions";
 import DeleteChatButton from "./DeleteChatButton";
 
@@ -68,6 +69,7 @@ export default async function ChatPage({
           </div>
         </div>
         <div className="flex items-center gap-3 pl-1">
+          <FontSizeControl />
           <Link href="/chat" className="btn-text muted text-xs">
             All chats
           </Link>
