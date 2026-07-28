@@ -69,6 +69,25 @@ a {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.2) inset,
     0 10px 25px rgba(2, 6, 23, 0.08);
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.panel-hover:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--line), #3b82f6 40%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 16px 32px rgba(14, 165, 233, 0.12);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.avatar-ring {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--surface-solid), transparent 20%), 0 0 0 4px color-mix(in oklab, #3b82f6, transparent 60%);
 }
 
 .reveal-up {
@@ -143,14 +162,22 @@ a {
 .badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 0.25rem;
-  background: color-mix(in oklab, var(--foreground), transparent 90%);
-  padding: 0.125rem 0.375rem;
-  font-size: 0.625rem;
-  font-weight: 500;
+  border-radius: 0.375rem;
+  background: color-mix(in oklab, #3b82f6, transparent 88%);
+  border: 1px solid color-mix(in oklab, #3b82f6, transparent 75%);
+  padding: 0.15rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge {
+    color: #60a5fa;
+    background: color-mix(in oklab, #3b82f6, transparent 85%);
+  }
 }
 
 .card-link {

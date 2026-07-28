@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
@@ -26,10 +27,12 @@ export default function ChatClient({
   chatId,
   initialMessages,
   chatbotName,
+  avatarUrl,
 }: {
   chatId: string;
   initialMessages: Msg[];
   chatbotName: string;
+  avatarUrl?: string;
 }) {
   const COOLDOWN_MS = 1200;
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
@@ -80,8 +83,6 @@ export default function ChatClient({
     if (!vv) return;
 
     const updateInset = () => {
-      // Works for iOS + Android virtual keyboard: when keyboard opens, visual
-      // viewport shrinks and/or shifts. Convert that into bottom inset.
       const inset = Math.max(
         0,
         Math.round(window.innerHeight - vv.height - vv.offsetTop),
@@ -153,7 +154,6 @@ export default function ChatClient({
       const aborted =
         err instanceof DOMException && err.name === "AbortError";
       if (aborted) {
-        // Keep whatever streamed so far; mark it interrupted in the UI.
         setMessages((m) =>
           m.map((x) =>
             x.id === assistantId
@@ -283,48 +283,59 @@ export default function ChatClient({
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`${m.role === "user" ? "flex justify-end" : "flex justify-start"} message-in`}
+            className={`${m.role === "user" ? "flex justify-end" : "flex justify-start gap-2.5 items-start"} message-in`}
           >
+            {m.role === "assistant" && avatarUrl && (
+              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm mt-1">
+                <Image
+                  src={avatarUrl}
+                  alt={chatbotName}
+                  width={32}
+                  height={32}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
             <div
               className={
                 m.role === "user"
-                  ? "w-fit max-w-[92%] rounded-xl bg-white/75 p-3 dark:bg-slate-900/70 sm:max-w-[85%]"
-                  : "w-fit max-w-[92%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3 sm:max-w-[85%]"
+                  ? "w-fit max-w-[92%] rounded-xl bg-blue-600 px-3.5 py-2.5 text-white shadow-sm sm:max-w-[85%]"
+                  : "w-fit max-w-[92%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3.5 sm:max-w-[85%]"
               }
             >
-            <div className="muted mb-1 text-xs font-medium uppercase">
-              {m.role === "assistant" ? chatbotName : "You"}
-            </div>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {renderRoleplayText(m.content) || (
-                <span className="muted">…</span>
-              )}
-            </div>
-            {m.role === "assistant" && /^\d+$/.test(m.id) && (
-              <div className="muted mt-2 flex flex-wrap gap-2 text-[11px]">
-                <button
-                  type="button"
-                  className="btn-text"
-                  onClick={() => sendFeedback(m.id, "more_in_character")}
-                >
-                  More in character
-                </button>
-                <button
-                  type="button"
-                  className="btn-text"
-                  onClick={() => sendFeedback(m.id, "too_generic")}
-                >
-                  Too generic
-                </button>
-                <button
-                  type="button"
-                  className="btn-text"
-                  onClick={() => sendFeedback(m.id, "too_verbose")}
-                >
-                  Too verbose
-                </button>
+              <div className="muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-2">
+                <span>{m.role === "assistant" ? chatbotName : "You"}</span>
               </div>
-            )}
+              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {renderRoleplayText(m.content) || (
+                  <span className="muted">…</span>
+                )}
+              </div>
+              {m.role === "assistant" && /^\d+$/.test(m.id) && (
+                <div className="muted mt-2.5 flex flex-wrap gap-2 text-[11px] pt-1 border-t border-[var(--line)]">
+                  <button
+                    type="button"
+                    className="btn-text"
+                    onClick={() => sendFeedback(m.id, "more_in_character")}
+                  >
+                    {feedbackSent[m.id] === "more_in_character" ? "✓ More in character" : "More in character"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-text"
+                    onClick={() => sendFeedback(m.id, "too_generic")}
+                  >
+                    {feedbackSent[m.id] === "too_generic" ? "✓ Too generic" : "Too generic"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-text"
+                    onClick={() => sendFeedback(m.id, "too_verbose")}
+                  >
+                    {feedbackSent[m.id] === "too_verbose" ? "✓ Too verbose" : "Too verbose"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}

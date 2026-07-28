@@ -1,6 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCharacterAvatar } from "@/lib/avatar";
 import ChatClient from "./ChatClient";
 import { deleteChat } from "../actions";
 import DeleteChatButton from "./DeleteChatButton";
@@ -27,6 +29,8 @@ export default async function ChatPage({
     ? chat.character[0]
     : chat.character;
 
+  const avatarUrl = getCharacterAvatar(character?.name || "", character?.alias);
+
   const { data: rows } = await supabase
     .from("messages")
     .select("id, role, content")
@@ -42,13 +46,25 @@ export default async function ChatPage({
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-2 sm:py-4">
-      <header className="panel shell flex w-full flex-wrap items-center justify-between gap-2 px-3 py-3 sm:px-4">
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate">
-            {chat.title ?? character?.name ?? "Chat"}
+      <header className="panel shell flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm">
+            <Image
+              src={avatarUrl}
+              alt={character?.name || "Avatar"}
+              width={64}
+              height={64}
+              className="h-full w-full object-cover"
+            />
           </div>
-          <div className="muted text-xs truncate">
-            {character?.name}
+          <div className="min-w-0">
+            <div className="text-sm font-bold truncate">
+              {chat.title ?? character?.alias ?? character?.name ?? "Chat"}
+            </div>
+            <div className="muted text-xs truncate flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {character?.alias || character?.name}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3 pl-1">
@@ -64,6 +80,7 @@ export default async function ChatPage({
         chatId={chatId}
         initialMessages={initialMessages}
         chatbotName={character?.alias ?? character?.name ?? "Chatbot"}
+        avatarUrl={avatarUrl}
       />
     </main>
   );
