@@ -17,7 +17,7 @@ export default async function Home() {
       <section className="panel shell reveal-up overflow-hidden p-5 sm:p-10">
         <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-end">
           <div className="space-y-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] muted">
               Roleplay Chatbot
             </p>
             <h1 className="page-title text-3xl sm:text-5xl">
@@ -41,10 +41,10 @@ export default async function Home() {
 
           <div className="panel stagger-item p-4">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
+              <div className="muted text-xs uppercase tracking-wider">
                 Live preview
               </div>
-              <span className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[color:var(--muted)]">
+              <span className="muted rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px]">
                 Streaming
               </span>
             </div>
@@ -63,19 +63,19 @@ export default async function Home() {
       <section className="shell mt-6 grid gap-3 sm:grid-cols-3">
         <article className="panel stagger-item p-4" style={{ animationDelay: "80ms" }}>
           <h2 className="text-sm font-semibold">Persistent Memory</h2>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
+          <p className="muted mt-2 text-sm">
             Conversations stay coherent across sessions with context-aware recall.
           </p>
         </article>
         <article className="panel stagger-item p-4" style={{ animationDelay: "140ms" }}>
           <h2 className="text-sm font-semibold">Custom Personas</h2>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
+          <p className="muted mt-2 text-sm">
             Create and tune each character&apos;s personality, tone, and scenario.
           </p>
         </article>
         <article className="panel stagger-item p-4" style={{ animationDelay: "200ms" }}>
           <h2 className="text-sm font-semibold">Fast Streaming</h2>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
+          <p className="muted mt-2 text-sm">
             Responsive message streaming with clear controls and anti-spam safety.
           </p>
         </article>

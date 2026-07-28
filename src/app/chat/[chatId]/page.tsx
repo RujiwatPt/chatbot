@@ -47,12 +47,12 @@ export default async function ChatPage({
           <div className="text-sm font-medium truncate">
             {chat.title ?? character?.name ?? "Chat"}
           </div>
-          <div className="text-xs text-neutral-500 truncate">
+          <div className="muted text-xs truncate">
             {character?.name}
           </div>
         </div>
         <div className="flex items-center gap-3 pl-1">
-          <Link href="/chat" className="btn-text text-xs">
+          <Link href="/chat" className="btn-text muted text-xs">
             All chats
           </Link>
           <form action={deleteChat.bind(null, chatId)}>

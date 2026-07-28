@@ -12,19 +12,16 @@ export default async function CharactersPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="shell space-y-5 px-1 py-5 sm:space-y-6 sm:py-8">
+    <main className="page">
       <div className="reveal-up flex items-center justify-between">
         <h1 className="page-title">Characters</h1>
-        <Link
-          href="/characters/new"
-          className="btn-primary px-3 py-1.5 text-sm"
-        >
+        <Link href="/characters/new" className="btn-primary btn-sm">
           New
         </Link>
       </div>
 
       {!characters?.length ? (
-        <p className="text-sm text-neutral-500">
+        <p className="muted text-sm">
           No characters yet. Create one to start a chat.
         </p>
       ) : (
@@ -35,19 +32,16 @@ export default async function CharactersPage() {
               className="panel stagger-item overflow-hidden"
               style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
             >
-              <Link
-                href={`/characters/${c.id}`}
-                className="block p-4 transition-colors hover:bg-white/40 dark:hover:bg-slate-900/40"
-              >
-                <div className="font-medium truncate flex items-center gap-2">
+              <Link href={`/characters/${c.id}`} className="card-link">
+                <div className="flex items-center gap-2 truncate font-medium">
                   <span className="truncate">{c.name}</span>
                   {c.is_public && (
-                    <span className="text-[10px] uppercase tracking-wide rounded bg-neutral-200 px-1.5 py-0.5 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                    <span className="badge">
                       {c.user_id === null ? "Featured" : "Public"}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-neutral-500 line-clamp-2 mt-1">
+                <p className="muted mt-1 line-clamp-2 text-xs">
                   {c.persona_display ?? c.persona}
                 </p>
               </Link>

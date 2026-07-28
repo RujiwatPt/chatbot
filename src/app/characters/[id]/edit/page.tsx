@@ -31,11 +31,8 @@ export default async function EditCharacterPage({
   const remove = deleteCharacter.bind(null, id);
 
   return (
-    <main className="shell space-y-5 px-1 py-5 sm:space-y-6 sm:py-8">
-      <Link
-        href={`/characters/${id}`}
-        className="btn-text text-xs text-neutral-500"
-      >
+    <main className="page">
+      <Link href={`/characters/${id}`} className="btn-text muted text-xs">
         ← Back to {character.name}
       </Link>
       <h1 className="page-title">Edit character</h1>
@@ -43,7 +40,7 @@ export default async function EditCharacterPage({
         <CharacterForm action={update} initial={character} submitLabel="Save" />
       </div>
       <form action={remove}>
-        <button type="submit" className="btn-text text-xs text-red-600">
+        <button type="submit" className="btn-text btn-danger text-xs">
           Delete character
         </button>
       </form>

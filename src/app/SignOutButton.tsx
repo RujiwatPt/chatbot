@@ -13,7 +13,7 @@ export default function SignOutButton() {
         router.replace("/");
         router.refresh();
       }}
-      className="btn-text text-xs text-neutral-500"
+      className="btn-text muted text-xs"
     >
       Sign out
     </button>

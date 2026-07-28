@@ -276,7 +276,7 @@ export default function ChatClient({
         className="panel flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
       >
         {messages.length === 0 && (
-          <p className="text-sm text-neutral-500 text-center pt-10">
+          <p className="muted pt-10 text-center text-sm">
             Say something to begin.
           </p>
         )}
@@ -292,16 +292,16 @@ export default function ChatClient({
                   : "w-fit max-w-[92%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3 sm:max-w-[85%]"
               }
             >
-            <div className="mb-1 text-xs uppercase text-neutral-500 font-medium">
+            <div className="muted mb-1 text-xs font-medium uppercase">
               {m.role === "assistant" ? chatbotName : "You"}
             </div>
             <div className="whitespace-pre-wrap text-sm leading-relaxed">
               {renderRoleplayText(m.content) || (
-                <span className="text-neutral-400">…</span>
+                <span className="muted">…</span>
               )}
             </div>
             {m.role === "assistant" && /^\d+$/.test(m.id) && (
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-neutral-500">
+              <div className="muted mt-2 flex flex-wrap gap-2 text-[11px]">
                 <button
                   type="button"
                   className="btn-text"
@@ -329,7 +329,7 @@ export default function ChatClient({
           </div>
         ))}
         {error && (
-          <p className="text-sm text-red-600 text-center">{error}</p>
+          <p className="btn-danger text-center text-sm">{error}</p>
         )}
       </div>
       <form
@@ -339,7 +339,7 @@ export default function ChatClient({
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            className="btn-outline min-h-11 px-3 text-xs"
+            className="btn-outline btn-sm min-h-11"
             onClick={retryLast}
             disabled={busy}
           >
@@ -347,7 +347,7 @@ export default function ChatClient({
           </button>
           <button
             type="button"
-            className="btn-outline min-h-11 px-3 text-xs text-red-700 dark:text-red-300"
+            className="btn-outline btn-sm btn-danger min-h-11"
             onClick={undoLastTurn}
             disabled={busy}
           >
@@ -365,7 +365,7 @@ export default function ChatClient({
           }}
           rows={2}
           placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
-          className="min-h-11 flex-1 resize-none rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="field min-h-11 flex-1 resize-none"
         />
         {busy ? (
           <button

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "./Nav";
@@ -16,6 +16,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Roleplay Chatbot",
   description: "Persistent-memory roleplay with your own characters.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Let the on-screen keyboard resize the layout so the sticky composer stays
+  // above it instead of being overlapped.
+  interactiveWidget: "resizes-content",
+  // Required for env(safe-area-inset-*) to report real values (notch / home bar).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

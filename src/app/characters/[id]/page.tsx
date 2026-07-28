@@ -39,11 +39,8 @@ export default async function CharacterDetailPage({
   const start = startChat.bind(null, id);
 
   return (
-    <main className="shell space-y-5 px-1 py-5 sm:space-y-6 sm:py-8">
-      <Link
-        href="/characters"
-        className="btn-text text-xs text-neutral-500"
-      >
+    <main className="page">
+      <Link href="/characters" className="btn-text muted text-xs">
         ← All characters
       </Link>
 
@@ -51,26 +48,24 @@ export default async function CharacterDetailPage({
         <div className="flex items-center gap-2">
           <h1 className="page-title">{character.name}</h1>
           {character.alias && (
-            <span className="text-xs text-neutral-500">({character.alias})</span>
+            <span className="muted text-xs">({character.alias})</span>
           )}
           {character.is_public && (
-            <span className="text-[10px] uppercase tracking-wide rounded bg-neutral-200 px-1.5 py-0.5 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+            <span className="badge">
               {character.user_id === null ? "Featured" : "Public"}
             </span>
           )}
         </div>
         {character.scenario && (
-          <p className="text-sm text-neutral-500 italic">
-            {character.scenario}
-          </p>
+          <p className="muted text-sm italic">{character.scenario}</p>
         )}
-        <p className="text-sm whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
+        <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
           {character.persona_display ?? character.persona}
         </p>
         {isOwner && (
           <Link
             href={`/characters/${id}/edit`}
-            className="btn-text inline-block text-xs text-neutral-500"
+            className="btn-text muted inline-block text-xs"
           >
             Edit character
           </Link>
@@ -81,12 +76,12 @@ export default async function CharacterDetailPage({
         <h2 className="text-sm font-medium">Your chats with {character.name}</h2>
 
         <form action={start} className="panel space-y-3 p-4">
-          <p className="text-xs text-neutral-500">
+          <p className="muted text-xs">
             How should {character.name} refer to you in this chat?
           </p>
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <div className="space-y-1">
-              <label htmlFor="user_name" className="text-xs font-medium">
+              <label htmlFor="user_name" className="label">
                 Your name
               </label>
               <input
@@ -95,18 +90,18 @@ export default async function CharacterDetailPage({
                 maxLength={60}
                 defaultValue={profile?.display_name ?? ""}
                 placeholder="e.g. Alex"
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="field"
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="user_pronouns" className="text-xs font-medium">
+              <label htmlFor="user_pronouns" className="label">
                 Your pronouns
               </label>
               <select
                 id="user_pronouns"
                 name="user_pronouns"
                 defaultValue=""
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="field"
               >
                 <option value="">Prefer not to say</option>
                 <option value="she/her">she/her</option>
@@ -115,7 +110,7 @@ export default async function CharacterDetailPage({
               </select>
             </div>
           </div>
-          <button type="submit" className="btn-primary px-3 py-1.5 text-xs">
+          <button type="submit" className="btn-primary btn-sm">
             Start new chat
           </button>
         </form>
@@ -125,7 +120,7 @@ export default async function CharacterDetailPage({
         <h2 className="text-sm font-medium">History</h2>
 
         {!chats?.length ? (
-          <p className="text-sm text-neutral-500">
+          <p className="muted text-sm">
             No chats yet. Start a new one to begin.
           </p>
         ) : (
@@ -136,14 +131,11 @@ export default async function CharacterDetailPage({
                 className="panel stagger-item overflow-hidden"
                 style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
               >
-                <Link
-                  href={`/chat/${c.id}`}
-                  className="block p-4 transition-colors hover:bg-white/40 dark:hover:bg-slate-900/40"
-                >
+                <Link href={`/chat/${c.id}`} className="card-link">
                   <div className="text-sm font-medium">
                     {c.title ?? "Untitled"}
                   </div>
-                  <div className="text-xs text-neutral-500">
+                  <div className="muted text-xs">
                     {new Date(c.created_at).toLocaleString()}
                   </div>
                 </Link>

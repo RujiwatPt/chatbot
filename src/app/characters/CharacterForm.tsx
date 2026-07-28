@@ -20,54 +20,54 @@ export default function CharacterForm({
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-1">
-        <label className="text-sm font-medium">Name</label>
+        <label className="label">Name</label>
         <input
           name="name"
           required
           maxLength={120}
           defaultValue={initial?.name ?? ""}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="field"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Alias (optional)</label>
+        <label className="label">Alias (optional)</label>
         <input
           name="alias"
           maxLength={120}
           defaultValue={initial?.alias ?? ""}
           placeholder="Used by the bot for self-reference (e.g., Kael)"
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="field"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Persona</label>
+        <label className="label">Persona</label>
         <textarea
           name="persona"
           required
           rows={6}
           defaultValue={initial?.persona ?? ""}
           placeholder="Describe who this character is, their voice, traits, mannerisms…"
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="field"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Scenario (optional)</label>
+        <label className="label">Scenario (optional)</label>
         <textarea
           name="scenario"
           rows={3}
           defaultValue={initial?.scenario ?? ""}
           placeholder="The setting or situation the roleplay starts in."
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="field"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Greeting (optional)</label>
+        <label className="label">Greeting (optional)</label>
         <textarea
           name="greeting"
           rows={2}
           defaultValue={initial?.greeting ?? ""}
           placeholder="The character's first line in any new chat."
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="field"
         />
       </div>
       <label className="flex items-start gap-2 text-sm">
@@ -79,15 +79,12 @@ export default function CharacterForm({
         />
         <span>
           <span className="font-medium">Make public</span>
-          <span className="block text-xs text-neutral-500">
+          <span className="muted block text-xs">
             Other users can discover and chat with this character.
           </span>
         </span>
       </label>
-      <button
-        type="submit"
-        className="btn-primary"
-      >
+      <button type="submit" className="btn-primary">
         {submitLabel}
       </button>
     </form>

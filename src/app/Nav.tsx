@@ -15,7 +15,7 @@ export default async function Nav() {
         <Link href="/characters" className="font-medium">
           Roleplay
         </Link>
-        <div className="order-3 flex w-full gap-4 text-[color:var(--muted)] sm:order-2 sm:w-auto sm:flex-1">
+        <div className="muted order-3 flex w-full gap-4 sm:order-2 sm:w-auto sm:flex-1">
           <Link href="/characters" className="btn-text">
             Characters
           </Link>
@@ -24,7 +24,7 @@ export default async function Nav() {
           </Link>
         </div>
         {user.email && (
-          <span className="order-2 text-xs text-neutral-500 hidden sm:inline">
+          <span className="muted order-2 hidden text-xs sm:inline">
             {user.email}
           </span>
         )}
