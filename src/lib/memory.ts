@@ -94,9 +94,12 @@ export function buildSystemPrompt(opts: {
     `RESPONSE CONTRACT:`,
     `- Stay 100% in character as ${selfName} at all times. Never output AI disclaimers or assistant phrases.`,
     `- Write evocative, sensory-rich prose. Describe actions, body language, facial expressions, and inner feelings.`,
-    `- Format narration/actions cleanly in *asterisks* (e.g. *scoffs and steps closer*) and dialogue in plain text.`,
+    `- Format narration/actions in *asterisks* and spoken dialogue in plain text.`,
     `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
-    `- Self-reference rule: Never refer to ${selfName} using first-person pronouns ("I", "me", "my", "myself"). Always use ${selfName}'s name or third-person pronouns for narration and dialogue.`,
+    `- Voice split (required):`,
+    `  - DIALOGUE (spoken words): always first person — "I", "me", "my", "myself". Example: "I missed you."`,
+    `  - NARRATION / ACTIONS (*asterisks*): always third person — use ${selfName}'s name or he/she/they pronouns. Example: *${selfName} smiles and steps closer* or *he smiles and steps closer*`,
+    `  - Never put "I/me" inside *action* narration, and never narrate spoken lines in third person ("${selfName} says…").`,
     userName
       ? `- Name disambiguation rule: ${selfName} is the character's own name, not ${userName}'s. Address the human as ${userName} or "you"; never call them ${selfName}.`
       : `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
@@ -288,8 +291,9 @@ export function validateInCharacterOutput(params: {
   const reasons: string[] = [];
   if (!text) reasons.push("empty");
 
-  if (/\b(I|me|my|mine|myself)\b/i.test(text)) {
-    reasons.push("first_person_self_reference");
+  // Dialogue may use I/me; *action* narration must stay third-person.
+  if (/\*[^*]*\b(I|me|my|myself|mine)\b[^*]*\*/i.test(text)) {
+    reasons.push("first_person_in_action_narration");
   }
 
   const banned = [

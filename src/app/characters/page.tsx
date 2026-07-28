@@ -15,14 +15,14 @@ export default async function CharactersPage() {
 
   return (
     <main className="page">
-      <div className="reveal-up flex items-center justify-between">
-        <div>
+      <div className="reveal-up flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="page-title font-extrabold">Characters</h1>
-          <p className="page-subtitle text-xs sm:text-sm mt-0.5">
+          <p className="page-subtitle mt-0.5 text-xs sm:text-sm">
             Select a companion or build your own custom roleplay persona.
           </p>
         </div>
-        <Link href="/characters/new" className="btn-primary btn-sm px-4 py-2">
+        <Link href="/characters/new" className="btn-primary btn-sm shrink-0 px-4 py-2">
           + New Character
         </Link>
       </div>
@@ -32,43 +32,60 @@ export default async function CharactersPage() {
           No characters yet. Create one to start a chat.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <ul className="flex flex-col gap-3 sm:gap-4">
           {characters.map((c, i) => {
             const avatarUrl = getCharacterAvatar(c.name, c.alias);
             return (
-              <div
+              <li
                 key={c.id}
                 className="panel panel-hover stagger-item overflow-hidden"
                 style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
               >
-                <Link href={`/characters/${c.id}`} className="card-link flex gap-3.5 items-start">
-                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm">
+                <Link
+                  href={`/characters/${c.id}`}
+                  className="card-link flex items-stretch gap-3.5 sm:gap-5"
+                >
+                  {/* Large portrait — vertical list gives this room the grid never had. */}
+                  <div className="relative h-36 w-28 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm sm:h-44 sm:w-36">
                     <Image
                       src={avatarUrl}
                       alt={c.name}
-                      width={100}
-                      height={100}
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="(max-width: 640px) 112px, 144px"
+                      className="object-cover"
                     />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 truncate font-bold text-sm sm:text-base">
-                      <span className="truncate">{c.alias || c.name}</span>
+
+                  <div className="flex min-w-0 flex-1 flex-col justify-center py-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="truncate text-lg font-bold sm:text-xl">
+                        {c.alias || c.name}
+                      </h2>
                       {c.is_public && (
                         <span className="badge shrink-0">
                           {c.user_id === null ? "Featured" : "Public"}
                         </span>
                       )}
                     </div>
-                    <p className="muted mt-1 line-clamp-2 text-xs leading-relaxed">
+                    {c.alias && c.alias !== c.name && (
+                      <p className="muted mt-0.5 text-xs">{c.name}</p>
+                    )}
+                    <p className="muted mt-2 line-clamp-4 text-sm leading-relaxed sm:line-clamp-5 sm:text-[0.9375rem]">
                       {c.persona_display ?? c.persona}
                     </p>
                   </div>
+
+                  <span
+                    className="muted hidden shrink-0 self-center text-2xl sm:block"
+                    aria-hidden
+                  >
+                    ›
+                  </span>
                 </Link>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </main>
   );
