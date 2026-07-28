@@ -46,7 +46,7 @@ export default async function ChatPage({
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-2 sm:py-4">
-      <header className="panel shell flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+      <header className="panel shell shrink-0 flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm">
             <Image

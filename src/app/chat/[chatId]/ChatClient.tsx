@@ -94,22 +94,14 @@ export default function ChatClient({
       setKeyboardInset(inset);
     };
 
-    const handleWindowScroll = () => {
-      if (window.scrollY !== 0) {
-        window.scrollTo(0, 0);
-      }
-    };
-
     updateInset();
     vv.addEventListener("resize", updateInset);
     vv.addEventListener("scroll", updateInset);
     window.addEventListener("orientationchange", updateInset);
-    window.addEventListener("scroll", handleWindowScroll);
     return () => {
       vv.removeEventListener("resize", updateInset);
       vv.removeEventListener("scroll", updateInset);
       window.removeEventListener("orientationchange", updateInset);
-      window.removeEventListener("scroll", handleWindowScroll);
     };
   }, []);
 
@@ -304,7 +296,7 @@ export default function ChatClient({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="panel flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
+        className="panel min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
       >
         {messages.length === 0 && (
           <p className="muted pt-10 text-center text-sm">
@@ -382,7 +374,7 @@ export default function ChatClient({
       </div>
       <form
         onSubmit={send}
-        className="panel sticky bottom-0 mt-2 flex items-end gap-2 p-2.5 sm:mt-3 sm:p-3"
+        className="panel shrink-0 mt-2 flex items-end gap-2 p-2.5 sm:mt-3 sm:p-3"
       >
         <div className="flex flex-col gap-2">
           <button
