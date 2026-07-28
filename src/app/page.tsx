@@ -16,7 +16,7 @@ export default async function Home() {
   const featured = [
     { name: "Aiko", title: "Tsundere classmate", avatar: "/images/avatar_aiko.jpg", badge: "Anime" },
     { name: "Sam", title: "Childhood bestfriend", avatar: "/images/avatar_sam.jpg", badge: "Cozy" },
-    { name: "Kael", title: "Wolfman companion", avatar: "/images/avatar_kael.jpg", badge: "Fantasy" },
+    { name: "Kael", title: "Wolf beastman companion", avatar: "/images/avatar_kael.jpg", badge: "Fantasy" },
     { name: "Dr. Mira Vance", title: "Licensed therapist", avatar: "/images/avatar_mira.jpg", badge: "Support" },
   ];
 
