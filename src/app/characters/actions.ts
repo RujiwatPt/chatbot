@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { generatePersonaBio } from "@/lib/persona";
 
 function readForm(form: FormData) {
   return {
@@ -34,6 +35,20 @@ export async function createCharacter(form: FormData) {
     .single();
   if (error) throw new Error(error.message);
 
+  // Best-effort: generate a reader-friendly third-person bio. Never blocks the
+  // save — generatePersonaBio swallows failures and returns null.
+  const bio = await generatePersonaBio({
+    name: payload.name,
+    persona: payload.persona,
+    scenario: payload.scenario,
+  });
+  if (bio) {
+    await supabase
+      .from("characters")
+      .update({ persona_display: bio })
+      .eq("id", data.id);
+  }
+
   revalidatePath("/characters");
   redirect(`/characters/${data.id}`);
 }
@@ -49,6 +64,21 @@ export async function updateCharacter(id: string, form: FormData) {
     .update(payload)
     .eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Refresh the third-person bio from the edited persona. Only overwrite when
+  // generation succeeds, so a transient failure keeps the previous good bio.
+  const bio = await generatePersonaBio({
+    name: payload.name,
+    persona: payload.persona,
+    scenario: payload.scenario,
+  });
+  if (bio) {
+    await supabase
+      .from("characters")
+      .update({ persona_display: bio })
+      .eq("id", id);
+  }
+
   revalidatePath("/characters");
   revalidatePath(`/characters/${id}`);
 }

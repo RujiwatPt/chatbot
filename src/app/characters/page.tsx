@@ -7,7 +7,7 @@ export default async function CharactersPage() {
   const supabase = await createClient();
   const { data: characters } = await supabase
     .from("characters")
-    .select("id, name, persona, is_public, user_id, created_at")
+    .select("id, name, persona, persona_display, is_public, user_id, created_at")
     .order("is_public", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -48,7 +48,7 @@ export default async function CharactersPage() {
                   )}
                 </div>
                 <p className="text-xs text-neutral-500 line-clamp-2 mt-1">
-                  {c.persona}
+                  {c.persona_display ?? c.persona}
                 </p>
               </Link>
             </li>

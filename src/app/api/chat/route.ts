@@ -20,6 +20,34 @@ const Body = z.object({
 // Uses RLS-scoped count, so each authed user's window is isolated.
 const RATE_LIMIT_PER_MINUTE = 20;
 
+// Detect an explicit "call me X" / "my name is X" request so we can remember
+// what the user wants to be called and prioritize it for the rest of the chat.
+const NAME_REQUEST_PATTERNS = [
+  /\byou can call me\s+([\p{L}][\p{L}'-]{0,29})/iu,
+  /\bcall me\s+([\p{L}][\p{L}'-]{0,29})/iu,
+  /\bmy name('?s| is)\s+([\p{L}][\p{L}'-]{0,29})/iu,
+  /\bi go by\s+([\p{L}][\p{L}'-]{0,29})/iu,
+  /\bi'?m called\s+([\p{L}][\p{L}'-]{0,29})/iu,
+];
+// Words that follow "call me" but aren't names.
+const NAME_STOPWORDS = new Set([
+  "maybe", "later", "back", "now", "tonight", "tomorrow", "when", "if",
+  "please", "that", "this", "anytime", "sometime", "crazy",
+]);
+
+function detectPreferredName(message: string): string | null {
+  for (const re of NAME_REQUEST_PATTERNS) {
+    const m = message.match(re);
+    if (!m) continue;
+    // The name is the last captured group (patterns with an alternation use $2).
+    const captured = m[m.length - 1]?.trim();
+    if (!captured) continue;
+    if (NAME_STOPWORDS.has(captured.toLowerCase())) continue;
+    return captured.charAt(0).toUpperCase() + captured.slice(1);
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   // Auth was already enforced by middleware; RLS handles per-row authorization.
   const supabase = await createClient();
@@ -46,6 +74,17 @@ export async function POST(request: Request) {
     });
   }
 
+  // If the user asks to be called something, remember it on the chat so it
+  // persists and takes priority for the rest of the conversation.
+  const preferredName = detectPreferredName(message);
+  if (preferredName && preferredName !== ctx.userName) {
+    await supabase
+      .from("chats")
+      .update({ user_name: preferredName })
+      .eq("id", chatId);
+  }
+  const effectiveUserName = preferredName ?? ctx.userName;
+
   // Persist the user's new message (RLS guarantees the chat is theirs)
   {
     const { error } = await supabase
@@ -60,6 +99,8 @@ export async function POST(request: Request) {
     sceneState: ctx.sceneState,
     summary: ctx.summary,
     feedback: ctx.feedback,
+    userName: effectiveUserName,
+    userPronouns: ctx.userPronouns,
   });
 
   const messages = [

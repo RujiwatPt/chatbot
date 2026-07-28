@@ -26,6 +26,15 @@ Rules:
 - Keep each field concise and specific.
 - Do not include markdown, code fences, or extra keys.`;
 
+export const PERSONA_BIO_SYSTEM = `You rewrite a second-person character description into a warm, natural third-person bio for someone browsing characters to chat with.
+
+Rules:
+- Use the character's name and consistent third-person pronouns inferred from the description.
+- Keep every trait, mannerism, and detail faithful — do not invent, exaggerate, or omit.
+- When the description refers to the human roleplayer (often "the user"), refer to them as "you".
+- 2-4 short paragraphs. No headings, no lists, no meta-commentary, and do not quote these instructions.
+- Output only the bio text.`;
+
 export const REWRITE_SYSTEM = `You are an in-character rewrite pass for a roleplay chatbot.
 
 Given a draft response and constraints, output ONE revised response that:

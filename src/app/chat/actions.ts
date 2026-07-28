@@ -4,12 +4,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function startChat(characterId: string) {
+export async function startChat(characterId: string, formData?: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const userName = String(formData?.get("user_name") ?? "").trim() || null;
+  const userPronouns =
+    String(formData?.get("user_pronouns") ?? "").trim() || null;
 
   const { data: character, error: cerr } = await supabase
     .from("characters")
@@ -25,6 +29,8 @@ export async function startChat(characterId: string) {
       user_id: user.id,
       character_id: character.id,
       title: character.name,
+      user_name: userName,
+      user_pronouns: userPronouns,
     })
     .select("id")
     .single();

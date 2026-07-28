@@ -41,9 +41,13 @@ export function buildSystemPrompt(opts: {
   sceneState: SceneState | null;
   summary: string | null;
   feedback?: string[];
+  userName?: string | null;
+  userPronouns?: string | null;
 }) {
   const { character, facts, sceneState, summary, feedback } = opts;
   const selfName = character.alias?.trim() || character.name;
+  const userName = opts.userName?.trim() || "";
+  const userPronouns = opts.userPronouns?.trim() || "";
   const parts: string[] = [];
 
   parts.push(
@@ -59,6 +63,16 @@ export function buildSystemPrompt(opts: {
         : ""
     }</character_definition>`,
   );
+
+  if (userName || userPronouns) {
+    parts.push(
+      `<user_profile>\nThe person you are roleplaying with${
+        userName ? ` is named ${userName}` : ""
+      }.${
+        userPronouns ? ` Use ${userPronouns} pronouns when referring to them.` : ""
+      }\n</user_profile>`,
+    );
+  }
 
   if (sceneState) {
     parts.push(
@@ -83,7 +97,9 @@ export function buildSystemPrompt(opts: {
     `- Format narration/actions cleanly in *asterisks* (e.g. *scoffs and steps closer*) and dialogue in plain text.`,
     `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
     `- Self-reference rule: Never refer to ${selfName} using first-person pronouns ("I", "me", "my", "myself"). Always use ${selfName}'s name or third-person pronouns for narration and dialogue.`,
-    `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
+    userName
+      ? `- Name disambiguation rule: ${selfName} is the character's own name, not ${userName}'s. Address the human as ${userName} or "you"; never call them ${selfName}.`
+      : `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
   ];
 
   if (feedback && feedback.length > 0) {
@@ -116,10 +132,14 @@ export async function loadChatContext(
   sceneState: SceneState | null;
   summary: string | null;
   feedback: string[];
+  userName: string | null;
+  userPronouns: string | null;
 } | null> {
   const { data: chat } = await supabase
     .from("chats")
-    .select("character:characters(name, alias, persona, scenario, greeting, model)")
+    .select(
+      "user_name, user_pronouns, character:characters(name, alias, persona, scenario, greeting, model)",
+    )
     .eq("id", chatId)
     .maybeSingle();
 
@@ -127,6 +147,9 @@ export async function loadChatContext(
     Array.isArray(chat?.character) ? chat?.character[0] : chat?.character
   ) as Character | undefined;
   if (!character) return null;
+
+  const userName = (chat?.user_name as string | null) ?? null;
+  const userPronouns = (chat?.user_pronouns as string | null) ?? null;
 
   // Memories first — we need the summary's coverage to know which messages
   // to send verbatim.
@@ -202,7 +225,16 @@ export async function loadChatContext(
   uniqueFacts.sort((a, b) => rank(a) - rank(b));
   const cappedFacts = uniqueFacts.slice(0, 30);
 
-  return { character, recent, facts: cappedFacts, sceneState, summary, feedback };
+  return {
+    character,
+    recent,
+    facts: cappedFacts,
+    sceneState,
+    summary,
+    feedback,
+    userName,
+    userPronouns,
+  };
 }
 
 function extractJson(text: string): unknown | null {

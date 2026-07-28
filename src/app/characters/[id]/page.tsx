@@ -18,12 +18,17 @@ export default async function CharacterDetailPage({
 
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, scenario, is_public, user_id")
+    .select("id, name, alias, persona, persona_display, scenario, is_public, user_id")
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
 
   const isOwner = character.user_id === user?.id;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .maybeSingle();
 
   const { data: chats } = await supabase
     .from("chats")
@@ -60,7 +65,7 @@ export default async function CharacterDetailPage({
           </p>
         )}
         <p className="text-sm whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">
-          {character.persona}
+          {character.persona_display ?? character.persona}
         </p>
         {isOwner && (
           <Link
@@ -73,17 +78,51 @@ export default async function CharacterDetailPage({
       </header>
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium">Your chats with {character.name}</h2>
-          <form action={start}>
-            <button
-              type="submit"
-              className="btn-primary px-3 py-1.5 text-xs"
-            >
-              Start new chat
-            </button>
-          </form>
-        </div>
+        <h2 className="text-sm font-medium">Your chats with {character.name}</h2>
+
+        <form action={start} className="panel space-y-3 p-4">
+          <p className="text-xs text-neutral-500">
+            How should {character.name} refer to you in this chat?
+          </p>
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="space-y-1">
+              <label htmlFor="user_name" className="text-xs font-medium">
+                Your name
+              </label>
+              <input
+                id="user_name"
+                name="user_name"
+                maxLength={60}
+                defaultValue={profile?.display_name ?? ""}
+                placeholder="e.g. Alex"
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="user_pronouns" className="text-xs font-medium">
+                Your pronouns
+              </label>
+              <select
+                id="user_pronouns"
+                name="user_pronouns"
+                defaultValue=""
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              >
+                <option value="">Prefer not to say</option>
+                <option value="she/her">she/her</option>
+                <option value="he/him">he/him</option>
+                <option value="they/them">they/them</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" className="btn-primary px-3 py-1.5 text-xs">
+            Start new chat
+          </button>
+        </form>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">History</h2>
 
         {!chats?.length ? (
           <p className="text-sm text-neutral-500">
