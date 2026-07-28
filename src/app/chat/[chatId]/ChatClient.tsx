@@ -5,7 +5,7 @@ import Image from "next/image";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
-function renderRoleplayText(text: string) {
+function renderRoleplayText(text: string, isUser = false) {
   if (!text) return null;
   const parts = text.split(/(\*[^*]+\*)/g);
   return parts.map((part, idx) => {
@@ -13,7 +13,11 @@ function renderRoleplayText(text: string) {
       return (
         <span
           key={idx}
-          className="italic text-neutral-600 dark:text-neutral-300 font-serif leading-relaxed"
+          className={
+            isUser
+              ? "user-roleplay-italic italic font-serif leading-relaxed"
+              : "italic text-neutral-600 dark:text-neutral-300 font-serif leading-relaxed"
+          }
         >
           {part}
         </span>
@@ -85,21 +89,48 @@ export default function ChatClient({
     const updateInset = () => {
       const inset = Math.max(
         0,
-        Math.round(window.innerHeight - vv.height - vv.offsetTop),
+        Math.round(window.innerHeight - vv.height),
       );
       setKeyboardInset(inset);
+    };
+
+    const handleWindowScroll = () => {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
     };
 
     updateInset();
     vv.addEventListener("resize", updateInset);
     vv.addEventListener("scroll", updateInset);
     window.addEventListener("orientationchange", updateInset);
+    window.addEventListener("scroll", handleWindowScroll);
     return () => {
       vv.removeEventListener("resize", updateInset);
       vv.removeEventListener("scroll", updateInset);
       window.removeEventListener("orientationchange", updateInset);
+      window.removeEventListener("scroll", handleWindowScroll);
     };
   }, []);
+
+  const handleInputFocus = () => {
+    window.scrollTo(0, 0);
+    const update = () => {
+      if (window.visualViewport) {
+        const inset = Math.max(
+          0,
+          Math.round(window.innerHeight - window.visualViewport.height),
+        );
+        setKeyboardInset(inset);
+      }
+      if (scrollRef.current && !userScrolledUpRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    };
+    update();
+    setTimeout(update, 100);
+    setTimeout(update, 300);
+  };
 
   const cooldownMsLeft = Math.max(0, cooldownUntil - now);
   const onCooldown = cooldownMsLeft > 0;
@@ -299,15 +330,21 @@ export default function ChatClient({
             <div
               className={
                 m.role === "user"
-                  ? "w-fit max-w-[92%] rounded-xl bg-blue-600 px-3.5 py-2.5 text-white shadow-sm sm:max-w-[85%]"
+                  ? "user-bubble w-fit max-w-[92%] rounded-xl px-3.5 py-2.5 shadow-sm sm:max-w-[85%]"
                   : "w-fit max-w-[92%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3.5 sm:max-w-[85%]"
               }
             >
-              <div className="muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-2">
+              <div
+                className={
+                  m.role === "user"
+                    ? "user-bubble-header mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-2"
+                    : "muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-2"
+                }
+              >
                 <span>{m.role === "assistant" ? chatbotName : "You"}</span>
               </div>
               <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                {renderRoleplayText(m.content) || (
+                {renderRoleplayText(m.content, m.role === "user") || (
                   <span className="muted">…</span>
                 )}
               </div>
@@ -368,6 +405,7 @@ export default function ChatClient({
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onFocus={handleInputFocus}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

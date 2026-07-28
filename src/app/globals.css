@@ -154,9 +154,47 @@ a {
   color: var(--foreground);
 }
 
+.field::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
 .field:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent), transparent 40%);
   outline-offset: 1px;
+}
+
+/* User chat bubble styling for light & dark modes */
+.user-bubble {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.user-bubble .user-bubble-header {
+  color: rgba(219, 234, 254, 0.9);
+}
+
+.user-bubble .user-roleplay-italic {
+  color: #dbeafe;
+}
+
+@media (prefers-color-scheme: dark) {
+  .user-bubble {
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.75) 0%, rgba(30, 27, 75, 0.75) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: #f0f6ff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .user-bubble .user-bubble-header {
+    color: rgba(147, 197, 253, 0.85);
+  }
+
+  .user-bubble .user-roleplay-italic {
+    color: #93c5fd;
+  }
 }
 
 .badge {
