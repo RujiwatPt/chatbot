@@ -217,37 +217,22 @@ a {
   box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
-/* User chat bubble — deep indigo→violet so near-white text stays high-contrast
-   and legible. All text sits at >= AA contrast in both themes. */
+/* User chat bubble — plain, understated neutral surface distinguished only by
+   right-alignment. No accent color; the message text is the focus. Foreground-
+   based tints auto-adapt to light and dark. */
 .user-bubble {
-  background: linear-gradient(135deg, #5850ec 0%, #7c3aed 100%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #ffffff;
-  box-shadow: 0 4px 16px rgba(88, 80, 236, 0.28);
+  background: color-mix(in oklab, var(--foreground), transparent 93%);
+  border: 1px solid var(--line);
+  color: var(--foreground);
+  box-shadow: none;
 }
 
 .user-bubble .user-bubble-header {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--muted);
 }
 
 .user-bubble .user-roleplay-italic {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-@media (prefers-color-scheme: dark) {
-  .user-bubble {
-    background: linear-gradient(135deg, #3f37c9 0%, #5b21b6 100%);
-    border: 1px solid rgba(165, 180, 252, 0.3);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  }
-
-  .user-bubble .user-bubble-header {
-    color: rgba(226, 224, 255, 0.75);
-  }
-
-  .user-bubble .user-roleplay-italic {
-    color: rgba(255, 255, 255, 0.9);
-  }
+  color: color-mix(in oklab, var(--foreground), transparent 25%);
 }
 
 .badge {
