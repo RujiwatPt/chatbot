@@ -32,55 +32,60 @@ export default async function CharactersPage() {
           No characters yet. Create one to start a chat.
         </p>
       ) : (
-        <ul className="flex flex-col gap-3 sm:gap-4">
+        <ul className="flex flex-col gap-4 sm:gap-5">
           {characters.map((c, i) => {
             const avatarUrl = getCharacterAvatar(c.name, c.alias);
             return (
               <li
                 key={c.id}
-                className="panel panel-hover stagger-item overflow-hidden"
+                className="panel panel-hover group stagger-item overflow-hidden"
                 style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
               >
                 <Link
                   href={`/characters/${c.id}`}
-                  className="card-link flex items-stretch gap-3.5 sm:gap-5"
+                  className="flex items-stretch min-h-[160px] sm:min-h-[195px] transition-colors hover:bg-[color:var(--surface-solid)]/40"
                 >
-                  {/* Large portrait — vertical list gives this room the grid never had. */}
-                  <div className="relative h-36 w-28 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm sm:h-44 sm:w-36">
+                  {/* Left Side: Full height image covering 100% of left side edge-to-edge */}
+                  <div className="relative w-32 sm:w-48 md:w-56 shrink-0 overflow-hidden">
                     <Image
                       src={avatarUrl}
                       alt={c.name}
                       fill
-                      sizes="(max-width: 640px) 112px, 144px"
-                      className="object-cover"
+                      sizes="(max-width: 640px) 128px, 224px"
+                      className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
 
-                  <div className="flex min-w-0 flex-1 flex-col justify-center py-0.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-lg font-bold sm:text-xl">
-                        {c.alias || c.name}
-                      </h2>
-                      {c.is_public && (
-                        <span className="badge shrink-0">
-                          {c.user_id === null ? "Featured" : "Public"}
-                        </span>
+                  {/* Right Side: Description and character info filling all remaining space */}
+                  <div className="flex min-w-0 flex-1 flex-col justify-between p-4 sm:p-5">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="truncate text-base font-bold sm:text-xl group-hover:text-blue-500 transition-colors">
+                          {c.alias || c.name}
+                        </h2>
+                        {c.is_public && (
+                          <span className="badge shrink-0">
+                            {c.user_id === null ? "Featured" : "Public"}
+                          </span>
+                        )}
+                      </div>
+                      {c.alias && c.alias !== c.name && (
+                        <p className="muted mt-0.5 text-xs">{c.name}</p>
                       )}
+                      <p className="muted mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 sm:line-clamp-4 md:line-clamp-5">
+                        {c.persona_display ?? c.persona}
+                      </p>
                     </div>
-                    {c.alias && c.alias !== c.name && (
-                      <p className="muted mt-0.5 text-xs">{c.name}</p>
-                    )}
-                    <p className="muted mt-2 line-clamp-4 text-sm leading-relaxed sm:line-clamp-5 sm:text-[0.9375rem]">
-                      {c.persona_display ?? c.persona}
-                    </p>
-                  </div>
 
-                  <span
-                    className="muted hidden shrink-0 self-center text-2xl sm:block"
-                    aria-hidden
-                  >
-                    ›
-                  </span>
+                    <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-[var(--line)]/50">
+                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 group-hover:underline">
+                        Start roleplay →
+                      </span>
+                      <span className="muted text-lg transition-transform group-hover:translate-x-1" aria-hidden>
+                        ›
+                      </span>
+                    </div>
+                  </div>
                 </Link>
               </li>
             );
