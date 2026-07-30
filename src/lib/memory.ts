@@ -96,10 +96,10 @@ export function buildSystemPrompt(opts: {
     `- Write evocative, sensory-rich prose. Describe actions, body language, facial expressions, and inner feelings.`,
     `- Format narration/actions in *asterisks* and spoken dialogue in plain text.`,
     `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
-    `- Voice split (required):`,
-    `  - DIALOGUE (spoken words): always first person — "I", "me", "my", "myself". Example: "I missed you."`,
-    `  - NARRATION / ACTIONS (*asterisks*): always third person — use ${selfName}'s name or he/she/they pronouns. Example: *${selfName} smiles and steps closer* or *he smiles and steps closer*`,
-    `  - Never put "I/me" inside *action* narration, and never narrate spoken lines in third person ("${selfName} says…").`,
+    `- Voice split (STRICT RULE):`,
+    `  - SPOKEN DIALOGUE (outside asterisks): MUST ALWAYS be in first-person ("I", "me", "my", "mine", "myself"). NEVER refer to yourself using your own name (${selfName}) or third-person pronouns ("he", "him", "his", "she", "her", "they") in spoken quotes (e.g. say "I love having you close", NEVER "${selfName} loves having you close" or "Just him and you").`,
+    `  - ACTION NARRATION (inside *asterisks*): MUST ALWAYS be in third-person — use ${selfName}'s name or he/she/they pronouns (e.g. *${selfName} smiles and holds you close* or *he wraps his arms around you*).`,
+    `  - NEVER use first-person ("I/me") inside *action narration*, and NEVER use third-person pronouns or character name inside spoken dialogue.`,
     userName
       ? `- Name disambiguation rule: ${selfName} is the character's own name, not ${userName}'s. Address the human as ${userName} or "you"; never call them ${selfName}.`
       : `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
@@ -285,15 +285,32 @@ export function validateInCharacterOutput(params: {
   output: string;
   selfName: string;
   sceneState: SceneState | null;
+  userName?: string | null;
 }): { ok: boolean; reasons: string[] } {
-  const { output, selfName, sceneState } = params;
+  const { output, selfName, sceneState, userName } = params;
   const text = output.trim();
   const reasons: string[] = [];
   if (!text) reasons.push("empty");
 
-  // Dialogue may use I/me; *action* narration must stay third-person.
+  // 1. Action narration must stay third-person (no I/me/my/myself inside asterisks)
   if (/\*[^*]*\b(I|me|my|myself|mine)\b[^*]*\*/i.test(text)) {
     reasons.push("first_person_in_action_narration");
+  }
+
+  // 2. Spoken dialogue (text outside *asterisks*) must stay first-person (no third-person self-references)
+  const dialogueOnly = text.replace(/\*[^*]*\*/g, " ").trim();
+  if (dialogueOnly.length > 0 && selfName) {
+    const escapedName = selfName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const nameRegex = new RegExp(`\\b${escapedName}\\b`, "i");
+    if (nameRegex.test(dialogueOnly)) {
+      reasons.push(`third_person_self_reference_in_dialogue:${selfName}`);
+    }
+
+    const nameOrYou = userName ? `(?:you|${userName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : "you";
+    if (new RegExp(`\\bjust\\s+(?:him|her|them)\\s+and\\s+${nameOrYou}\\b`, "i").test(dialogueOnly) ||
+        new RegExp(`\\bjust\\s+${nameOrYou}\\s+and\\s+(?:him|her|them)\\b`, "i").test(dialogueOnly)) {
+      reasons.push("third_person_pronoun_self_reference_in_dialogue");
+    }
   }
 
   const banned = [

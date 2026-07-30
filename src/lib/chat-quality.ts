@@ -17,8 +17,9 @@ export async function generateAssistantText(params: {
   system: string;
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   priorAssistant: string[];
+  userName?: string | null;
 }) {
-  const { character, sceneState, system, messages, priorAssistant } = params;
+  const { character, sceneState, system, messages, priorAssistant, userName } = params;
   const routedModel = pickModelId(character.persona, character.model);
 
   let finalText = "";
@@ -36,6 +37,7 @@ export async function generateAssistantText(params: {
     output: finalText,
     selfName,
     sceneState,
+    userName,
   });
   const repetitive = looksRepetitive(finalText, priorAssistant);
 
@@ -66,6 +68,7 @@ export async function generateAssistantText(params: {
         output: finalText,
         selfName,
         sceneState,
+        userName,
       });
     } catch {
       // Keep original output on rewrite failure.

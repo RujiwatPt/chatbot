@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     priorAssistant: ctx.recent
       .filter((m) => m.role === "assistant")
       .map((m) => m.content),
+    userName: ctx.userName,
   });
 
   const { data: inserted, error } = await supabase
