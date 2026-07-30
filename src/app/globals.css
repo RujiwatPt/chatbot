@@ -73,6 +73,11 @@
   }
 }
 
+/* Focus mode: Hide top site navigation bar when chatting in focus mode */
+body:has(.chat-focus-mode) nav {
+  display: none !important;
+}
+
 body {
   min-height: 100dvh;
   background: var(--background);

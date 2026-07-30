@@ -46,43 +46,14 @@ export default async function ChatPage({
   }));
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-2 sm:py-4">
-      <header className="panel shell shrink-0 flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm">
-            <Image
-              src={avatarUrl}
-              alt={character?.name || "Avatar"}
-              width={64}
-              height={64}
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-bold truncate">
-              {chat.title ?? character?.alias ?? character?.name ?? "Chat"}
-            </div>
-            <div className="muted text-xs truncate flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              {character?.alias || character?.name}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 pl-1">
-          <FontSizeControl />
-          <Link href="/chat" className="btn-text muted text-xs">
-            All chats
-          </Link>
-          <form action={deleteChat.bind(null, chatId)}>
-            <DeleteChatButton />
-          </form>
-        </div>
-      </header>
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-1 sm:py-2">
       <ChatClient
         chatId={chatId}
         initialMessages={initialMessages}
         chatbotName={character?.alias ?? character?.name ?? "Chatbot"}
+        chatTitle={chat.title ?? character?.alias ?? character?.name ?? "Chat"}
         avatarUrl={avatarUrl}
+        deleteAction={deleteChat.bind(null, chatId)}
       />
     </main>
   );

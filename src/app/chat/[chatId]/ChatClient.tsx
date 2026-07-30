@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import FontSizeControl from "./FontSizeControl";
+import DeleteChatButton from "./DeleteChatButton";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
@@ -31,17 +34,35 @@ export default function ChatClient({
   chatId,
   initialMessages,
   chatbotName,
+  chatTitle,
   avatarUrl,
+  deleteAction,
 }: {
   chatId: string;
   initialMessages: Msg[];
   chatbotName: string;
+  chatTitle?: string;
   avatarUrl?: string;
+  deleteAction?: (formData?: FormData) => void;
 }) {
   const COOLDOWN_MS = 1200;
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState<boolean>(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("chat-header-hidden");
+    if (saved === "true") setHeaderHidden(true);
+  }, []);
+
+  const toggleHeader = () => {
+    setHeaderHidden((prev) => {
+      const next = !prev;
+      localStorage.setItem("chat-header-hidden", String(next));
+      return next;
+    });
+  };
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [now, setNow] = useState(0);
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -287,12 +308,78 @@ export default function ChatClient({
   }
 
   return (
-    <div
-      className="shell mt-2 flex min-h-0 flex-1 flex-col overflow-hidden sm:mt-3"
-      style={{
-        paddingBottom: `calc(var(--safe-bottom) + ${keyboardInset}px + 0.25rem)`,
-      }}
-    >
+    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${headerHidden ? "chat-focus-mode" : ""}`}>
+      {!headerHidden ? (
+        <header className="panel shell shrink-0 flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 sm:px-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {avatarUrl && (
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm">
+                <Image
+                  src={avatarUrl}
+                  alt={chatbotName}
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="text-sm font-bold truncate">
+                {chatTitle || chatbotName}
+              </div>
+              <div className="muted text-xs truncate flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {chatbotName}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pl-1 text-xs">
+            <FontSizeControl />
+            <Link href="/chat" className="btn-text muted hidden sm:inline">
+              All chats
+            </Link>
+            {deleteAction && (
+              <form action={deleteAction}>
+                <DeleteChatButton />
+              </form>
+            )}
+            <button
+              type="button"
+              onClick={toggleHeader}
+              className="btn-outline btn-sm gap-1 text-[11px] sm:text-xs py-1 px-2.5 rounded-lg border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+              title="Hide header and site navigation for distraction-free chat"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.04 10.04 0 013.122-.463c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" />
+              </svg>
+              <span>Hide Header</span>
+            </button>
+          </div>
+        </header>
+      ) : (
+        <div className="shrink-0 flex justify-center py-1">
+          <button
+            type="button"
+            onClick={toggleHeader}
+            className="btn-outline btn-sm gap-1.5 text-xs py-1 px-3 rounded-full border border-[var(--line)] bg-[color:var(--surface)] text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-md hover:border-blue-500/40"
+            title="Show header and controls"
+          >
+            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="font-semibold">{chatbotName}</span>
+            <span className="muted text-[10px] uppercase font-semibold tracking-wide border-l border-[var(--line)] pl-1.5">Expand Header</span>
+          </button>
+        </div>
+      )}
+
+      <div
+        className="shell mt-1.5 flex min-h-0 flex-1 flex-col overflow-hidden sm:mt-2"
+        style={{
+          paddingBottom: `calc(var(--safe-bottom) + ${keyboardInset}px + 0.25rem)`,
+        }}
+      >
       <div
         ref={scrollRef}
         onScroll={handleScroll}
@@ -427,5 +514,6 @@ export default function ChatClient({
         )}
       </form>
     </div>
-  );
+  </div>
+);
 }
