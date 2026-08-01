@@ -5,18 +5,38 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function signIn() {
     setBusy(true);
-    const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) {
+    setErrorMessage(null);
+
+    try {
+      const supabase = createClient();
+      const redirectTo = `${window.location.origin}/auth/callback`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) {
+        setBusy(false);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
       setBusy(false);
-      alert(error.message);
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to initiate sign in",
+      );
     }
   }
 
@@ -27,12 +47,19 @@ export default function LoginPage() {
           <h1 className="page-title">Sign in</h1>
           <p className="page-subtitle">Continue with Google to get started.</p>
         </div>
+
+        {errorMessage && (
+          <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 font-medium text-center">
+            {errorMessage}
+          </div>
+        )}
+
         <button
           onClick={signIn}
           disabled={busy}
-          className="btn-primary w-full"
+          className="btn-primary w-full min-h-11"
         >
-          {busy ? "Redirecting…" : "Continue with Google"}
+          {busy ? "Redirecting to Google…" : "Continue with Google"}
         </button>
       </div>
     </main>
