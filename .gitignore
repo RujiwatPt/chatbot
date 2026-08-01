@@ -43,4 +43,6 @@ next-env.d.ts
 .agents/
 skills-lock.json
 .open-next/
+.wrangler/
+
 
