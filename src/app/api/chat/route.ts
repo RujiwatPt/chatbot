@@ -7,6 +7,7 @@ import {
   maybeSummarize,
 } from "@/lib/memory";
 import { generateAssistantText, toSmoothWordStream } from "@/lib/chat-quality";
+import { encryptText } from "@/lib/encryption";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -23,27 +24,27 @@ const RATE_LIMIT_PER_MINUTE = 20;
 // Detect an explicit "call me X" / "my name is X" request so we can remember
 // what the user wants to be called and prioritize it for the rest of the chat.
 const NAME_REQUEST_PATTERNS = [
-  /\byou can call me\s+([\p{L}][\p{L}'-]{0,29})/iu,
-  /\bcall me\s+([\p{L}][\p{L}'-]{0,29})/iu,
-  /\bmy name('?s| is)\s+([\p{L}][\p{L}'-]{0,29})/iu,
-  /\bi go by\s+([\p{L}][\p{L}'-]{0,29})/iu,
-  /\bi'?m called\s+([\p{L}][\p{L}'-]{0,29})/iu,
+  /(?:call me|my name is|i'm|i am)\s+([A-Z][a-z0-9_-]{1,30})\b/i,
+  /refer to me as\s+([A-Z][a-z0-9_-]{1,30})\b/i,
 ];
-// Words that follow "call me" but aren't names.
-const NAME_STOPWORDS = new Set([
-  "maybe", "later", "back", "now", "tonight", "tomorrow", "when", "if",
-  "please", "that", "this", "anytime", "sometime", "crazy",
-]);
 
-function detectPreferredName(message: string): string | null {
-  for (const re of NAME_REQUEST_PATTERNS) {
-    const m = message.match(re);
-    if (!m) continue;
-    // The name is the last captured group (patterns with an alternation use $2).
-    const captured = m[m.length - 1]?.trim();
-    if (!captured) continue;
-    if (NAME_STOPWORDS.has(captured.toLowerCase())) continue;
-    return captured.charAt(0).toUpperCase() + captured.slice(1);
+function detectPreferredName(text: string): string | null {
+  for (const pat of NAME_REQUEST_PATTERNS) {
+    const m = text.match(pat);
+    if (m?.[1]) {
+      const candidate = m[1].trim();
+      const lower = candidate.toLowerCase();
+      if (
+        lower !== "a" &&
+        lower !== "an" &&
+        lower !== "the" &&
+        lower !== "so" &&
+        lower !== "just" &&
+        lower !== "really"
+      ) {
+        return candidate;
+      }
+    }
   }
   return null;
 }
@@ -51,6 +52,10 @@ function detectPreferredName(message: string): string | null {
 export async function POST(request: Request) {
   // Auth was already enforced by middleware; RLS handles per-row authorization.
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Response("unauthorized", { status: 401 });
 
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new Response("bad_request", { status: 400 });
@@ -87,9 +92,11 @@ export async function POST(request: Request) {
 
   // Persist the user's new message (RLS guarantees the chat is theirs)
   {
-    const { error } = await supabase
-      .from("messages")
-      .insert({ chat_id: chatId, role: "user", content: message });
+    const { error } = await supabase.from("messages").insert({
+      chat_id: chatId,
+      role: "user",
+      content: encryptText(message, user.id),
+    });
     if (error) return new Response(error.message, { status: 500 });
   }
 
@@ -133,7 +140,7 @@ export async function POST(request: Request) {
       await supabase.from("messages").insert({
         chat_id: chatId,
         role: "assistant",
-        content: finalText,
+        content: encryptText(finalText, user.id),
       });
     }
     try {

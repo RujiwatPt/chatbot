@@ -6,6 +6,7 @@ import {
   maybeSummarize,
 } from "@/lib/memory";
 import { generateAssistantText } from "@/lib/chat-quality";
+import { encryptText } from "@/lib/encryption";
 
 export const maxDuration = 120;
 
@@ -15,6 +16,11 @@ const Body = z.object({
 
 export async function POST(request: Request) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Response("unauthorized", { status: 401 });
+
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId } = parsed.data;
@@ -77,7 +83,7 @@ export async function POST(request: Request) {
     .insert({
       chat_id: chatId,
       role: "assistant",
-      content: generated.text,
+      content: encryptText(generated.text, user.id),
     })
     .select("id, role, content")
     .single();

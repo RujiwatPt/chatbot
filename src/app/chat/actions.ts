@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { encryptText } from "@/lib/encryption";
 
 export async function startChat(characterId: string, formData?: FormData) {
   const supabase = await createClient();
@@ -40,7 +41,7 @@ export async function startChat(characterId: string, formData?: FormData) {
     await supabase.from("messages").insert({
       chat_id: chat.id,
       role: "assistant",
-      content: character.greeting,
+      content: encryptText(character.greeting, user.id),
     });
   }
 

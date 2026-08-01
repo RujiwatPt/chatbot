@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateText } from "ai";
 import { model } from "@/lib/openrouter";
 import { SCENE_STATE_SYSTEM, SUMMARIZER_SYSTEM } from "@/lib/prompts";
+import { decryptText, encryptText } from "@/lib/encryption";
 
 export type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -141,7 +142,7 @@ export async function loadChatContext(
   const { data: chat } = await supabase
     .from("chats")
     .select(
-      "user_name, user_pronouns, character:characters(name, alias, persona, scenario, greeting, model)",
+      "user_id, user_name, user_pronouns, character:characters(name, alias, persona, scenario, greeting, model)",
     )
     .eq("id", chatId)
     .maybeSingle();
@@ -151,6 +152,7 @@ export async function loadChatContext(
   ) as Character | undefined;
   if (!character) return null;
 
+  const userId = chat?.user_id as string | undefined;
   const userName = (chat?.user_name as string | null) ?? null;
   const userPronouns = (chat?.user_pronouns as string | null) ?? null;
 
@@ -166,12 +168,13 @@ export async function loadChatContext(
   let sceneState: SceneState | null = null;
   let summary: string | null = null;
   let summaryUpTo = 0;
-  for (const m of memoryRows ?? []) {
-    if (m.kind === "fact") {
-      facts.push(m.content);
-    } else if (m.kind === "scene" && sceneState === null) {
+  for (const rawM of memoryRows ?? []) {
+    const decryptedContent = userId ? decryptText(rawM.content, userId) : rawM.content;
+    if (rawM.kind === "fact") {
+      facts.push(decryptedContent);
+    } else if (rawM.kind === "scene" && sceneState === null) {
       try {
-        const parsed = JSON.parse(m.content) as Partial<SceneState>;
+        const parsed = JSON.parse(decryptedContent) as Partial<SceneState>;
         if (
           typeof parsed.location === "string" &&
           typeof parsed.tone === "string" &&
@@ -188,9 +191,9 @@ export async function loadChatContext(
       } catch {
         // ignore malformed scene rows
       }
-    } else if (m.kind === "summary" && summary === null) {
-      summary = m.content;
-      summaryUpTo = (m.up_to_message_id as number | null) ?? 0;
+    } else if (rawM.kind === "summary" && summary === null) {
+      summary = decryptedContent;
+      summaryUpTo = (rawM.up_to_message_id as number | null) ?? 0;
     }
   }
 
@@ -215,7 +218,10 @@ export async function loadChatContext(
     .order("id", { ascending: false })
     .limit(POST_SUMMARY_CAP);
 
-  const recent = ((messages ?? []).reverse()) as ChatMessage[];
+  const recent = ((messages ?? []).reverse()).map((m) => ({
+    role: m.role as "user" | "assistant" | "system",
+    content: userId ? decryptText(m.content, userId) : m.content,
+  }));
 
   // Prioritize durable fact categories and deduplicate/cap to top 30 to preserve context budget
   const uniqueFacts = Array.from(new Set(facts));
@@ -346,6 +352,14 @@ export async function maybeSummarize(
   chatId: string,
   character: Character,
 ): Promise<void> {
+  const { data: chat } = await supabase
+    .from("chats")
+    .select("user_id")
+    .eq("id", chatId)
+    .maybeSingle();
+  if (!chat?.user_id) return;
+  const userId = chat.user_id;
+
   // Find the prior summary's progress marker
   const { data: prior } = await supabase
     .from("memories")
@@ -382,8 +396,9 @@ export async function maybeSummarize(
 
   const upTo = toFold[toFold.length - 1].id as number;
 
+  const decryptedPrior = prior?.content ? decryptText(prior.content, userId) : null;
   const transcript = toFold
-    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+    .map((m) => `${m.role.toUpperCase()}: ${decryptText(m.content, userId)}`)
     .join("\n\n");
 
   const userPrompt = [
@@ -391,7 +406,7 @@ export async function maybeSummarize(
     `Persona: ${character.persona}`,
     character.scenario ? `Scenario: ${character.scenario}` : null,
     "",
-    `PREVIOUS SUMMARY:\n${prior?.content?.trim() || "(none yet)"}`,
+    `PREVIOUS SUMMARY:\n${decryptedPrior?.trim() || "(none yet)"}`,
     "",
     "NEW MESSAGES TO FOLD IN:",
     transcript,
@@ -478,7 +493,7 @@ export async function maybeSummarize(
   await supabase.from("memories").insert({
     chat_id: chatId,
     kind: "summary",
-    content: summaryText,
+    content: encryptText(summaryText, userId),
     up_to_message_id: upTo,
   });
 
@@ -487,7 +502,7 @@ export async function maybeSummarize(
       factsList.map((content) => ({
         chat_id: chatId,
         kind: "fact",
-        content,
+        content: encryptText(content, userId),
         up_to_message_id: upTo,
       })),
     );
@@ -502,7 +517,7 @@ export async function maybeSummarize(
     .limit(10);
 
   const tail = ((currentSceneMessages ?? []).reverse())
-    .map((m) => `${m.role}: ${m.content}`)
+    .map((m) => `${m.role}: ${decryptText(m.content, userId)}`)
     .join("\n");
 
   try {
@@ -528,12 +543,15 @@ export async function maybeSummarize(
         await supabase.from("memories").insert({
           chat_id: chatId,
           kind: "scene",
-          content: JSON.stringify({
-            location: s.location,
-            tone: s.tone,
-            relationship: s.relationship,
-            goal: s.goal,
-          }),
+          content: encryptText(
+            JSON.stringify({
+              location: s.location,
+              tone: s.tone,
+              relationship: s.relationship,
+              goal: s.goal,
+            }),
+            userId,
+          ),
           up_to_message_id: upTo,
         });
       }

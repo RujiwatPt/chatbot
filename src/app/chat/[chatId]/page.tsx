@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar } from "@/lib/avatar";
+import { decryptText } from "@/lib/encryption";
 import ChatClient from "./ChatClient";
 import FontSizeControl from "./FontSizeControl";
 import { deleteChat } from "../actions";
@@ -17,6 +18,9 @@ export default async function ChatPage({
 }) {
   const { chatId } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: chat } = await supabase
     .from("chats")
@@ -42,7 +46,7 @@ export default async function ChatPage({
   const initialMessages = (rows ?? []).map((r) => ({
     id: String(r.id),
     role: r.role as "user" | "assistant",
-    content: r.content,
+    content: user ? decryptText(r.content, user.id) : r.content,
   }));
 
   return (
