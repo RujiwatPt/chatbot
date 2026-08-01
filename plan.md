@@ -1,6 +1,6 @@
 # Roleplay Chatbot — Implementation Plan
 
-A single-deploy Next.js app on Vercel with Supabase for auth + data and OpenRouter for the LLM. Google-only sign-in, gated by invite codes. Persistent per-chat memory via rolling summaries and pinned facts.
+A Next.js app deployed to Cloudflare Workers via @opennextjs/cloudflare with Supabase for auth + data and OpenRouter for the LLM. Persistent per-chat memory via rolling summaries and pinned facts.
 
 ---
 
@@ -8,11 +8,11 @@ A single-deploy Next.js app on Vercel with Supabase for auth + data and OpenRout
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | Next.js 15 (App Router) | One project for FE + API routes, fits Vercel free tier |
-| Hosting | Vercel Hobby | Free, zero-config for Next.js, edge + serverless |
+| Framework | Next.js 16 (App Router) | One project for FE + API routes via `@opennextjs/cloudflare` |
+| Hosting | Cloudflare Workers + R2 | Zero egress fees, high performance edge runtime |
 | DB + Auth | Supabase (free tier) | Postgres, Google OAuth, RLS as the access layer |
-| LLM | OpenRouter free models | `deepseek/deepseek-chat-v3.1:free` (fast dev), `meta-llama/llama-3.3-70b-instruct:free` (better persona) |
-| Streaming | Vercel AI SDK (`ai` + `@ai-sdk/openai-compatible`) | Token streaming from OpenRouter |
+| LLM | OpenRouter free/paid models | `sao10k/l3.3-euryale-70b` (roleplay engine) |
+| Streaming | AI SDK (`ai` + `@ai-sdk/openai-compatible`) | Token streaming from OpenRouter |
 | Supabase client | `@supabase/ssr` | Cookie-based sessions across server + client components |
 
 ### Architecture decision: monorepo, no separate API service
@@ -238,18 +238,18 @@ lib/
 
 ---
 
-## 6. Vercel free-tier constraints
+## 6. Cloudflare Worker runtime & edge constraints
 
-- **10s function timeout (Hobby)** — must stream so the function returns once tokens flow. Use Node runtime with streaming response, not buffered.
-- **Background work** — `waitUntil` from `@vercel/functions` keeps the summarizer running after the response finishes (within plan limits).
-- **Env vars** — `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (only if needed; prefer RPC). Never expose service role to client.
+- **Streaming response** — Node/workerd compatibility runtime with streaming response via `@opennextjs/cloudflare`.
+- **Cloudflare Workers Assets** — Static assets served directly at edge CDN speeds (`ASSETS` binding in `wrangler.jsonc`).
+- **Env vars & secrets** — Secrets set via `wrangler secret put` or Cloudflare Workers Dashboard. Never expose secrets to client.
 - **Supabase free tier pauses after 7 days inactivity** — fine for personal use, document for users.
 
 ---
 
 ## 7. Build order
 
-1. **Scaffold** — `create-next-app`, Tailwind, Supabase project, env vars, deploy a "hello world" to Vercel
+1. **Scaffold** — `create-next-app`, Tailwind, Supabase project, env vars, deploy to Cloudflare Worker
 2. **Auth** — Google OAuth in Supabase, login page, callback handler, middleware skeleton
 3. **Schema + RLS** — migrations file, run via Supabase SQL editor or CLI
 4. **Invite gate** — `redeem_invite` function, redeem page, middleware enforcement, manual code insert

@@ -14,9 +14,10 @@ Persistent-memory roleplay app built with Next.js + Supabase + OpenRouter.
 
 ## Tech Stack
 
-- Next.js App Router
+- Next.js App Router (@opennextjs/cloudflare)
+- Cloudflare Workers + R2 Storage
 - Supabase (Auth, Postgres, RLS)
-- Vercel AI SDK + OpenRouter
+- OpenRouter AI SDK
 - Tailwind CSS
 
 ## Environment Variables
@@ -57,14 +58,15 @@ supabase migration up
 
 Or run a specific migration file with `psql` against `SUPABASE_DB_URL`.
 
-## Deploy (Vercel CLI)
+## Deploy (Cloudflare Worker)
 
 ```bash
-vercel link
-vercel --prod
-```
+# Build and preview locally with workerd
+npm run preview:worker
 
-Set all required environment variables in Vercel Project Settings before deploying.
+# Deploy to Cloudflare Workers
+npm run deploy:worker
+```
 
 ## Security Notes
 
