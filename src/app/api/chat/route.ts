@@ -9,7 +9,7 @@ import {
 import { generateAssistantText, toSmoothWordStream } from "@/lib/chat-quality";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const Body = z.object({
   chatId: z.string().uuid(),

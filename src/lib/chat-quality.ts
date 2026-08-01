@@ -29,6 +29,7 @@ export async function generateAssistantText(params: {
     messages,
     temperature: 0.8,
     frequencyPenalty: 0.15,
+    abortSignal: AbortSignal.timeout(60000),
   });
   finalText = first.text.trim();
 
@@ -62,6 +63,7 @@ export async function generateAssistantText(params: {
         prompt: rewritePrompt,
         temperature: 0.7,
         frequencyPenalty: 0.15,
+        abortSignal: AbortSignal.timeout(45000),
       });
       finalText = rewritten.text.trim();
       validation = validateInCharacterOutput({

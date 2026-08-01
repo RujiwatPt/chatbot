@@ -7,6 +7,8 @@ import {
 } from "@/lib/memory";
 import { generateAssistantText } from "@/lib/chat-quality";
 
+export const maxDuration = 120;
+
 const Body = z.object({
   chatId: z.string().uuid(),
 });

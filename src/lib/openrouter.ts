@@ -22,14 +22,20 @@ const FALLBACK_MODELS = (
 // upstream API tries each model in order if the primary fails.
 const openrouterFetch: typeof fetch = async (input, init) => {
   let chainUsed: string[] | null = null;
+  let customInit = { ...init };
+
+  if (!customInit.signal) {
+    customInit.signal = AbortSignal.timeout(50000);
+  }
+
   if (
-    init?.body &&
-    typeof init.body === "string" &&
+    customInit?.body &&
+    typeof customInit.body === "string" &&
     typeof input === "string" &&
     input.includes("/chat/completions")
   ) {
     try {
-      const body = JSON.parse(init.body);
+      const body = JSON.parse(customInit.body);
       if (typeof body?.model === "string" && !body.models) {
         // OpenRouter API caps `models` at 3 items total (primary + up to 2 fallbacks).
         const chain = [
@@ -38,13 +44,13 @@ const openrouterFetch: typeof fetch = async (input, init) => {
         ].slice(0, 3);
         body.models = chain;
         chainUsed = chain;
-        init = { ...init, body: JSON.stringify(body) };
+        customInit.body = JSON.stringify(body);
       }
     } catch {
       // not JSON we recognize — pass through
     }
   }
-  const res = await fetch(input, init);
+  const res = await fetch(input, customInit);
   if (chainUsed) {
     console.log("[openrouter_fallback_chain]", {
       models: chainUsed,
