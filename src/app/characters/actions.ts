@@ -12,6 +12,7 @@ function readForm(form: FormData) {
     persona: String(form.get("persona") ?? "").trim(),
     greeting: String(form.get("greeting") ?? "").trim() || null,
     scenario: String(form.get("scenario") ?? "").trim() || null,
+    avatar_url: String(form.get("avatar_url") ?? "").trim() || null,
     is_public: form.get("is_public") === "on",
   };
 }

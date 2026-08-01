@@ -1,4 +1,12 @@
-export function getCharacterAvatar(name: string, alias?: string | null): string {
+export function getCharacterAvatar(
+  name: string,
+  alias?: string | null,
+  avatarUrl?: string | null,
+): string {
+  if (avatarUrl && avatarUrl.trim().length > 0) {
+    return avatarUrl.trim();
+  }
+
   const n = (alias || name || "").toLowerCase();
   if (n.includes("aiko") || n.includes("tsundere")) return "/images/avatar_aiko.jpg";
   if (n.includes("sam") || n.includes("childhood") || n.includes("bestfriend")) return "/images/avatar_sam.jpg";

@@ -9,7 +9,7 @@ export default async function CharactersPage() {
   const supabase = await createClient();
   const { data: characters } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, persona_display, is_public, user_id, created_at")
+    .select("id, name, alias, persona, persona_display, is_public, avatar_url, user_id, created_at")
     .order("is_public", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -34,7 +34,7 @@ export default async function CharactersPage() {
       ) : (
         <ul className="flex flex-col gap-4 sm:gap-5">
           {characters.map((c, i) => {
-            const avatarUrl = getCharacterAvatar(c.name, c.alias);
+            const avatarUrl = getCharacterAvatar(c.name, c.alias, c.avatar_url);
             return (
               <li
                 key={c.id}
