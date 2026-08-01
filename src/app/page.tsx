@@ -105,7 +105,7 @@ export default async function Home() {
           </p>
         </article>
         <article className="panel stagger-item p-5" style={{ animationDelay: "140ms" }}>
-          <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 mb-3 font-bold text-lg">
+          <div className="h-10 w-10 rounded-xl bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-blue-500 mb-3 font-bold text-lg">
             🎭
           </div>
           <h2 className="text-base font-semibold">Custom Personas</h2>
@@ -114,7 +114,7 @@ export default async function Home() {
           </p>
         </article>
         <article className="panel stagger-item p-5" style={{ animationDelay: "200ms" }}>
-          <div className="h-10 w-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-500 mb-3 font-bold text-lg">
+          <div className="h-10 w-10 rounded-xl bg-slate-800/20 border border-slate-700/30 flex items-center justify-center text-slate-300 dark:text-slate-200 mb-3 font-bold text-lg">
             ⚡
           </div>
           <h2 className="text-base font-semibold">Instant Streaming</h2>

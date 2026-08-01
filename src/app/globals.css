@@ -1,22 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f5fb;
-  --foreground: #10121c;
-  --surface: rgba(255, 255, 255, 0.74);
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: rgba(255, 255, 255, 0.85);
   --surface-solid: #ffffff;
-  --line: rgba(17, 24, 39, 0.1);
-  --muted: #64708b;
-  --accent: #14162a;
+  --line: rgba(15, 23, 42, 0.12);
+  --muted: #475569;
+  --accent: #0f172a;
   --accent-contrast: #ffffff;
 
-  /* Brand accent — cohesive indigo → violet used across buttons, badges,
-     focus rings, and the user chat bubble. */
-  --brand-1: #6366f1;
-  --brand-2: #8b5cf6;
-  --brand-solid: #6d5ef0;
-  --brand-ring: color-mix(in oklab, var(--brand-1), transparent 55%);
-  --brand-tint: color-mix(in oklab, var(--brand-1), transparent 90%);
+  /* Brand accent — sleek Black, White, and Dark Blue palette */
+  --brand-1: #1d4ed8;
+  --brand-2: #0f172a;
+  --brand-solid: #1e40af;
+  --brand-ring: rgba(29, 78, 216, 0.3);
+  --brand-tint: rgba(29, 78, 216, 0.08);
   --on-brand: #ffffff;
 
   /* Radius scale */
@@ -26,13 +25,13 @@
   --r-xl: 1.25rem;
 
   /* Elevation */
-  --shadow-sm: 0 1px 2px rgba(15, 18, 40, 0.06);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md:
-    0 1px 2px rgba(15, 18, 40, 0.05),
-    0 6px 18px rgba(15, 18, 40, 0.08);
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 6px 18px rgba(15, 23, 42, 0.08);
   --shadow-lg:
-    0 2px 4px rgba(15, 18, 40, 0.06),
-    0 18px 40px rgba(60, 50, 130, 0.14);
+    0 2px 4px rgba(15, 23, 42, 0.06),
+    0 18px 40px rgba(15, 23, 42, 0.14);
   --edge: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -48,19 +47,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a12;
-    --foreground: #e8e6f2;
-    --surface: rgba(28, 27, 44, 0.55);
-    --surface-solid: #14131f;
-    --line: rgba(160, 150, 210, 0.16);
-    --muted: #9b95b0;
-    --accent: #e9e7f4;
-    --accent-contrast: #14131f;
+    --background: #090d16;
+    --foreground: #f8fafc;
+    --surface: rgba(15, 23, 42, 0.65);
+    --surface-solid: #0f172a;
+    --line: rgba(255, 255, 255, 0.12);
+    --muted: #94a3b8;
+    --accent: #f8fafc;
+    --accent-contrast: #0f172a;
 
-    --brand-1: #818cf8;
-    --brand-2: #a78bfa;
-    --brand-solid: #7c74f2;
-    --brand-tint: color-mix(in oklab, var(--brand-1), transparent 86%);
+    --brand-1: #3b82f6;
+    --brand-2: #1d4ed8;
+    --brand-solid: #2563eb;
+    --brand-tint: rgba(59, 130, 246, 0.14);
     --on-brand: #ffffff;
 
     --shadow-md:
@@ -84,8 +83,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), "Segoe UI", sans-serif;
   background-image:
-    radial-gradient(1100px 620px at 12% -8%, color-mix(in oklab, var(--brand-1), transparent 86%), transparent 62%),
-    radial-gradient(900px 560px at 100% 2%, color-mix(in oklab, var(--brand-2), transparent 88%), transparent 58%);
+    radial-gradient(1100px 620px at 12% -8%, rgba(29, 78, 216, 0.09), transparent 62%),
+    radial-gradient(900px 560px at 100% 2%, rgba(15, 23, 42, 0.4), transparent 58%);
   background-attachment: fixed;
 }
 
@@ -126,7 +125,7 @@ a {
 }
 
 .gradient-text {
-  background: linear-gradient(120deg, var(--brand-1) 0%, var(--brand-2) 55%, #ec4899 100%);
+  background: linear-gradient(120deg, #1d4ed8 0%, #3b82f6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -251,12 +250,12 @@ a {
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: color-mix(in oklab, var(--brand-solid), var(--foreground) 8%);
+  color: var(--brand-1);
 }
 
 @media (prefers-color-scheme: dark) {
   .badge {
-    color: color-mix(in oklab, var(--brand-2), white 12%);
+    color: #60a5fa;
   }
 }
 
@@ -319,15 +318,15 @@ a {
   justify-content: center;
   gap: 0.4rem;
   border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 550;
-  color: var(--on-brand);
-  border: 1px solid color-mix(in oklab, var(--brand-2), #000 12%);
+  color: #ffffff;
+  border: 1px solid #1d4ed8;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 6px 16px color-mix(in oklab, var(--brand-1), transparent 62%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(37, 99, 235, 0.25);
   transition:
     transform 120ms ease,
     box-shadow 160ms ease,
@@ -335,10 +334,10 @@ a {
 }
 
 .btn-primary:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.1);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    0 10px 24px color-mix(in oklab, var(--brand-1), transparent 52%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 6px 18px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary:active {
