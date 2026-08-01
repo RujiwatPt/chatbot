@@ -60,10 +60,25 @@ const openrouterFetch: typeof fetch = async (input, init) => {
   return res;
 };
 
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
+function getOpenRouterApiKey(): string {
+  let key = process.env.OPENROUTER_API_KEY;
+  if (!key) {
+    try {
+      const { env } = getCloudflareContext();
+      key = (env as unknown as Record<string, string | undefined>).OPENROUTER_API_KEY;
+    } catch {
+      // outside Cloudflare context
+    }
+  }
+  return key || "";
+}
+
 export const openrouter = createOpenAICompatible({
   name: "openrouter",
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
+  apiKey: getOpenRouterApiKey(),
   headers: {
     "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "",
     "X-Title": process.env.OPENROUTER_APP_NAME ?? "Roleplay Chatbot",

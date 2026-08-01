@@ -4,8 +4,18 @@ const PREFIX = "enc:v1:";
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // Standard 96-bit IV for AES-GCM
 
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 function getAppMasterSecret(): string {
-  const secret = process.env.ENCRYPTION_SECRET;
+  let secret = process.env.ENCRYPTION_SECRET;
+  if (!secret) {
+    try {
+      const { env } = getCloudflareContext();
+      secret = (env as unknown as Record<string, string | undefined>).ENCRYPTION_SECRET;
+    } catch {
+      // outside Cloudflare context
+    }
+  }
   if (secret && secret.length >= 16) {
     return secret;
   }
