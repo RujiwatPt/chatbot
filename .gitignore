@@ -42,3 +42,5 @@ next-env.d.ts
 .env*.local
 .agents/
 skills-lock.json
+.open-next/
+

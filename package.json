@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:worker": "npx @opennextjs/cloudflare build",
+    "preview:worker": "npm run build:worker && npx wrangler dev",
+    "deploy:worker": "npm run build:worker && npx wrangler deploy",
     "start": "next start",
     "lint": "eslint"
   },
@@ -19,6 +22,7 @@
     "zod": "^4.4.1"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -27,6 +31,7 @@
     "eslint-config-next": "16.2.4",
     "pg": "^8.22.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.118.0"
   }
 }
