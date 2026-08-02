@@ -1,4 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const DEFAULT_MODEL =
   process.env.OPENROUTER_MODEL ?? "sao10k/l3.3-euryale-70b";
@@ -18,6 +19,20 @@ const FALLBACK_MODELS = (
     : DEFAULT_FALLBACKS
 ).filter(Boolean);
 
+async function getOpenRouterApiKey(): Promise<string> {
+  let key = process.env.OPENROUTER_API_KEY;
+  if (!key) {
+    try {
+      const { env } = await getCloudflareContext();
+      key = (env as unknown as Record<string, string | undefined>)
+        .OPENROUTER_API_KEY;
+    } catch {
+      // outside Cloudflare context
+    }
+  }
+  return key || "";
+}
+
 // Inject the fallback chain into every chat-completions request so the
 // upstream API tries each model in order if the primary fails.
 const openrouterFetch: typeof fetch = async (input, init) => {
@@ -26,6 +41,16 @@ const openrouterFetch: typeof fetch = async (input, init) => {
 
   if (!customInit.signal) {
     customInit.signal = AbortSignal.timeout(50000);
+  }
+
+  // Ensure Authorization header is present if process.env.OPENROUTER_API_KEY was empty at init
+  const apiKey = await getOpenRouterApiKey();
+  if (apiKey) {
+    const headers = new Headers(customInit.headers || {});
+    if (!headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${apiKey}`);
+    }
+    customInit.headers = headers;
   }
 
   if (
@@ -60,25 +85,10 @@ const openrouterFetch: typeof fetch = async (input, init) => {
   return res;
 };
 
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-
-function getOpenRouterApiKey(): string {
-  let key = process.env.OPENROUTER_API_KEY;
-  if (!key) {
-    try {
-      const { env } = getCloudflareContext();
-      key = (env as unknown as Record<string, string | undefined>).OPENROUTER_API_KEY;
-    } catch {
-      // outside Cloudflare context
-    }
-  }
-  return key || "";
-}
-
 export const openrouter = createOpenAICompatible({
   name: "openrouter",
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: getOpenRouterApiKey(),
+  apiKey: process.env.OPENROUTER_API_KEY ?? "",
   headers: {
     "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "",
     "X-Title": process.env.OPENROUTER_APP_NAME ?? "Roleplay Chatbot",

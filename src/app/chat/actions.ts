@@ -41,7 +41,7 @@ export async function startChat(characterId: string, formData?: FormData) {
     await supabase.from("messages").insert({
       chat_id: chat.id,
       role: "assistant",
-      content: encryptText(character.greeting, user.id),
+      content: await encryptText(character.greeting, user.id),
     });
   }
 

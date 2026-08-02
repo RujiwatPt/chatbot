@@ -169,7 +169,7 @@ export async function loadChatContext(
   let summary: string | null = null;
   let summaryUpTo = 0;
   for (const rawM of memoryRows ?? []) {
-    const decryptedContent = userId ? decryptText(rawM.content, userId) : rawM.content;
+    const decryptedContent = userId ? await decryptText(rawM.content, userId) : rawM.content;
     if (rawM.kind === "fact") {
       facts.push(decryptedContent);
     } else if (rawM.kind === "scene" && sceneState === null) {
@@ -218,10 +218,12 @@ export async function loadChatContext(
     .order("id", { ascending: false })
     .limit(POST_SUMMARY_CAP);
 
-  const recent = ((messages ?? []).reverse()).map((m) => ({
-    role: m.role as "user" | "assistant" | "system",
-    content: userId ? decryptText(m.content, userId) : m.content,
-  }));
+  const recent = await Promise.all(
+    ((messages ?? []).reverse()).map(async (m) => ({
+      role: m.role as "user" | "assistant" | "system",
+      content: userId ? await decryptText(m.content, userId) : m.content,
+    })),
+  );
 
   // Prioritize durable fact categories and deduplicate/cap to top 30 to preserve context budget
   const uniqueFacts = Array.from(new Set(facts));
@@ -396,10 +398,12 @@ export async function maybeSummarize(
 
   const upTo = toFold[toFold.length - 1].id as number;
 
-  const decryptedPrior = prior?.content ? decryptText(prior.content, userId) : null;
-  const transcript = toFold
-    .map((m) => `${m.role.toUpperCase()}: ${decryptText(m.content, userId)}`)
-    .join("\n\n");
+  const decryptedPrior = prior?.content ? await decryptText(prior.content, userId) : null;
+  const transcript = (
+    await Promise.all(
+      toFold.map(async (m) => `${m.role.toUpperCase()}: ${await decryptText(m.content, userId)}`),
+    )
+  ).join("\n\n");
 
   const userPrompt = [
     `Character: ${character.name}`,
@@ -493,19 +497,20 @@ export async function maybeSummarize(
   await supabase.from("memories").insert({
     chat_id: chatId,
     kind: "summary",
-    content: encryptText(summaryText, userId),
+    content: await encryptText(summaryText, userId),
     up_to_message_id: upTo,
   });
 
   if (factsList.length) {
-    await supabase.from("memories").insert(
-      factsList.map((content) => ({
+    const encryptedFacts = await Promise.all(
+      factsList.map(async (content) => ({
         chat_id: chatId,
         kind: "fact",
-        content: encryptText(content, userId),
+        content: await encryptText(content, userId),
         up_to_message_id: upTo,
       })),
     );
+    await supabase.from("memories").insert(encryptedFacts);
   }
 
   // Refresh scene state from the most recent chat turns (actual current scene)
@@ -516,9 +521,13 @@ export async function maybeSummarize(
     .order("id", { ascending: false })
     .limit(10);
 
-  const tail = ((currentSceneMessages ?? []).reverse())
-    .map((m) => `${m.role}: ${decryptText(m.content, userId)}`)
-    .join("\n");
+  const tail = (
+    await Promise.all(
+      ((currentSceneMessages ?? []).reverse()).map(
+        async (m) => `${m.role}: ${await decryptText(m.content, userId)}`,
+      ),
+    )
+  ).join("\n");
 
   try {
     const { text } = await generateText({
@@ -543,7 +552,7 @@ export async function maybeSummarize(
         await supabase.from("memories").insert({
           chat_id: chatId,
           kind: "scene",
-          content: encryptText(
+          content: await encryptText(
             JSON.stringify({
               location: s.location,
               tone: s.tone,

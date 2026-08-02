@@ -43,11 +43,13 @@ export default async function ChatPage({
     .in("role", ["user", "assistant"])
     .order("id", { ascending: true });
 
-  const initialMessages = (rows ?? []).map((r) => ({
-    id: String(r.id),
-    role: r.role as "user" | "assistant",
-    content: user ? decryptText(r.content, user.id) : r.content,
-  }));
+  const initialMessages = await Promise.all(
+    (rows ?? []).map(async (r) => ({
+      id: String(r.id),
+      role: r.role as "user" | "assistant",
+      content: user ? await decryptText(r.content, user.id) : r.content,
+    })),
+  );
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-1 sm:py-2">

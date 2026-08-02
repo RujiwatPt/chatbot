@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     const { error } = await supabase.from("messages").insert({
       chat_id: chatId,
       role: "user",
-      content: encryptText(message, user.id),
+      content: await encryptText(message, user.id),
     });
     if (error) return new Response(error.message, { status: 500 });
   }
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       await supabase.from("messages").insert({
         chat_id: chatId,
         role: "assistant",
-        content: encryptText(finalText, user.id),
+        content: await encryptText(finalText, user.id),
       });
     }
     try {

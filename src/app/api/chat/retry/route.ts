@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     .insert({
       chat_id: chatId,
       role: "assistant",
-      content: encryptText(generated.text, user.id),
+      content: await encryptText(generated.text, user.id),
     })
     .select("id, role, content")
     .single();
