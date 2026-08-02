@@ -15,5 +15,9 @@
       "binding": "AVATARS_BUCKET",
       "bucket_name": "chatbot-avatars"
     }
-  ]
+  ],
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://uznbmjskesqzrsecxaam.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_bhAq4g_mqHw_ymbXba5TQA_Zwl5rGFa"
+  }
 }
