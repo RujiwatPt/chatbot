@@ -5,30 +5,38 @@ import pg from "pg";
 
 const { Client } = pg;
 
-// Load .env
-const envPath = path.join(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, "utf8");
-  for (const line of envContent.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx !== -1) {
-      const key = trimmed.slice(0, eqIdx).trim();
-      const val = trimmed.slice(eqIdx + 1).trim();
-      if (!process.env[key]) {
-        process.env[key] = val;
+function loadEnvFile(file) {
+  const envPath = path.join(process.cwd(), file);
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, "utf8");
+    for (const line of envContent.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx !== -1) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key] || key === "ENCRYPTION_SECRET") {
+          process.env[key] = val;
+        }
       }
     }
   }
 }
+
+// Load .env then .env.local
+loadEnvFile(".env");
+loadEnvFile(".env.local");
 
 const dbUrl = process.env.SUPABASE_DB_URL;
 const oldSecret = process.argv[2] || "fallback-dev-roleplay-chatbot-secret-key-32b";
 const newSecret = process.argv[3] || process.env.ENCRYPTION_SECRET;
 
 if (!dbUrl) {
-  console.error("Missing SUPABASE_DB_URL in .env");
+  console.error("Missing SUPABASE_DB_URL in .env / .env.local");
   process.exit(1);
 }
 
@@ -87,8 +95,8 @@ function encryptTextWithKey(plaintext, userId, secretKey) {
 
 async function rekey() {
   console.log("🔑 Re-keying Database Messages & Memories...");
-  console.log(`- Old Secret: ${oldSecret.slice(0, 8)}...`);
-  console.log(`- New Secret: ${newSecret.slice(0, 8)}...`);
+  console.log(`- Old Secret: ${oldSecret.slice(0, 6)}...`);
+  console.log(`- New Secret: ${newSecret.slice(0, 6)}...`);
 
   const client = new Client({
     connectionString: dbUrl,
