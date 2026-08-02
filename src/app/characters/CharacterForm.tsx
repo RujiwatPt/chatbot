@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { getCharacterAvatar } from "@/lib/avatar";
+import AvatarCropModal from "./AvatarCropModal";
 
 type Character = {
   id?: string;
@@ -29,24 +30,45 @@ export default function CharacterForm({
   const [avatarUrl, setAvatarUrl] = useState(initial?.avatar_url ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   const displayAvatar = getCharacterAvatar(name, alias, avatarUrl);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // 1. File selected by user -> open crop modal
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError("Image must be smaller than 5 MB");
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("Original image must be smaller than 10 MB");
       return;
     }
 
+    setUploadError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setCropImageSrc(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    // Reset file input so user can re-select same file if canceled
+    e.target.value = "";
+  }
+
+  // 2. Crop confirmed by user -> upload 512x512 WebP blob to R2
+  async function handleCroppedUpload(croppedBlob: Blob) {
+    setCropImageSrc(null);
     setUploading(true);
     setUploadError(null);
 
     try {
       const formData = new FormData();
-      formData.append("avatar", file);
+      formData.append(
+        "avatar",
+        croppedBlob,
+        `avatar_512x512_${Date.now()}.webp`,
+      );
 
       const res = await fetch("/api/characters/upload", {
         method: "POST",
@@ -62,7 +84,9 @@ export default function CharacterForm({
       setAvatarUrl(data.url);
     } catch (err) {
       console.error("Avatar upload error:", err);
-      setUploadError(err instanceof Error ? err.message : "Failed to upload image");
+      setUploadError(
+        err instanceof Error ? err.message : "Failed to upload image",
+      );
     } finally {
       setUploading(false);
     }
@@ -70,9 +94,18 @@ export default function CharacterForm({
 
   return (
     <form action={action} className="space-y-5">
+      {/* Interactive Crop Modal */}
+      {cropImageSrc && (
+        <AvatarCropModal
+          imageSrc={cropImageSrc}
+          onCrop={handleCroppedUpload}
+          onCancel={() => setCropImageSrc(null)}
+        />
+      )}
+
       {/* Avatar Image Selector & Live Preview */}
       <div className="space-y-2">
-        <label className="label">Character Avatar (R2 Storage)</label>
+        <label className="label">Character Avatar (512×512 Cloudflare R2)</label>
         <div className="flex items-center gap-4">
           <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
             <Image
@@ -84,31 +117,33 @@ export default function CharacterForm({
           </div>
           <div className="space-y-1.5 min-w-0 flex-1">
             <label className="btn-outline btn-sm inline-flex items-center gap-2 cursor-pointer">
-              <span>{uploading ? "Uploading to R2..." : "📷 Upload Custom Avatar"}</span>
+              <span>
+                {uploading ? "Uploading 512×512 to R2..." : "📷 Upload & Frame Avatar"}
+              </span>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleFileChange}
+                onChange={handleFileSelect}
                 disabled={uploading}
                 className="hidden"
               />
             </label>
             <p className="muted text-xs">
-              Supports PNG, JPG, WebP up to 5 MB. Stored securely on Cloudflare R2 edge.
+              Frame, zoom, and crop to 512×512 resolution before uploading to Cloudflare R2.
             </p>
 
             {avatarUrl && (
               <button
                 type="button"
                 onClick={() => setAvatarUrl("")}
-                className="text-xs text-red-500 hover:underline block"
+                className="text-xs text-red-400 hover:underline block font-medium"
               >
                 Reset to default avatar
               </button>
             )}
 
             {uploadError && (
-              <p className="text-xs text-red-500 font-medium">{uploadError}</p>
+              <p className="text-xs text-red-400 font-medium">{uploadError}</p>
             )}
           </div>
         </div>
