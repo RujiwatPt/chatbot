@@ -33,7 +33,7 @@ export default async function CharacterDetailPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, pronouns")
     .maybeSingle();
 
   const { data: chats } = await supabase
@@ -131,7 +131,7 @@ export default async function CharacterDetailPage({
               <select
                 id="user_pronouns"
                 name="user_pronouns"
-                defaultValue=""
+                defaultValue={profile?.pronouns ?? ""}
                 className="field"
               >
                 <option value="">Prefer not to say</option>
