@@ -1,26 +1,29 @@
 import crypto from "node:crypto";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const PREFIX = "enc:v1:";
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // Standard 96-bit IV for AES-GCM
-
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 function getAppMasterSecret(): string {
   let secret = process.env.ENCRYPTION_SECRET;
   if (!secret) {
     try {
       const { env } = getCloudflareContext();
-      secret = (env as unknown as Record<string, string | undefined>).ENCRYPTION_SECRET;
+      secret = (env as unknown as Record<string, string | undefined>)
+        .ENCRYPTION_SECRET;
     } catch {
       // outside Cloudflare context
     }
   }
-  if (secret && secret.length >= 16) {
-    return secret;
+
+  if (!secret || secret.trim().length < 16) {
+    throw new Error(
+      "SECURITY ERROR: ENCRYPTION_SECRET environment variable must be set (at least 16 characters).",
+    );
   }
-  // Stable fallback for local dev environments if ENCRYPTION_SECRET is omitted
-  return "fallback-dev-roleplay-chatbot-secret-key-32b";
+
+  return secret.trim();
 }
 
 /**
@@ -40,40 +43,43 @@ function deriveUserKey(userId: string): Buffer {
 }
 
 /**
- * Encrypts a plaintext string using AES-256-GCM with a per-user key.
- * Output format: enc:v1:<iv_hex>:<tag_hex>:<ciphertext_hex>
+ * Encrypts plaintext message using AES-256-GCM with per-user HKDF key derivation.
  */
 export function encryptText(plaintext: string, userId: string): string {
-  if (!plaintext) return plaintext;
-  try {
-    const key = deriveUserKey(userId);
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-
-    let encrypted = cipher.update(plaintext, "utf8", "hex");
-    encrypted += cipher.final("hex");
-    const tag = cipher.getAuthTag().toString("hex");
-
-    return `${PREFIX}${iv.toString("hex")}:${tag}:${encrypted}`;
-  } catch (err) {
-    console.error("[encryption] Failed to encrypt text:", err);
+  if (
+    !plaintext ||
+    typeof plaintext !== "string" ||
+    plaintext.startsWith(PREFIX)
+  ) {
     return plaintext;
   }
+
+  const key = deriveUserKey(userId);
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+
+  let encrypted = cipher.update(plaintext, "utf8", "hex");
+  encrypted += cipher.final("hex");
+
+  const tag = cipher.getAuthTag().toString("hex");
+
+  return `${PREFIX}${iv.toString("hex")}:${tag}:${encrypted}`;
 }
 
 /**
- * Decrypts an AES-256-GCM ciphertext string with a per-user key.
- * Falls back gracefully to plaintext for legacy unencrypted messages.
+ * Decrypts authenticated ciphertext payload.
+ * Supports backward compatibility by returning legacy unencrypted text as-is.
  */
 export function decryptText(ciphertext: string, userId: string): string {
-  if (!ciphertext || typeof ciphertext !== "string") return ciphertext;
-  if (!ciphertext.startsWith(PREFIX)) {
-    // Legacy unencrypted message
+  if (
+    !ciphertext ||
+    typeof ciphertext !== "string" ||
+    !ciphertext.startsWith(PREFIX)
+  ) {
     return ciphertext;
   }
 
   try {
-    const key = deriveUserKey(userId);
     const payload = ciphertext.slice(PREFIX.length);
     const parts = payload.split(":");
     if (parts.length !== 3) {
@@ -81,18 +87,19 @@ export function decryptText(ciphertext: string, userId: string): string {
     }
 
     const [ivHex, tagHex, encryptedHex] = parts;
+    const key = deriveUserKey(userId);
     const iv = Buffer.from(ivHex, "hex");
     const tag = Buffer.from(tagHex, "hex");
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
 
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(tag);
+
     let decrypted = decipher.update(encryptedHex, "hex", "utf8");
     decrypted += decipher.final("utf8");
 
     return decrypted;
   } catch (err) {
-    console.error("[encryption] Failed to decrypt text:", err);
-    // If key fails or payload corrupted, return original string safely
-    return ciphertext;
+    console.error("[encryption_decrypt_error] Failed to decrypt message:", err);
+    return "[Encrypted Message]";
   }
 }
