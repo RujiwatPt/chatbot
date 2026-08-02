@@ -2,15 +2,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar } from "@/lib/avatar";
+import { PRESET_TAGS } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
 
 export default async function CharactersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; tag?: string }>;
 }) {
   const params = await searchParams;
+  const q = (params.q || "").trim();
+  const selectedTag = (params.tag || "").trim();
+
   const PAGE_SIZE = 10;
   const rawPage = parseInt(params.page || "1", 10);
   const currentPage = isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
@@ -18,12 +22,25 @@ export default async function CharactersPage({
   const to = from + PAGE_SIZE - 1;
 
   const supabase = await createClient();
-  const { data: characters, count } = await supabase
+  let query = supabase
     .from("characters")
     .select(
-      "id, name, alias, persona, persona_display, is_public, avatar_url, user_id, created_at",
+      "id, name, alias, persona, persona_display, is_public, avatar_url, user_id, created_at, tags",
       { count: "exact" },
-    )
+    );
+
+  if (q) {
+    const term = `%${q}%`;
+    query = query.or(
+      `name.ilike.${term},alias.ilike.${term},persona_display.ilike.${term},persona.ilike.${term}`,
+    );
+  }
+
+  if (selectedTag) {
+    query = query.contains("tags", [selectedTag]);
+  }
+
+  const { data: characters, count } = await query
     .order("is_public", { ascending: false })
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -31,29 +48,127 @@ export default async function CharactersPage({
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  const buildUrl = (opts: { page?: number; tag?: string | null; q?: string | null }) => {
+    const p = opts.page !== undefined ? opts.page : currentPage;
+    const t = opts.tag !== undefined ? opts.tag : selectedTag;
+    const search = opts.q !== undefined ? opts.q : q;
+
+    const paramsObj = new URLSearchParams();
+    if (search) paramsObj.set("q", search);
+    if (t) paramsObj.set("tag", t);
+    if (p > 1) paramsObj.set("page", String(p));
+
+    const qs = paramsObj.toString();
+    return `/characters${qs ? `?${qs}` : ""}`;
+  };
+
   return (
-    <main className="page">
-      <div className="reveal-up flex items-center justify-between gap-3">
+    <main className="page space-y-6">
+      <div className="reveal-up flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="page-title font-extrabold">Characters</h1>
           <p className="page-subtitle mt-0.5 text-xs sm:text-sm">
             Select a companion or build your own custom roleplay persona.
           </p>
         </div>
-        <Link href="/characters/new" className="btn-primary btn-sm shrink-0 px-4 py-2">
+        <Link href="/characters/new" className="btn-primary btn-sm shrink-0 px-4 py-2 self-start sm:self-auto">
           + New Character
         </Link>
       </div>
 
+      {/* Search & Tag Filter Bar */}
+      <div className="panel space-y-3 p-3.5 sm:p-4">
+        <form method="GET" action="/characters" className="flex items-center gap-2">
+          {selectedTag && <input type="hidden" name="tag" value={selectedTag} />}
+          <div className="relative flex-1">
+            <input
+              type="text"
+              name="q"
+              defaultValue={q}
+              placeholder="Search by name, alias, or personality..."
+              className="field text-sm pl-9 py-2"
+            />
+            <svg
+              className="w-4 h-4 text-[color:var(--muted-color)] absolute left-3 top-1/2 -translate-y-1/2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <button type="submit" className="btn-primary btn-sm px-4 py-2 min-h-10">
+            Search
+          </button>
+          {(q || selectedTag) && (
+            <Link
+              href="/characters"
+              className="btn-outline btn-sm px-3 py-2 min-h-10 text-xs font-semibold text-red-500 hover:text-red-600"
+            >
+              Clear
+            </Link>
+          )}
+        </form>
+
+        {/* Preset Tag Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-0.5 scrollbar-none">
+          <span className="text-xs font-semibold muted shrink-0">Tags:</span>
+          <Link
+            href={buildUrl({ tag: null, page: 1 })}
+            className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold shrink-0 transition-all border ${
+              !selectedTag
+                ? "bg-blue-600 text-white border-blue-500 shadow-sm"
+                : "bg-[color:var(--surface-solid)] text-[color:var(--muted-color)] border-[var(--line)] hover:border-blue-500/50"
+            }`}
+          >
+            All
+          </Link>
+          {PRESET_TAGS.map((t) => {
+            const active = selectedTag === t;
+            return (
+              <Link
+                key={t}
+                href={buildUrl({ tag: active ? null : t, page: 1 })}
+                className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold shrink-0 transition-all border ${
+                  active
+                    ? "bg-blue-600 text-white border-blue-500 shadow-sm"
+                    : "bg-[color:var(--surface-solid)] text-[color:var(--muted-color)] border-[var(--line)] hover:border-blue-500/50"
+                }`}
+              >
+                {t}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       {!characters?.length ? (
-        <p className="muted text-sm">
-          No characters found. Create one to start a chat.
-        </p>
+        <div className="panel p-8 text-center space-y-2">
+          <p className="font-semibold text-base">No characters found</p>
+          <p className="muted text-xs">
+            {q || selectedTag
+              ? "Try adjusting your search criteria or tag filters."
+              : "No characters yet. Create one to start a chat."}
+          </p>
+          {(q || selectedTag) && (
+            <div className="pt-2">
+              <Link href="/characters" className="btn-outline btn-sm text-xs">
+                Reset Filters
+              </Link>
+            </div>
+          )}
+        </div>
       ) : (
         <>
           <ul className="flex flex-col gap-4 sm:gap-5">
             {characters.map((c, i) => {
               const avatarUrl = getCharacterAvatar(c.name, c.alias, c.avatar_url);
+              const charTags: string[] = Array.isArray(c.tags) ? c.tags : [];
               return (
                 <li
                   key={c.id}
@@ -64,7 +179,7 @@ export default async function CharactersPage({
                     href={`/characters/${c.id}`}
                     className="flex items-center gap-4 p-4 sm:p-5 transition-colors hover:bg-[color:var(--surface-solid)]/40"
                   >
-                    {/* Left Side: Strict 1:1 Square avatar image */}
+                    {/* Left Side: 1:1 Square avatar image */}
                     <div className="relative aspect-square w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
                       <Image
                         src={avatarUrl}
@@ -91,7 +206,26 @@ export default async function CharactersPage({
                         {c.alias && c.alias !== c.name && (
                           <p className="muted mt-0.5 text-xs">{c.name}</p>
                         )}
-                        <p className="muted mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 sm:line-clamp-4 md:line-clamp-5">
+
+                        {/* Character Tags Badges */}
+                        {charTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {charTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                  selectedTag === tag
+                                    ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/40"
+                                    : "bg-[color:var(--surface-solid)] text-[color:var(--muted-color)] border-[var(--line)]"
+                                }`}
+                              >
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <p className="muted mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 sm:line-clamp-4">
                           {c.persona_display ?? c.persona}
                         </p>
                       </div>
@@ -118,7 +252,7 @@ export default async function CharactersPage({
             >
               {currentPage > 1 ? (
                 <Link
-                  href={`/characters?page=${currentPage - 1}`}
+                  href={buildUrl({ page: currentPage - 1 })}
                   className="btn-outline btn-sm px-3 py-1.5 text-xs font-semibold"
                 >
                   ← Previous
@@ -139,7 +273,7 @@ export default async function CharactersPage({
 
               {currentPage < totalPages ? (
                 <Link
-                  href={`/characters?page=${currentPage + 1}`}
+                  href={buildUrl({ page: currentPage + 1 })}
                   className="btn-outline btn-sm px-3 py-1.5 text-xs font-semibold"
                 >
                   Next →

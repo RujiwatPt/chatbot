@@ -5,6 +5,8 @@ import Image from "next/image";
 import { getCharacterAvatar } from "@/lib/avatar";
 import AvatarCropModal from "./AvatarCropModal";
 
+import { PRESET_TAGS } from "@/lib/tags";
+
 type Character = {
   id?: string;
   name?: string | null;
@@ -14,6 +16,7 @@ type Character = {
   scenario?: string | null;
   avatar_url?: string | null;
   is_public?: boolean | null;
+  tags?: string[] | null;
 };
 
 export default function CharacterForm({
@@ -28,6 +31,10 @@ export default function CharacterForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [alias, setAlias] = useState(initial?.alias ?? "");
   const [avatarUrl, setAvatarUrl] = useState(initial?.avatar_url ?? "");
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    initial?.tags ?? [],
+  );
+  const [customTagInput, setCustomTagInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
@@ -203,6 +210,105 @@ export default function CharacterForm({
           className="field"
         />
       </div>
+      {/* Hidden inputs to pass tags array in FormData */}
+      {selectedTags.map((tag) => (
+        <input type="hidden" key={tag} name="tags" value={tag} />
+      ))}
+
+      <div className="space-y-2">
+        <label className="label">Tags</label>
+        <p className="muted text-xs">
+          Select matching tags or add custom tags to help categorize your character.
+        </p>
+
+        {/* Preset Tag Pills */}
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+          {PRESET_TAGS.map((tag) => {
+            const active = selectedTags.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() =>
+                  setSelectedTags((prev) =>
+                    prev.includes(tag)
+                      ? prev.filter((t) => t !== tag)
+                      : [...prev, tag],
+                  )
+                }
+                className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold transition-all border ${
+                  active
+                    ? "bg-blue-600 text-white border-blue-500 shadow-sm"
+                    : "bg-[color:var(--surface-solid)] text-[color:var(--muted-color)] border-[var(--line)] hover:border-blue-500/50"
+                }`}
+              >
+                {active ? `✓ ${tag}` : `+ ${tag}`}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Custom Tags Display & Input */}
+        <div className="pt-2">
+          {selectedTags.filter((t) => !PRESET_TAGS.includes(t as (typeof PRESET_TAGS)[number])).length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5 items-center">
+              <span className="text-xs muted font-medium">Custom tags:</span>
+              {selectedTags
+                .filter((t) => !PRESET_TAGS.includes(t as (typeof PRESET_TAGS)[number]))
+                .map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-xs px-2.5 py-0.5 rounded-full font-semibold"
+                  >
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedTags((prev) => prev.filter((x) => x !== t))
+                      }
+                      className="hover:text-red-400 font-bold ml-0.5"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2 max-w-sm">
+            <input
+              type="text"
+              value={customTagInput}
+              onChange={(e) => setCustomTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const tag = customTagInput.trim();
+                  if (tag && !selectedTags.includes(tag)) {
+                    setSelectedTags((prev) => [...prev, tag]);
+                  }
+                  setCustomTagInput("");
+                }
+              }}
+              placeholder="Add custom tag (Enter)..."
+              className="field text-xs py-1.5"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const tag = customTagInput.trim();
+                if (tag && !selectedTags.includes(tag)) {
+                  setSelectedTags((prev) => [...prev, tag]);
+                }
+                setCustomTagInput("");
+              }}
+              className="btn-outline btn-sm shrink-0 text-xs"
+            >
+              Add Tag
+            </button>
+          </div>
+        </div>
+      </div>
+
       <label className="flex items-start gap-2 text-sm">
         <input
           type="checkbox"

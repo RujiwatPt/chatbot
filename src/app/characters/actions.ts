@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generatePersonaBio } from "@/lib/persona";
 
 function readForm(form: FormData) {
+  const rawTags = form.getAll("tags").map((t) => String(t).trim()).filter(Boolean);
   return {
     name: String(form.get("name") ?? "").trim(),
     alias: String(form.get("alias") ?? "").trim() || null,
@@ -14,6 +15,7 @@ function readForm(form: FormData) {
     scenario: String(form.get("scenario") ?? "").trim() || null,
     avatar_url: String(form.get("avatar_url") ?? "").trim() || null,
     is_public: form.get("is_public") === "on",
+    tags: Array.from(new Set(rawTags)),
   };
 }
 

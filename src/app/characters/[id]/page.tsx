@@ -21,13 +21,14 @@ export default async function CharacterDetailPage({
 
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id")
+    .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id, tags")
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
 
   const avatarUrl = getCharacterAvatar(character.name, character.alias, character.avatar_url);
   const isOwner = character.user_id === user?.id;
+  const tags: string[] = Array.isArray(character.tags) ? character.tags : [];
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -60,7 +61,7 @@ export default async function CharacterDetailPage({
         </div>
 
         <div className="flex-1 space-y-3 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="page-title">{character.name}</h1>
             {character.alias && (
               <span className="muted text-xs">({character.alias})</span>
@@ -71,6 +72,19 @@ export default async function CharacterDetailPage({
               </span>
             )}
           </div>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {tags.map((t) => (
+                <Link
+                  key={t}
+                  href={`/characters?tag=${encodeURIComponent(t)}`}
+                  className="badge hover:border-blue-500/50 transition-colors"
+                >
+                  #{t}
+                </Link>
+              ))}
+            </div>
+          )}
           {character.scenario && (
             <p className="muted text-sm italic">{character.scenario}</p>
           )}
