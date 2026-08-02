@@ -22,6 +22,9 @@ export default async function Nav() {
           <Link href="/chat" className="btn-text">
             Chats
           </Link>
+          <Link href="/settings" className="btn-text">
+            Settings
+          </Link>
         </div>
         {user.email && (
           <span className="muted order-2 hidden text-xs sm:inline">
