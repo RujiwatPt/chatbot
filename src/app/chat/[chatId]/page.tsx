@@ -24,7 +24,7 @@ export default async function ChatPage({
 
   const { data: chat } = await supabase
     .from("chats")
-    .select("id, title, character:characters(name, alias)")
+    .select("id, title, character:characters(name, alias, avatar_url)")
     .eq("id", chatId)
     .maybeSingle();
 
@@ -34,7 +34,11 @@ export default async function ChatPage({
     ? chat.character[0]
     : chat.character;
 
-  const avatarUrl = getCharacterAvatar(character?.name || "", character?.alias);
+  const avatarUrl = getCharacterAvatar(
+    character?.name || "",
+    character?.alias,
+    character?.avatar_url,
+  );
 
   const { data: rows } = await supabase
     .from("messages")

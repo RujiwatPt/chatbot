@@ -107,7 +107,7 @@ export default function CharacterForm({
       <div className="space-y-2">
         <label className="label">Character Avatar (512×512 Cloudflare R2)</label>
         <div className="flex items-center gap-4">
-          <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
             <Image
               src={displayAvatar}
               alt="Avatar Preview"

@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startChat } from "../../chat/actions";
 
+import Image from "next/image";
+import { getCharacterAvatar } from "@/lib/avatar";
+
 export const dynamic = "force-dynamic";
 
 export default async function CharacterDetailPage({
@@ -18,11 +21,12 @@ export default async function CharacterDetailPage({
 
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, persona_display, scenario, is_public, user_id")
+    .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id")
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
 
+  const avatarUrl = getCharacterAvatar(character.name, character.alias, character.avatar_url);
   const isOwner = character.user_id === user?.id;
 
   const { data: profile } = await supabase
@@ -44,32 +48,44 @@ export default async function CharacterDetailPage({
         ← All characters
       </Link>
 
-      <header className="panel reveal-up space-y-3 p-5 sm:p-6">
-        <div className="flex items-center gap-2">
-          <h1 className="page-title">{character.name}</h1>
-          {character.alias && (
-            <span className="muted text-xs">({character.alias})</span>
+      <header className="panel reveal-up flex flex-col sm:flex-row items-start gap-4 sm:gap-5 p-5 sm:p-6">
+        <div className="relative aspect-square w-20 h-20 sm:w-24 sm:h-24 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
+          <Image
+            src={avatarUrl}
+            alt={character.name}
+            fill
+            sizes="(max-width: 640px) 80px, 96px"
+            className="object-cover"
+          />
+        </div>
+
+        <div className="flex-1 space-y-3 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="page-title">{character.name}</h1>
+            {character.alias && (
+              <span className="muted text-xs">({character.alias})</span>
+            )}
+            {character.is_public && (
+              <span className="badge">
+                {character.user_id === null ? "Featured" : "Public"}
+              </span>
+            )}
+          </div>
+          {character.scenario && (
+            <p className="muted text-sm italic">{character.scenario}</p>
           )}
-          {character.is_public && (
-            <span className="badge">
-              {character.user_id === null ? "Featured" : "Public"}
-            </span>
+          <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
+            {character.persona_display ?? character.persona}
+          </p>
+          {isOwner && (
+            <Link
+              href={`/characters/${id}/edit`}
+              className="btn-text muted inline-block text-xs"
+            >
+              Edit character
+            </Link>
           )}
         </div>
-        {character.scenario && (
-          <p className="muted text-sm italic">{character.scenario}</p>
-        )}
-        <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
-          {character.persona_display ?? character.persona}
-        </p>
-        {isOwner && (
-          <Link
-            href={`/characters/${id}/edit`}
-            className="btn-text muted inline-block text-xs"
-          >
-            Edit character
-          </Link>
-        )}
       </header>
 
       <section className="space-y-3">

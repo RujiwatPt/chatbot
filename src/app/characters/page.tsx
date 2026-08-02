@@ -43,21 +43,21 @@ export default async function CharactersPage() {
               >
                 <Link
                   href={`/characters/${c.id}`}
-                  className="flex items-stretch min-h-[160px] sm:min-h-[195px] transition-colors hover:bg-[color:var(--surface-solid)]/40"
+                  className="flex items-center gap-4 p-4 sm:p-5 transition-colors hover:bg-[color:var(--surface-solid)]/40"
                 >
-                  {/* Left Side: Full height image covering 100% of left side edge-to-edge */}
-                  <div className="relative w-32 sm:w-48 md:w-56 shrink-0 overflow-hidden">
+                  {/* Left Side: Strict 1:1 Square avatar image */}
+                  <div className="relative aspect-square w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
                     <Image
                       src={avatarUrl}
                       alt={c.name}
                       fill
-                      sizes="(max-width: 640px) 128px, 224px"
-                      className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 640px) 112px, 160px"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
 
-                  {/* Right Side: Description and character info filling all remaining space */}
-                  <div className="flex min-w-0 flex-1 flex-col justify-between p-4 sm:p-5">
+                  {/* Right Side: Description and character info */}
+                  <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="truncate text-base font-bold sm:text-xl group-hover:text-blue-500 transition-colors">
