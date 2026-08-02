@@ -103,7 +103,7 @@ export default async function Home() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {displayFeatured.map((c, idx) => {
-            const avatarSrc = getCharacterAvatar(c.avatar_url, c.name);
+            const avatarSrc = getCharacterAvatar(c.name, c.alias, c.avatar_url);
             const firstTag = Array.isArray(c.tags) && c.tags.length > 0 ? c.tags[0] : null;
 
             return (
@@ -227,10 +227,13 @@ export default async function Home() {
 
       {/* Footer */}
       <footer className="shell border-t border-[var(--line)] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs muted">
-        <p>© {new Date().getFullYear()} Roleplay Chatbot. All rights reserved.</p>
+        <p>© HowlingHeaven Studio 2026. All rights reserved.</p>
         <div className="flex items-center gap-4">
           <Link href="/characters" className="hover:underline">
             Characters
+          </Link>
+          <Link href="/terms" className="hover:underline">
+            Terms of Service
           </Link>
           <Link href="/redeem" className="hover:underline">
             Redeem Code

@@ -22,8 +22,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Roleplay Chatbot",
-  description: "Persistent-memory roleplay with your own characters.",
+  title: "Howly.ai",
+  description: "Persistent-memory roleplay with your own AI companions.",
 };
 
 export const viewport: Viewport = {

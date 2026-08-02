@@ -12,8 +12,8 @@ export default async function Nav() {
   return (
     <nav className="sticky top-0 z-20 border-b border-[var(--line)] bg-[color:var(--surface)]/80 backdrop-blur-xl">
       <div className="shell flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 text-sm sm:px-4 sm:py-3">
-        <Link href="/" className="font-medium hover:text-blue-500 transition-colors">
-          Roleplay
+        <Link href="/" className="font-semibold text-base hover:text-blue-500 transition-colors tracking-tight">
+          Howly.ai
         </Link>
         <div className="muted order-3 flex w-full gap-4 sm:order-2 sm:w-auto sm:flex-1">
           <Link href="/characters" className="btn-text">

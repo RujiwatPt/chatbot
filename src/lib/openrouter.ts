@@ -91,7 +91,7 @@ export const openrouter = createOpenAICompatible({
   apiKey: process.env.OPENROUTER_API_KEY ?? "",
   headers: {
     "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "",
-    "X-Title": process.env.OPENROUTER_APP_NAME ?? "Roleplay Chatbot",
+    "X-Title": process.env.OPENROUTER_APP_NAME ?? "Howly.ai",
   },
   fetch: openrouterFetch,
 });
