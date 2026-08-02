@@ -48,6 +48,17 @@ export default async function CharactersPage({
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // Query all global tags from the tags table, fallback to PRESET_TAGS
+  const { data: globalTagRows } = await supabase
+    .from("tags")
+    .select("name, is_preset")
+    .order("is_preset", { ascending: false })
+    .order("name", { ascending: true });
+
+  const displayFilterTags = globalTagRows?.length
+    ? globalTagRows.map((t) => t.name)
+    : Array.from(PRESET_TAGS);
+
   const buildUrl = (opts: { page?: number; tag?: string | null; q?: string | null }) => {
     const p = opts.page !== undefined ? opts.page : currentPage;
     const t = opts.tag !== undefined ? opts.tag : selectedTag;
@@ -80,29 +91,13 @@ export default async function CharactersPage({
       <div className="panel space-y-3.5 p-3.5 sm:p-4">
         <form method="GET" action="/characters" className="flex items-center gap-2">
           {selectedTag && <input type="hidden" name="tag" value={selectedTag} />}
-          <div className="relative flex-1">
-            <input
-              type="text"
-              name="q"
-              defaultValue={q}
-              placeholder="Search by name, alias, or personality..."
-              className="field text-sm py-2 !pl-10"
-              style={{ paddingLeft: "2.5rem" }}
-            />
-            <svg
-              className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
+          <input
+            type="text"
+            name="q"
+            defaultValue={q}
+            placeholder="Search by name, alias, or personality..."
+            className="field text-sm py-2 flex-1"
+          />
           <button type="submit" className="btn-primary btn-sm px-4 py-2 min-h-10">
             Search
           </button>
@@ -117,7 +112,7 @@ export default async function CharactersPage({
         </form>
 
         {/* Preset Tag Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-0.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-0.5 overflow-hidden">
           <span className="text-xs font-semibold muted shrink-0 mr-1">Tags:</span>
           <Link
             href={buildUrl({ tag: null, page: 1 })}
@@ -129,7 +124,7 @@ export default async function CharactersPage({
           >
             All
           </Link>
-          {PRESET_TAGS.map((t) => {
+          {displayFilterTags.map((t) => {
             const active = selectedTag === t;
             return (
               <Link

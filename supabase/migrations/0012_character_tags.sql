@@ -14,7 +14,7 @@ set tags = ARRAY['Female', 'Teenager', 'Anime']
 where is_public = true and name = 'Tsundere girl';
 
 update characters
-set tags = ARRAY['Female', 'Teenager', 'Cozy']
+set tags = ARRAY['Teenager', 'Cozy']
 where is_public = true and name = 'Childhood bestfriend';
 
 update characters

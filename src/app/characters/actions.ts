@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generatePersonaBio } from "@/lib/persona";
+import { ensureTagsExist } from "@/lib/tags";
 
 function readForm(form: FormData) {
   const rawTags = form.getAll("tags").map((t) => String(t).trim()).filter(Boolean);
@@ -30,6 +31,8 @@ export async function createCharacter(form: FormData) {
   if (!payload.name || !payload.persona) {
     throw new Error("Name and persona are required.");
   }
+
+  await ensureTagsExist(supabase, payload.tags);
 
   const { data, error } = await supabase
     .from("characters")
@@ -62,6 +65,9 @@ export async function updateCharacter(id: string, form: FormData) {
   if (!payload.name || !payload.persona) {
     throw new Error("Name and persona are required.");
   }
+
+  await ensureTagsExist(supabase, payload.tags);
+
   const { error } = await supabase
     .from("characters")
     .update(payload)
