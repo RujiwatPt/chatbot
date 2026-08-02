@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SettingsForm from "./SettingsForm";
 import DeleteAccountButton from "./DeleteAccountButton";
-import { deleteAccount } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +78,7 @@ export default async function SettingsPage() {
             Permanently remove your account and all associated characters, chat logs, and profile data.
           </p>
         </div>
-        <form action={deleteAccount}>
-          <DeleteAccountButton />
-        </form>
+        <DeleteAccountButton userEmail={user.email ?? ""} />
       </section>
     </main>
   );

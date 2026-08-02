@@ -113,7 +113,7 @@ export default function CharacterForm({
 
       {/* Avatar Image Selector & Live Preview */}
       <div className="space-y-2">
-        <label className="label">Character Avatar (512×512 Cloudflare R2)</label>
+        <label className="label">Character Avatar (512×512)</label>
         <div className="flex items-center gap-4">
           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
             <Image
@@ -126,7 +126,7 @@ export default function CharacterForm({
           <div className="space-y-1.5 min-w-0 flex-1">
             <label className="btn-outline btn-sm inline-flex items-center gap-2 cursor-pointer">
               <span>
-                {uploading ? "Uploading 512×512 to R2..." : "📷 Upload & Frame Avatar"}
+                {uploading ? "Uploading 512×512 avatar..." : "📷 Upload & Frame Avatar"}
               </span>
               <input
                 type="file"
@@ -137,7 +137,7 @@ export default function CharacterForm({
               />
             </label>
             <p className="muted text-xs">
-              Frame, zoom, and crop to 512×512 resolution before uploading to Cloudflare R2.
+              Frame, zoom, and crop to 512×512 resolution before uploading.
             </p>
 
             {avatarUrl && (

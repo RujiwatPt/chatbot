@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const PRESET_TAGS = [
   "Male",
   "Female",
+  "Gender-Neutral",
   "Furry",
   "Teenager",
   "Adult",

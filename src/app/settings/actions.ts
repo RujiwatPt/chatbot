@@ -40,7 +40,7 @@ export async function updateProfile(form: FormData) {
   revalidatePath("/characters");
 }
 
-export async function deleteAccount() {
+export async function deleteAccount(form: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,6 +48,13 @@ export async function deleteAccount() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  const confirmEmail = String(form.get("confirm_email") ?? "").trim().toLowerCase();
+  const expectedEmail = (user.email ?? "").trim().toLowerCase();
+
+  if (!expectedEmail || confirmEmail !== expectedEmail) {
+    throw new Error("Email confirmation does not match your account email.");
   }
 
   // 1. Delete all user chats (cascades to all messages & feedback logs)

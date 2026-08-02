@@ -183,7 +183,7 @@ export default async function Home() {
             </div>
             <h3 className="text-base font-semibold">Realtime Edge Streaming</h3>
             <p className="muted text-xs sm:text-sm leading-relaxed">
-              Ultra-fast streaming word responses powered by Cloudflare Workers edge architecture and smart placement.
+              Ultra-fast streaming word responses powered by high-speed edge architecture and smart placement.
             </p>
           </article>
 
