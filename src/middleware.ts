@@ -1,10 +1,20 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 function applySecurityHeaders(response: Response) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains; preload",
+  );
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=()",
+  );
+  response.headers.set("X-Permitted-Cross-Domain-Policies", "none");
   response.headers.set(
     "Content-Security-Policy",
     [
@@ -24,6 +34,24 @@ function applySecurityHeaders(response: Response) {
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Apply Edge Rate Limiting on API endpoints (60 req/min per IP)
+  if (pathname.startsWith("/api/")) {
+    const ip = getClientIp(request);
+    const rl = checkRateLimit({
+      identifier: ip,
+      namespace: "middleware_api_ip",
+      limit: 60,
+      windowSeconds: 60,
+    });
+
+    if (!rl.success) {
+      const res = rateLimitResponse(rl.resetSeconds);
+      return applySecurityHeaders(res);
+    }
+  }
+
   const response = await updateSession(request);
   return applySecurityHeaders(response);
 }

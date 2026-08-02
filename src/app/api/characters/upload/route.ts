@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,16 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return new Response("unauthorized", { status: 401 });
+  }
+
+  const rl = checkRateLimit({
+    identifier: user.id,
+    namespace: "avatar_upload",
+    limit: 10,
+    windowSeconds: 60,
+  });
+  if (!rl.success) {
+    return rateLimitResponse(rl.resetSeconds);
   }
 
   try {

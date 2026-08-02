@@ -5,6 +5,7 @@ import { startChat } from "../../chat/actions";
 
 import Image from "next/image";
 import { getCharacterAvatar } from "@/lib/avatar";
+import StartChatSubmitButton from "./StartChatSubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -140,9 +141,7 @@ export default async function CharacterDetailPage({
               </select>
             </div>
           </div>
-          <button type="submit" className="btn-primary btn-sm">
-            Start new chat
-          </button>
+          <StartChatSubmitButton />
         </form>
       </section>
 

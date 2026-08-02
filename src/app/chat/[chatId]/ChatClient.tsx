@@ -49,6 +49,7 @@ export default function ChatClient({
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [actionState, setActionState] = useState<"none" | "sending" | "retrying" | "undoing">("none");
   const [headerHidden, setHeaderHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("chat-header-hidden") === "true";
@@ -65,6 +66,7 @@ export default function ChatClient({
   const [now, setNow] = useState(0);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState<Record<string, string>>({});
+  const [feedbackLoading, setFeedbackLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUpRef = useRef(false);
@@ -154,6 +156,7 @@ export default function ChatClient({
     inFlightRef.current = true;
     setInput("");
     setBusy(true);
+    setActionState("sending");
     setError(null);
 
     const userMsg: Msg = {
@@ -218,27 +221,34 @@ export default function ChatClient({
       setNow(Date.now());
       inFlightRef.current = false;
       setBusy(false);
+      setActionState("none");
     }
   }
 
   async function sendFeedback(messageId: string, feedback: string) {
-    if (feedbackSent[messageId] === feedback) return;
-    const res = await fetch("/api/chat/feedback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chatId,
-        messageId: Number(messageId),
-        feedback,
-      }),
-    });
-    if (!res.ok) return;
-    setFeedbackSent((prev) => ({ ...prev, [messageId]: feedback }));
+    if (feedbackSent[messageId] === feedback || feedbackLoading[messageId]) return;
+    setFeedbackLoading((prev) => ({ ...prev, [messageId]: true }));
+    try {
+      const res = await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          chatId,
+          messageId: Number(messageId),
+          feedback,
+        }),
+      });
+      if (!res.ok) return;
+      setFeedbackSent((prev) => ({ ...prev, [messageId]: feedback }));
+    } finally {
+      setFeedbackLoading((prev) => ({ ...prev, [messageId]: false }));
+    }
   }
 
   async function retryLast() {
     if (busy) return;
     setBusy(true);
+    setActionState("retrying");
     setError(null);
     try {
       const res = await fetch("/api/chat/retry", {
@@ -268,6 +278,7 @@ export default function ChatClient({
       setError(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setBusy(false);
+      setActionState("none");
     }
   }
 
@@ -279,6 +290,7 @@ export default function ChatClient({
     if (!ok) return;
 
     setBusy(true);
+    setActionState("undoing");
     setError(null);
     try {
       const res = await fetch("/api/chat/undo", {
@@ -302,6 +314,7 @@ export default function ChatClient({
       setError(err instanceof Error ? err.message : "Undo failed");
     } finally {
       setBusy(false);
+      setActionState("none");
     }
   }
 
@@ -464,19 +477,39 @@ export default function ChatClient({
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            className="btn-outline btn-sm min-h-11"
+            className="btn-outline btn-sm min-h-11 inline-flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={retryLast}
             disabled={busy}
           >
-            Retry
+            {actionState === "retrying" ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span>Retrying...</span>
+              </>
+            ) : (
+              "Retry"
+            )}
           </button>
           <button
             type="button"
-            className="btn-outline btn-sm btn-danger min-h-11"
+            className="btn-outline btn-sm btn-danger min-h-11 inline-flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={undoLastTurn}
             disabled={busy}
           >
-            Undo
+            {actionState === "undoing" ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span>Undoing...</span>
+              </>
+            ) : (
+              "Undo"
+            )}
           </button>
         </div>
         <textarea

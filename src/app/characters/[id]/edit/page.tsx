@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import CharacterForm from "../../CharacterForm";
 import { updateCharacter, deleteCharacter } from "../../actions";
 
+import DeleteCharacterButton from "./DeleteCharacterButton";
+
 export const dynamic = "force-dynamic";
 
 export default async function EditCharacterPage({
@@ -40,9 +42,7 @@ export default async function EditCharacterPage({
         <CharacterForm action={update} initial={character} submitLabel="Save" />
       </div>
       <form action={remove}>
-        <button type="submit" className="btn-text btn-danger text-xs">
-          Delete character
-        </button>
+        <DeleteCharacterButton />
       </form>
     </main>
   );

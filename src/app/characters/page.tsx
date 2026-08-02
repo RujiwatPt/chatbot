@@ -77,7 +77,7 @@ export default async function CharactersPage({
       </div>
 
       {/* Search & Tag Filter Bar */}
-      <div className="panel space-y-3 p-3.5 sm:p-4">
+      <div className="panel space-y-3.5 p-3.5 sm:p-4">
         <form method="GET" action="/characters" className="flex items-center gap-2">
           {selectedTag && <input type="hidden" name="tag" value={selectedTag} />}
           <div className="relative flex-1">
@@ -86,10 +86,11 @@ export default async function CharactersPage({
               name="q"
               defaultValue={q}
               placeholder="Search by name, alias, or personality..."
-              className="field text-sm pl-9 py-2"
+              className="field text-sm py-2 !pl-10"
+              style={{ paddingLeft: "2.5rem" }}
             />
             <svg
-              className="w-4 h-4 text-[color:var(--muted-color)] absolute left-3 top-1/2 -translate-y-1/2"
+              className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -116,14 +117,14 @@ export default async function CharactersPage({
         </form>
 
         {/* Preset Tag Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-0.5 scrollbar-none">
-          <span className="text-xs font-semibold muted shrink-0">Tags:</span>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-0.5">
+          <span className="text-xs font-semibold muted shrink-0 mr-1">Tags:</span>
           <Link
             href={buildUrl({ tag: null, page: 1 })}
-            className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold shrink-0 transition-all border ${
+            className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold transition-all border ${
               !selectedTag
                 ? "bg-blue-600 text-white border-blue-500 shadow-sm"
-                : "bg-[color:var(--surface-solid)] text-[color:var(--muted-color)] border-[var(--line)] hover:border-blue-500/50"
+                : "bg-[color:var(--surface-solid)] text-[color:var(--muted)] border-[var(--line)] hover:border-blue-500/50"
             }`}
           >
             All
@@ -134,10 +135,10 @@ export default async function CharactersPage({
               <Link
                 key={t}
                 href={buildUrl({ tag: active ? null : t, page: 1 })}
-                className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold shrink-0 transition-all border ${
+                className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold transition-all border ${
                   active
                     ? "bg-blue-600 text-white border-blue-500 shadow-sm"
-                    : "bg-[color:var(--surface-solid)] text-[color:var(--muted-color)] border-[var(--line)] hover:border-blue-500/50"
+                    : "bg-[color:var(--surface-solid)] text-[color:var(--muted)] border-[var(--line)] hover:border-blue-500/50"
                 }`}
               >
                 {t}

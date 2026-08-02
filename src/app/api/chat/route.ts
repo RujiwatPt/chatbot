@@ -8,6 +8,7 @@ import {
 } from "@/lib/memory";
 import { generateAssistantText, toSmoothWordStream } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -64,8 +65,18 @@ export async function POST(request: Request) {
   const ctx = await loadChatContext(supabase, chatId);
   if (!ctx) return new Response("not_found", { status: 404 });
 
-  // Rate limit: count this user's messages in the last minute. RLS narrows
-  // the messages table to chats this user owns, so the count is per-user.
+  // Rate limit: fast memory sliding window check per-user (20 msg/min)
+  const rl = checkRateLimit({
+    identifier: user.id,
+    namespace: "chat_user",
+    limit: RATE_LIMIT_PER_MINUTE,
+    windowSeconds: 60,
+  });
+  if (!rl.success) {
+    return rateLimitResponse(rl.resetSeconds);
+  }
+
+  // Backup DB count check: count this user's messages in the last minute.
   const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
   const { count: recentCount } = await supabase
     .from("messages")
@@ -73,10 +84,7 @@ export async function POST(request: Request) {
     .eq("role", "user")
     .gte("created_at", oneMinuteAgo);
   if ((recentCount ?? 0) >= RATE_LIMIT_PER_MINUTE) {
-    return new Response("rate_limited", {
-      status: 429,
-      headers: { "Retry-After": "60" },
-    });
+    return rateLimitResponse(60);
   }
 
   // If the user asks to be called something, remember it on the chat so it

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const Body = z.object({
   chatId: z.string().uuid(),
@@ -7,6 +8,21 @@ const Body = z.object({
 
 export async function POST(request: Request) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Response("unauthorized", { status: 401 });
+
+  const rl = checkRateLimit({
+    identifier: user.id,
+    namespace: "chat_undo",
+    limit: 10,
+    windowSeconds: 60,
+  });
+  if (!rl.success) {
+    return rateLimitResponse(rl.resetSeconds);
+  }
+
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId } = parsed.data;
