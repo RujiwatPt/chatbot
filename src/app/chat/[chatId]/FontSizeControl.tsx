@@ -18,15 +18,16 @@ function applyScale(scale: number) {
 }
 
 export default function FontSizeControl() {
-  const [scale, setScale] = useState<number>(1);
-
-  // Load the saved preference on mount and apply it.
-  useEffect(() => {
+  const [scale, setScale] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
     const saved = Number(localStorage.getItem(STORAGE_KEY));
-    const initial = LEVELS.some((l) => l.scale === saved) ? saved : 1;
-    setScale(initial);
-    applyScale(initial);
-  }, []);
+    return LEVELS.some((l) => l.scale === saved) ? saved : 1;
+  });
+
+  // Apply scale to DOM whenever it changes
+  useEffect(() => {
+    applyScale(scale);
+  }, [scale]);
 
   function choose(next: number) {
     setScale(next);

@@ -1,13 +1,9 @@
-import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar } from "@/lib/avatar";
 import { decryptText } from "@/lib/encryption";
 import ChatClient from "./ChatClient";
-import FontSizeControl from "./FontSizeControl";
 import { deleteChat } from "../actions";
-import DeleteChatButton from "./DeleteChatButton";
 
 export const dynamic = "force-dynamic";
 

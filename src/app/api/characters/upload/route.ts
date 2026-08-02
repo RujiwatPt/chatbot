@@ -43,8 +43,17 @@ export async function POST(request: Request) {
     // Try Cloudflare R2 bucket binding first
     try {
       const { env } = await getCloudflareContext();
-      const bucket = (env as unknown as { AVATARS_BUCKET?: { put: Function } })
-        .AVATARS_BUCKET;
+      const bucket = (
+        env as unknown as {
+          AVATARS_BUCKET?: {
+            put: (
+              key: string,
+              value: ArrayBuffer | ArrayBufferView | string,
+              options?: unknown,
+            ) => Promise<unknown>;
+          };
+        }
+      ).AVATARS_BUCKET;
 
       if (bucket && typeof bucket.put === "function") {
         await bucket.put(objectKey, fileBuffer, {

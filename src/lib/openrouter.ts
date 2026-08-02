@@ -37,7 +37,7 @@ async function getOpenRouterApiKey(): Promise<string> {
 // upstream API tries each model in order if the primary fails.
 const openrouterFetch: typeof fetch = async (input, init) => {
   let chainUsed: string[] | null = null;
-  let customInit = { ...init };
+  const customInit = { ...init };
 
   if (!customInit.signal) {
     customInit.signal = AbortSignal.timeout(50000);

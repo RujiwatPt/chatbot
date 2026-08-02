@@ -49,12 +49,10 @@ export default function ChatClient({
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [headerHidden, setHeaderHidden] = useState<boolean>(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("chat-header-hidden");
-    if (saved === "true") setHeaderHidden(true);
-  }, []);
+  const [headerHidden, setHeaderHidden] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("chat-header-hidden") === "true";
+  });
 
   const toggleHeader = () => {
     setHeaderHidden((prev) => {
