@@ -6,6 +6,7 @@ import { startChat } from "../../chat/actions";
 import Image from "next/image";
 import { getCharacterAvatar } from "@/lib/avatar";
 import StartChatSubmitButton from "./StartChatSubmitButton";
+import PublicBadge from "@/components/PublicBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -67,11 +68,7 @@ export default async function CharacterDetailPage({
             {character.alias && (
               <span className="muted text-xs">({character.alias})</span>
             )}
-            {character.is_public && (
-              <span className="badge">
-                {character.user_id === null ? "Featured" : "Public"}
-              </span>
-            )}
+            <PublicBadge isPublic={character.is_public} ownerId={character.user_id} />
           </div>
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-0.5">

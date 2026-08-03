@@ -76,17 +76,6 @@ export async function POST(request: Request) {
     return rateLimitResponse(rl.resetSeconds);
   }
 
-  // Backup DB count check: count this user's messages in the last minute.
-  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
-  const { count: recentCount } = await supabase
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "user")
-    .gte("created_at", oneMinuteAgo);
-  if ((recentCount ?? 0) >= RATE_LIMIT_PER_MINUTE) {
-    return rateLimitResponse(60);
-  }
-
   // If the user asks to be called something, remember it on the chat so it
   // persists and takes priority for the rest of the conversation.
   const preferredName = detectPreferredName(message);
@@ -152,7 +141,7 @@ export async function POST(request: Request) {
           content: await encryptText(finalText, user.id),
         });
       }
-      await maybeSummarize(supabase, chatId, ctx.character);
+      await maybeSummarize(supabase, chatId, ctx.character, user.id);
       console.log("[chat_streaming_complete]", {
         chatId,
         model: generated.modelId,

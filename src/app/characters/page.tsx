@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar } from "@/lib/avatar";
 import { PRESET_TAGS } from "@/lib/tags";
+import PublicBadge from "@/components/PublicBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -193,11 +194,7 @@ export default async function CharactersPage({
                           <h2 className="truncate text-base font-bold sm:text-xl group-hover:text-blue-500 transition-colors">
                             {c.alias || c.name}
                           </h2>
-                          {c.is_public && (
-                            <span className="badge shrink-0">
-                              {c.user_id === null ? "Featured" : "Public"}
-                            </span>
-                          )}
+                          <PublicBadge isPublic={c.is_public} ownerId={c.user_id} />
                         </div>
                         {c.alias && c.alias !== c.name && (
                           <p className="muted mt-0.5 text-xs">{c.name}</p>

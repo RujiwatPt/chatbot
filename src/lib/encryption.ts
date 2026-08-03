@@ -26,12 +26,20 @@ async function getAppMasterSecret(): Promise<string> {
   return secret.trim();
 }
 
+// Module-level per-instance cache: Intentionally per-instance in serverless environments
+// (32 bytes per distinct active user) to eliminate CPU overhead from repeated HKDF derivations.
+const userKeyCache = new Map<string, Buffer>();
+
 /**
  * Derives a unique 32-byte (256-bit) AES key for a specific user using HKDF.
+ * Results are cached per user ID to eliminate CPU overhead during bulk message decryption.
  */
 async function deriveUserKey(userId: string): Promise<Buffer> {
+  const cached = userKeyCache.get(userId);
+  if (cached) return cached;
+
   const masterSecret = await getAppMasterSecret();
-  return Buffer.from(
+  const key = Buffer.from(
     crypto.hkdfSync(
       "sha256",
       masterSecret,
@@ -40,6 +48,8 @@ async function deriveUserKey(userId: string): Promise<Buffer> {
       32,
     ),
   );
+  userKeyCache.set(userId, key);
+  return key;
 }
 
 /**

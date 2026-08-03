@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   if (error) return new Response(error.message, { status: 500 });
 
   try {
-    await maybeSummarize(supabase, chatId, ctx.character);
+    await maybeSummarize(supabase, chatId, ctx.character, user.id);
   } catch {
     // best effort
   }

@@ -7,8 +7,8 @@ import {
 } from "@/lib/memory";
 import { REWRITE_SYSTEM } from "@/lib/prompts";
 
-export function pickModelId(persona: string, configured: string) {
-  return configured || "sao10k/l3.3-euryale-70b";
+export function pickModelId(configuredModel?: string | null) {
+  return configuredModel || "sao10k/l3.3-euryale-70b";
 }
 
 /**
@@ -24,7 +24,7 @@ export async function streamAssistantText(params: {
   userName?: string | null;
 }) {
   const { character, system, messages } = params;
-  const routedModel = pickModelId(character.persona, character.model);
+  const routedModel = pickModelId(character.model);
 
   const result = streamText({
     model: model(routedModel),
@@ -52,7 +52,7 @@ export async function generateAssistantText(params: {
   userName?: string | null;
 }) {
   const { character, sceneState, system, messages, priorAssistant, userName } = params;
-  const routedModel = pickModelId(character.persona, character.model);
+  const routedModel = pickModelId(character.model);
 
   let finalText = "";
   const first = await generateText({
@@ -117,18 +117,4 @@ export async function generateAssistantText(params: {
     validation,
     repetitive,
   };
-}
-
-export function toSmoothWordStream(text: string) {
-  const parts = text.split(/(\s+)/).filter(Boolean);
-  return new ReadableStream({
-    async start(controller) {
-      const enc = new TextEncoder();
-      for (const part of parts) {
-        controller.enqueue(enc.encode(part));
-        await new Promise((r) => setTimeout(r, 12));
-      }
-      controller.close();
-    },
-  });
 }

@@ -174,17 +174,24 @@ export async function loadChatContext(
   const userName = (chat?.user_name as string | null) ?? null;
   const userPronouns = (chat?.user_pronouns as string | null) ?? null;
 
+  const decryptedMemories = await Promise.all(
+    (memoryRows ?? []).map(async (rawM) => ({
+      kind: rawM.kind,
+      up_to_message_id: rawM.up_to_message_id,
+      decryptedContent: userId ? await decryptText(rawM.content, userId) : rawM.content,
+    })),
+  );
+
   const facts: string[] = [];
   let sceneState: SceneState | null = null;
   let summary: string | null = null;
   let summaryUpTo = 0;
-  for (const rawM of memoryRows ?? []) {
-    const decryptedContent = userId ? await decryptText(rawM.content, userId) : rawM.content;
+  for (const rawM of decryptedMemories) {
     if (rawM.kind === "fact") {
-      facts.push(decryptedContent);
+      facts.push(rawM.decryptedContent);
     } else if (rawM.kind === "scene" && sceneState === null) {
       try {
-        const parsed = JSON.parse(decryptedContent) as Partial<SceneState>;
+        const parsed = JSON.parse(rawM.decryptedContent) as Partial<SceneState>;
         if (
           typeof parsed.location === "string" &&
           typeof parsed.tone === "string" &&
@@ -202,7 +209,7 @@ export async function loadChatContext(
         // ignore malformed scene rows
       }
     } else if (rawM.kind === "summary" && summary === null) {
-      summary = decryptedContent;
+      summary = rawM.decryptedContent;
       summaryUpTo = (rawM.up_to_message_id as number | null) ?? 0;
     }
   }
@@ -356,14 +363,19 @@ export async function maybeSummarize(
   supabase: SupabaseClient,
   chatId: string,
   character: Character,
+  userId?: string | null,
 ): Promise<void> {
-  const { data: chat } = await supabase
-    .from("chats")
-    .select("user_id")
-    .eq("id", chatId)
-    .maybeSingle();
-  if (!chat?.user_id) return;
-  const userId = chat.user_id;
+  let resolvedUserId = userId;
+  if (!resolvedUserId) {
+    const { data: chat } = await supabase
+      .from("chats")
+      .select("user_id")
+      .eq("id", chatId)
+      .maybeSingle();
+    resolvedUserId = chat?.user_id ?? null;
+  }
+  if (!resolvedUserId) return;
+  const targetUserId = resolvedUserId;
 
   // Find the prior summary's progress marker
   const { data: prior } = await supabase
@@ -401,10 +413,10 @@ export async function maybeSummarize(
 
   const upTo = toFold[toFold.length - 1].id as number;
 
-  const decryptedPrior = prior?.content ? await decryptText(prior.content, userId) : null;
+  const decryptedPrior = prior?.content ? await decryptText(prior.content, targetUserId) : null;
   const transcript = (
     await Promise.all(
-      toFold.map(async (m) => `${m.role.toUpperCase()}: ${await decryptText(m.content, userId)}`),
+      toFold.map(async (m) => `${m.role.toUpperCase()}: ${await decryptText(m.content, targetUserId)}`),
     )
   ).join("\n\n");
 
@@ -433,23 +445,20 @@ export async function maybeSummarize(
         model: model(character.model),
         system: SUMMARIZER_SYSTEM,
         prompt: userPrompt,
+        temperature: 0.2,
+        abortSignal: AbortSignal.timeout(60000),
       });
       rawText = text;
       raw = extractJson(text);
-    } catch (err) {
-      console.warn("[summarizer] generation failed", {
-        chatId,
-        model: character.model,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      if (attempts >= 2) return;
+    } catch {
+      // Retry once on network/parse failure
     }
   }
   if (!raw || typeof raw !== "object") {
-    console.warn("[summarizer] could not parse JSON from model output", {
+    console.warn("[summarizer] failed to parse JSON after 2 attempts", {
       chatId,
       model: character.model,
-      preview: rawText.slice(0, 200),
+      snippet: rawText.slice(0, 200),
     });
     return;
   }
@@ -500,7 +509,7 @@ export async function maybeSummarize(
   await supabase.from("memories").insert({
     chat_id: chatId,
     kind: "summary",
-    content: await encryptText(summaryText, userId),
+    content: await encryptText(summaryText, targetUserId),
     up_to_message_id: upTo,
   });
 
@@ -509,7 +518,7 @@ export async function maybeSummarize(
       factsList.map(async (content) => ({
         chat_id: chatId,
         kind: "fact",
-        content: await encryptText(content, userId),
+        content: await encryptText(content, targetUserId),
         up_to_message_id: upTo,
       })),
     );
@@ -527,7 +536,7 @@ export async function maybeSummarize(
   const tail = (
     await Promise.all(
       ((currentSceneMessages ?? []).reverse()).map(
-        async (m) => `${m.role}: ${await decryptText(m.content, userId)}`,
+        async (m) => `${m.role}: ${await decryptText(m.content, targetUserId)}`,
       ),
     )
   ).join("\n");
@@ -562,7 +571,7 @@ export async function maybeSummarize(
               relationship: s.relationship,
               goal: s.goal,
             }),
-            userId,
+            targetUserId,
           ),
           up_to_message_id: upTo,
         });
