@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import Image from "next/image";
-import { getCharacterAvatar } from "@/lib/avatar";
+import AvatarImage from "@/components/AvatarImage";
+import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 import AvatarCropModal from "./AvatarCropModal";
 
 import { PRESET_TAGS } from "@/lib/tags";
@@ -41,6 +41,7 @@ export default function CharacterForm({
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   const displayAvatar = getCharacterAvatar(name, alias, avatarUrl);
+  const fallbackAvatar = getDefaultCharacterAvatar(name, alias);
 
   // 1. File selected by user -> open crop modal
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -116,10 +117,11 @@ export default function CharacterForm({
         <label className="label">Character Avatar (512×512)</label>
         <div className="flex items-center gap-4">
           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
-            <Image
+            <AvatarImage
               src={displayAvatar}
+              fallbackSrc={fallbackAvatar}
               alt="Avatar Preview"
-              fill
+              sizes="96px"
               className="object-cover"
             />
           </div>
