@@ -6,7 +6,7 @@ import {
   loadChatContext,
   maybeSummarize,
 } from "@/lib/memory";
-import { generateAssistantText, toSmoothWordStream } from "@/lib/chat-quality";
+import { streamAssistantText } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
 
   let generated;
   try {
-    generated = await generateAssistantText({
+    generated = await streamAssistantText({
       character: ctx.character,
       sceneState: ctx.sceneState,
       system,
@@ -141,31 +141,29 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-  const finalText = generated.text;
 
   after(async () => {
-    if (finalText) {
-      await supabase.from("messages").insert({
-        chat_id: chatId,
-        role: "assistant",
-        content: await encryptText(finalText, user.id),
-      });
-    }
     try {
+      const finalText = (await generated.fullTextPromise).trim();
+      if (finalText) {
+        await supabase.from("messages").insert({
+          chat_id: chatId,
+          role: "assistant",
+          content: await encryptText(finalText, user.id),
+        });
+      }
       await maybeSummarize(supabase, chatId, ctx.character);
-    } catch {
-      // best-effort — failures are logged inside maybeSummarize
+      console.log("[chat_streaming_complete]", {
+        chatId,
+        model: generated.modelId,
+        length: finalText.length,
+      });
+    } catch (err) {
+      console.error("[after_save_error]", err);
     }
-    console.log("[chat_quality]", {
-      chatId,
-      model: generated.modelId,
-      hadRewrite: !generated.validation.ok || generated.repetitive,
-      validationOk: generated.validation.ok,
-      repetitive: generated.repetitive,
-    });
   });
 
-  return new Response(toSmoothWordStream(finalText), {
+  return new Response(generated.stream, {
     headers: { "content-type": "text/plain; charset=utf-8" },
   });
 }

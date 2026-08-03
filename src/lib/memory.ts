@@ -139,13 +139,31 @@ export async function loadChatContext(
   userName: string | null;
   userPronouns: string | null;
 } | null> {
-  const { data: chat } = await supabase
-    .from("chats")
-    .select(
-      "user_id, user_name, user_pronouns, character:characters(name, alias, persona, scenario, greeting, model)",
-    )
-    .eq("id", chatId)
-    .maybeSingle();
+  // Parallelize initial database context fetches (chats, memories, feedback)
+  const [chatRes, memoryRes, feedbackRes] = await Promise.all([
+    supabase
+      .from("chats")
+      .select(
+        "user_id, user_name, user_pronouns, character:characters(name, alias, persona, scenario, greeting, model)",
+      )
+      .eq("id", chatId)
+      .maybeSingle(),
+    supabase
+      .from("memories")
+      .select("kind, content, id, up_to_message_id")
+      .eq("chat_id", chatId)
+      .order("id", { ascending: false }),
+    supabase
+      .from("message_feedback")
+      .select("feedback")
+      .eq("chat_id", chatId)
+      .order("id", { ascending: false })
+      .limit(10),
+  ]);
+
+  const chat = chatRes.data;
+  const memoryRows = memoryRes.data;
+  const feedbackRows = feedbackRes.data;
 
   const character = (
     Array.isArray(chat?.character) ? chat?.character[0] : chat?.character
@@ -155,14 +173,6 @@ export async function loadChatContext(
   const userId = chat?.user_id as string | undefined;
   const userName = (chat?.user_name as string | null) ?? null;
   const userPronouns = (chat?.user_pronouns as string | null) ?? null;
-
-  // Memories first — we need the summary's coverage to know which messages
-  // to send verbatim.
-  const { data: memoryRows } = await supabase
-    .from("memories")
-    .select("kind, content, id, up_to_message_id")
-    .eq("chat_id", chatId)
-    .order("id", { ascending: false });
 
   const facts: string[] = [];
   let sceneState: SceneState | null = null;
@@ -197,13 +207,6 @@ export async function loadChatContext(
     }
   }
 
-  // Fetch recent user feedback for this chat to tune response style
-  const { data: feedbackRows } = await supabase
-    .from("message_feedback")
-    .select("feedback")
-    .eq("chat_id", chatId)
-    .order("id", { ascending: false })
-    .limit(10);
   const feedback = Array.from(
     new Set((feedbackRows ?? []).map((f) => f.feedback as string)),
   );
