@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import SignOutButton from "./SignOutButton";
+import ThemeToggle from "./ThemeToggle";
 
 export default async function Nav() {
   const supabase = await createClient();
@@ -31,6 +32,7 @@ export default async function Nav() {
             {user.email}
           </span>
         )}
+        <ThemeToggle className="order-2" />
         <div className="order-2 ml-auto sm:ml-0">
           <SignOutButton />
         </div>

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { getCharacterAvatar } from "@/lib/avatar";
+import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 import { PRESET_TAGS } from "@/lib/tags";
+import AvatarImage from "@/components/AvatarImage";
 import PublicBadge from "@/components/PublicBadge";
 
 export const dynamic = "force-dynamic";
@@ -165,6 +165,7 @@ export default async function CharactersPage({
           <ul className="flex flex-col gap-4 sm:gap-5">
             {characters.map((c, i) => {
               const avatarUrl = getCharacterAvatar(c.name, c.alias, c.avatar_url);
+              const avatarFallbackUrl = getDefaultCharacterAvatar(c.name, c.alias);
               const charTags: string[] = Array.isArray(c.tags) ? c.tags : [];
               return (
                 <li
@@ -178,10 +179,10 @@ export default async function CharactersPage({
                   >
                     {/* Left Side: 1:1 Square avatar image */}
                     <div className="relative aspect-square w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
-                      <Image
+                      <AvatarImage
                         src={avatarUrl}
+                        fallbackSrc={avatarFallbackUrl}
                         alt={c.name}
-                        fill
                         sizes="(max-width: 640px) 112px, 160px"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />

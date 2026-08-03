@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import AvatarImage from "@/components/AvatarImage";
+import { getDefaultCharacterAvatar } from "@/lib/avatar";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
 
@@ -30,6 +31,48 @@ function renderRoleplayText(text: string, isUser = false) {
   });
 }
 
+function SpinnerIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
+      <path className="opacity-80" d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RetryIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none">
+      <path d="M19.2 7.2V3.8m0 0h-3.4m3.4 0-3.1 3.1a7.2 7.2 0 1 0 1.4 8.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UndoIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none">
+      <path d="m9 7-4 4 4 4M5.5 11H15a4.5 4.5 0 0 1 0 9h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none">
+      <path d="m4.3 4.8 16 6.4c.9.36.9 1.64 0 2l-16 6.4c-.78.31-1.55-.45-1.24-1.23L5.55 12 3.06 5.73c-.31-.78.46-1.54 1.24-1.23Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M5.7 12h8.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" viewBox="0 0 24 24" fill="none">
+      <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function ChatClient({
   chatId,
   initialMessages,
@@ -46,6 +89,7 @@ export default function ChatClient({
   deleteAction?: (formData?: FormData) => void;
 }) {
   const COOLDOWN_MS = 1200;
+  const avatarFallbackUrl = getDefaultCharacterAvatar(chatbotName);
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -148,6 +192,8 @@ export default function ChatClient({
   const cooldownMsLeft = Math.max(0, cooldownUntil - now);
   const onCooldown = cooldownMsLeft > 0;
   const canSend = Boolean(input.trim()) && !onCooldown && !busy;
+  const hasAssistantMessage = messages.some((message) => message.role === "assistant" && message.content);
+  const hasUserMessage = messages.some((message) => message.role === "user");
 
   async function send(e?: React.FormEvent) {
     e?.preventDefault();
@@ -325,11 +371,11 @@ export default function ChatClient({
           <div className="flex items-center gap-2.5 min-w-0">
             {avatarUrl && (
               <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm">
-                <Image
+                <AvatarImage
                   src={avatarUrl}
+                  fallbackSrc={avatarFallbackUrl}
                   alt={chatbotName}
-                  width={48}
-                  height={48}
+                  sizes="36px"
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -394,7 +440,7 @@ export default function ChatClient({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="panel min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
+        className="chat-scroll panel min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
       >
         {messages.length === 0 && (
           <p className="muted pt-10 text-center text-sm">
@@ -408,11 +454,11 @@ export default function ChatClient({
           >
             {m.role === "assistant" && avatarUrl && (
               <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm mt-1">
-                <Image
+                <AvatarImage
                   src={avatarUrl}
+                  fallbackSrc={avatarFallbackUrl}
                   alt={chatbotName}
-                  width={32}
-                  height={32}
+                  sizes="32px"
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -420,8 +466,8 @@ export default function ChatClient({
             <div
               className={
                 m.role === "user"
-                  ? "user-bubble w-fit max-w-[92%] rounded-xl px-3.5 py-2.5 shadow-sm sm:max-w-[85%]"
-                  : "w-fit max-w-[92%] rounded-xl border border-[var(--line)] bg-[color:var(--surface)] p-3.5 sm:max-w-[85%]"
+                  ? "user-bubble chat-bubble w-fit max-w-[92%] px-3.5 py-2.5 sm:max-w-[85%]"
+                  : "chat-bubble chat-assistant-bubble w-fit max-w-[92%] p-3.5 sm:max-w-[85%]"
               }
             >
               <div
@@ -472,44 +518,30 @@ export default function ChatClient({
       </div>
       <form
         onSubmit={send}
-        className="panel shrink-0 mt-2 flex items-end gap-2 p-2.5 sm:mt-3 sm:p-3"
+        className="chat-composer shrink-0 mt-2 flex items-end gap-1.5 p-1.5 sm:mt-3"
       >
-        <div className="flex flex-col gap-2">
+        <div className="chat-composer-actions flex items-center gap-0.5">
           <button
             type="button"
-            className="btn-outline btn-sm min-h-11 inline-flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="chat-icon-button"
             onClick={retryLast}
-            disabled={busy}
+            disabled={busy || !hasAssistantMessage}
+            aria-label={actionState === "retrying" ? "Retrying last response" : "Retry last response"}
+            title="Retry last response"
+            data-tooltip="Retry"
           >
-            {actionState === "retrying" ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <span>Retrying...</span>
-              </>
-            ) : (
-              "Retry"
-            )}
+            {actionState === "retrying" ? <SpinnerIcon /> : <RetryIcon />}
           </button>
           <button
             type="button"
-            className="btn-outline btn-sm btn-danger min-h-11 inline-flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="chat-icon-button chat-icon-button-danger"
             onClick={undoLastTurn}
-            disabled={busy}
+            disabled={busy || !hasUserMessage}
+            aria-label={actionState === "undoing" ? "Undoing last turn" : "Undo last turn"}
+            title="Undo last turn"
+            data-tooltip="Undo"
           >
-            {actionState === "undoing" ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <span>Undoing...</span>
-              </>
-            ) : (
-              "Undo"
-            )}
+            {actionState === "undoing" ? <SpinnerIcon /> : <UndoIcon />}
           </button>
         </div>
         <textarea
@@ -522,25 +554,30 @@ export default function ChatClient({
               send();
             }
           }}
-          rows={2}
-          placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
-          className="field min-h-11 flex-1 resize-none"
+          rows={1}
+          aria-label="Message"
+          placeholder="Message"
+          className="chat-composer-input min-h-11 flex-1 resize-none"
         />
         {busy ? (
           <button
             type="button"
             onClick={stop}
-            className="btn-outline min-w-20"
+            className="chat-send-button chat-stop-button"
+            aria-label="Stop generating response"
+            title="Stop generating"
           >
-            Stop
+            <StopIcon />
           </button>
         ) : (
           <button
             type="submit"
             disabled={!canSend}
-            className="btn-primary"
+            className="chat-send-button"
+            aria-label={onCooldown ? `Send available in ${Math.ceil(cooldownMsLeft / 1000)} seconds` : "Send message"}
+            title={onCooldown ? `Wait ${Math.ceil(cooldownMsLeft / 1000)}s` : "Send message"}
           >
-            {onCooldown ? `Wait ${Math.ceil(cooldownMsLeft / 1000)}s` : "Send"}
+            <SendIcon />
           </button>
         )}
       </form>

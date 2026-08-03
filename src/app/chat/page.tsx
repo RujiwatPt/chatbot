@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { getCharacterAvatar } from "@/lib/avatar";
+import AvatarImage from "@/components/AvatarImage";
+import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,10 @@ export default async function ChatListPage() {
               character?.alias,
               character?.avatar_url,
             );
+            const avatarFallbackUrl = getDefaultCharacterAvatar(
+              character?.name || "",
+              character?.alias,
+            );
             return (
               <li
                 key={c.id}
@@ -44,10 +48,10 @@ export default async function ChatListPage() {
               >
                 <Link href={`/chat/${c.id}`} className="flex items-center gap-3.5 p-3.5 sm:p-4">
                   <div className="relative aspect-square w-11 h-11 shrink-0 overflow-hidden rounded-xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
-                    <Image
+                    <AvatarImage
                       src={avatarUrl}
+                      fallbackSrc={avatarFallbackUrl}
                       alt={character?.name || "Avatar"}
-                      fill
                       sizes="44px"
                       className="object-cover"
                     />

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startChat } from "../../chat/actions";
 
-import Image from "next/image";
-import { getCharacterAvatar } from "@/lib/avatar";
+import AvatarImage from "@/components/AvatarImage";
+import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 import StartChatSubmitButton from "./StartChatSubmitButton";
 import PublicBadge from "@/components/PublicBadge";
 
@@ -29,6 +29,7 @@ export default async function CharacterDetailPage({
   if (!character) notFound();
 
   const avatarUrl = getCharacterAvatar(character.name, character.alias, character.avatar_url);
+  const avatarFallbackUrl = getDefaultCharacterAvatar(character.name, character.alias);
   const isOwner = character.user_id === user?.id;
   const tags: string[] = Array.isArray(character.tags) ? character.tags : [];
 
@@ -53,10 +54,10 @@ export default async function CharacterDetailPage({
 
       <header className="panel reveal-up flex flex-col sm:flex-row items-start gap-4 sm:gap-5 p-5 sm:p-6">
         <div className="relative aspect-square w-20 h-20 sm:w-24 sm:h-24 shrink-0 overflow-hidden rounded-2xl border border-[var(--line)] shadow-sm bg-[color:var(--surface-solid)]">
-          <Image
+          <AvatarImage
             src={avatarUrl}
+            fallbackSrc={avatarFallbackUrl}
             alt={character.name}
-            fill
             sizes="(max-width: 640px) 80px, 96px"
             className="object-cover"
           />

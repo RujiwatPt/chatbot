@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ThemeToggle from "../ThemeToggle";
 
 export const metadata = {
   title: "Terms of Service | Howly.ai",
@@ -8,6 +9,7 @@ export const metadata = {
 export default function TermsPage() {
   return (
     <main className="page max-w-3xl mx-auto space-y-6">
+      <ThemeToggle className="theme-toggle-corner" />
       <div>
         <Link href="/" className="btn-text muted text-xs">
           ← Back to Howly.ai
