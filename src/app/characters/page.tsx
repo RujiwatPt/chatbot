@@ -175,6 +175,7 @@ export default async function CharactersPage({
                 >
                   <Link
                     href={`/characters/${c.id}`}
+                    prefetch={false}
                     className="flex items-center gap-4 p-4 sm:p-5 transition-colors hover:bg-[color:var(--surface-solid)]/40"
                   >
                     {/* Left Side: 1:1 Square avatar image */}

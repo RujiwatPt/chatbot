@@ -199,6 +199,7 @@ export default async function Home() {
               <Link
                 key={character.id}
                 href={href}
+                prefetch={false}
                 className="landing-character-card stagger-item"
                 style={{ animationDelay: `${80 + index * 70}ms` }}
               >
