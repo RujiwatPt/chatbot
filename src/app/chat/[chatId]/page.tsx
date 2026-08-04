@@ -20,7 +20,7 @@ export default async function ChatPage({
 
   const { data: chat } = await supabase
     .from("chats")
-    .select("id, title, character:characters(name, alias, avatar_url)")
+    .select("id, title, character:characters(name, alias, avatar_url, scenario)")
     .eq("id", chatId)
     .maybeSingle();
 
@@ -59,6 +59,7 @@ export default async function ChatPage({
         chatbotName={character?.alias ?? character?.name ?? "Chatbot"}
         chatTitle={chat.title ?? character?.alias ?? character?.name ?? "Chat"}
         avatarUrl={avatarUrl}
+        scenario={character?.scenario ?? null}
         deleteAction={deleteChat.bind(null, chatId)}
       />
     </main>

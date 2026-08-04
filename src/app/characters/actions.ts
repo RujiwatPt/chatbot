@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -41,19 +42,24 @@ export async function createCharacter(form: FormData) {
     .single();
   if (error) throw new Error(error.message);
 
-  // Best-effort: generate a reader-friendly third-person bio. Never blocks the
-  // save — generatePersonaBio swallows failures and returns null.
-  const bio = await generatePersonaBio({
-    name: payload.name,
-    persona: payload.persona,
-    scenario: payload.scenario,
+  // Background bio generation: never blocks form submission or redirect
+  after(async () => {
+    try {
+      const bio = await generatePersonaBio({
+        name: payload.name,
+        persona: payload.persona,
+        scenario: payload.scenario,
+      });
+      if (bio) {
+        await supabase
+          .from("characters")
+          .update({ persona_display: bio })
+          .eq("id", data.id);
+      }
+    } catch {
+      // background best-effort
+    }
   });
-  if (bio) {
-    await supabase
-      .from("characters")
-      .update({ persona_display: bio })
-      .eq("id", data.id);
-  }
 
   revalidatePath("/characters");
   redirect(`/characters/${data.id}`);
@@ -74,19 +80,24 @@ export async function updateCharacter(id: string, form: FormData) {
     .eq("id", id);
   if (error) throw new Error(error.message);
 
-  // Refresh the third-person bio from the edited persona. Only overwrite when
-  // generation succeeds, so a transient failure keeps the previous good bio.
-  const bio = await generatePersonaBio({
-    name: payload.name,
-    persona: payload.persona,
-    scenario: payload.scenario,
+  // Background bio generation: never blocks form submission
+  after(async () => {
+    try {
+      const bio = await generatePersonaBio({
+        name: payload.name,
+        persona: payload.persona,
+        scenario: payload.scenario,
+      });
+      if (bio) {
+        await supabase
+          .from("characters")
+          .update({ persona_display: bio })
+          .eq("id", id);
+      }
+    } catch {
+      // background best-effort
+    }
   });
-  if (bio) {
-    await supabase
-      .from("characters")
-      .update({ persona_display: bio })
-      .eq("id", id);
-  }
 
   revalidatePath("/characters");
   revalidatePath(`/characters/${id}`);

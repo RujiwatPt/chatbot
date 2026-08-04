@@ -79,6 +79,7 @@ export default function ChatClient({
   chatbotName,
   chatTitle,
   avatarUrl,
+  scenario,
   deleteAction,
 }: {
   chatId: string;
@@ -86,6 +87,7 @@ export default function ChatClient({
   chatbotName: string;
   chatTitle?: string;
   avatarUrl?: string;
+  scenario?: string | null;
   deleteAction?: (formData?: FormData) => void;
 }) {
   const COOLDOWN_MS = 1200;
@@ -442,6 +444,17 @@ export default function ChatClient({
         onScroll={handleScroll}
         className="chat-scroll panel min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
       >
+        {scenario && (
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 sm:p-3.5 space-y-1 backdrop-blur-sm shadow-sm">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              <span>🎬</span>
+              <span>Scenario</span>
+            </div>
+            <p className="text-xs sm:text-sm italic text-neutral-700 dark:text-neutral-300 leading-relaxed">
+              {scenario}
+            </p>
+          </div>
+        )}
         {messages.length === 0 && (
           <p className="muted pt-10 text-center text-sm">
             Say something to begin.

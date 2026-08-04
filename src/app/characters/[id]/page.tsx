@@ -84,9 +84,7 @@ export default async function CharacterDetailPage({
               ))}
             </div>
           )}
-          {character.scenario && (
-            <p className="muted text-sm italic">{character.scenario}</p>
-          )}
+
           <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
             {character.persona_display ?? character.persona}
           </p>
