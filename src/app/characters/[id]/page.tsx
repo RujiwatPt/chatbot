@@ -88,6 +88,18 @@ export default async function CharacterDetailPage({
           <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
             {character.persona_display ?? character.persona}
           </p>
+
+          {character.scenario && (
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 sm:p-3.5 space-y-1 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                <span>🎬</span>
+                <span>Scenario</span>
+              </div>
+              <p className="text-xs sm:text-sm italic text-neutral-700 dark:text-neutral-300 leading-relaxed">
+                {character.scenario}
+              </p>
+            </div>
+          )}
           {isOwner && (
             <Link
               href={`/characters/${id}/edit`}

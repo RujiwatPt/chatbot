@@ -1162,7 +1162,7 @@ a {
 
 .landing-character-image-wrap {
   position: relative;
-  aspect-ratio: 0.77;
+  aspect-ratio: 1;
   overflow: hidden;
   border-radius: 0.9rem;
   background: #d6d1c6;
@@ -1533,7 +1533,7 @@ a {
   .landing-section-aside,
   .landing-final-cta > div:last-child { justify-self: start; }
   .landing-character-grid { grid-template-columns: 1fr; }
-  .landing-character-image-wrap { aspect-ratio: 0.88; }
+  .landing-character-image-wrap { aspect-ratio: 1; }
   .landing-character-meta { min-height: 7.5rem; }
   .landing-experience-intro { grid-template-columns: 1fr; }
   .landing-experience-intro > p { grid-column: auto; max-width: 32rem; }
