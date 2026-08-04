@@ -34,7 +34,7 @@ export default async function ChatListPage({
     <main className="page space-y-4">
       <div className="reveal-up flex items-center justify-between">
         <h1 className="page-title">Chats</h1>
-        <Link href="/characters" className="btn-text muted text-sm">
+        <Link href="/characters" prefetch={false} className="btn-text muted text-sm">
           Characters →
         </Link>
       </div>

@@ -33,7 +33,7 @@ export default async function SettingsPage() {
   return (
     <main className="page max-w-2xl mx-auto space-y-6">
       <div>
-        <Link href="/characters" className="btn-text muted text-xs">
+        <Link href="/characters" prefetch={false} className="btn-text muted text-xs">
           ← Back to Characters
         </Link>
         <h1 className="page-title mt-2">Account Settings</h1>

@@ -48,7 +48,7 @@ export default async function CharacterDetailPage({
 
   return (
     <main className="page">
-      <Link href="/characters" className="btn-text muted text-xs">
+      <Link href="/characters" prefetch={false} className="btn-text muted text-xs">
         ← All characters
       </Link>
 
@@ -77,6 +77,7 @@ export default async function CharacterDetailPage({
                 <Link
                   key={t}
                   href={`/characters?tag=${encodeURIComponent(t)}`}
+                  prefetch={false}
                   className="badge hover:border-blue-500/50 transition-colors"
                 >
                   #{t}
@@ -103,6 +104,7 @@ export default async function CharacterDetailPage({
           {isOwner && (
             <Link
               href={`/characters/${id}/edit`}
+              prefetch={false}
               className="btn-text muted inline-block text-xs"
             >
               Edit character
@@ -168,7 +170,7 @@ export default async function CharacterDetailPage({
                 className="panel stagger-item overflow-hidden"
                 style={{ animationDelay: `${Math.min(i * 55, 380)}ms` }}
               >
-                <Link href={`/chat/${c.id}`} className="card-link">
+                <Link href={`/chat/${c.id}`} prefetch={false} className="card-link">
                   <div className="text-sm font-medium">
                     {c.title ?? "Untitled"}
                   </div>

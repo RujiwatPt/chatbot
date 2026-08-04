@@ -396,7 +396,7 @@ export default function ChatClient({
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pl-1 text-xs">
             <FontSizeControl />
-            <Link href="/chat" className="btn-text muted hidden sm:inline">
+            <Link href="/chat" prefetch={false} className="btn-text muted hidden sm:inline">
               All chats
             </Link>
             {deleteAction && (

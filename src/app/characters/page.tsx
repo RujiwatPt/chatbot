@@ -117,6 +117,7 @@ export default async function CharactersPage({
           <span className="text-xs font-semibold muted shrink-0 mr-1">Tags:</span>
           <Link
             href={buildUrl({ tag: null, page: 1 })}
+            prefetch={false}
             className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold transition-all border ${
               !selectedTag
                 ? "bg-blue-600 text-white border-blue-500 shadow-sm"
@@ -131,6 +132,7 @@ export default async function CharactersPage({
               <Link
                 key={t}
                 href={buildUrl({ tag: active ? null : t, page: 1 })}
+                prefetch={false}
                 className={`btn-sm text-xs rounded-full px-3 py-1 font-semibold transition-all border ${
                   active
                     ? "bg-blue-600 text-white border-blue-500 shadow-sm"
@@ -248,6 +250,7 @@ export default async function CharactersPage({
               {currentPage > 1 ? (
                 <Link
                   href={buildUrl({ page: currentPage - 1 })}
+                  prefetch={false}
                   className="btn-outline btn-sm px-3 py-1.5 text-xs font-semibold"
                 >
                   ← Previous
@@ -269,6 +272,7 @@ export default async function CharactersPage({
               {currentPage < totalPages ? (
                 <Link
                   href={buildUrl({ page: currentPage + 1 })}
+                  prefetch={false}
                   className="btn-outline btn-sm px-3 py-1.5 text-xs font-semibold"
                 >
                   Next →

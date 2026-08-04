@@ -82,18 +82,18 @@ export default async function Home() {
 
       {!user && (
         <header className="landing-header landing-container reveal-up">
-          <Link href="/" className="landing-wordmark" aria-label="Howly.ai home">
+          <Link href="/" prefetch={false} className="landing-wordmark" aria-label="Howly.ai home">
             <span className="landing-wordmark-mark"><SparkIcon /></span>
             <span>Howly<span>.ai</span></span>
           </Link>
           <nav className="landing-nav" aria-label="Primary navigation">
-            <Link href="#characters">Characters</Link>
-            <Link href="#experience">Experience</Link>
-            <Link href="/terms">Terms</Link>
+            <Link href="#characters" prefetch={false}>Characters</Link>
+            <Link href="#experience" prefetch={false}>Experience</Link>
+            <Link href="/terms" prefetch={false}>Terms</Link>
           </nav>
           <div className="landing-header-actions">
             <ThemeToggle />
-            <Link href="/login" className="landing-header-cta">
+            <Link href="/login" prefetch={false} className="landing-header-cta">
               Sign in <ArrowIcon />
             </Link>
           </div>
@@ -103,7 +103,7 @@ export default async function Home() {
       {user && (
         <div className="landing-session landing-container reveal-up">
           <span><i /> Welcome back. Your stories are waiting.</span>
-          <Link href="/characters">Continue where you left off <ArrowIcon /></Link>
+          <Link href="/characters" prefetch={false}>Continue where you left off <ArrowIcon /></Link>
         </div>
       )}
 
@@ -121,10 +121,10 @@ export default async function Home() {
             step into conversations that deepen over time instead of starting over.
           </p>
           <div className="landing-actions">
-            <Link href={primaryHref} className="landing-primary-button">
+            <Link href={primaryHref} prefetch={false} className="landing-primary-button">
               {user ? "Explore characters" : "Begin your story"} <ArrowIcon />
             </Link>
-            <Link href="/characters" className="landing-secondary-button">
+            <Link href="/characters" prefetch={false} className="landing-secondary-button">
               Meet the cast
             </Link>
           </div>
@@ -185,7 +185,7 @@ export default async function Home() {
           </div>
           <div className="landing-section-aside">
             <p>Start with a community favorite, or shape every detail of someone entirely your own.</p>
-            <Link href="/characters">Browse every character <ArrowIcon /></Link>
+            <Link href="/characters" prefetch={false}>Browse every character <ArrowIcon /></Link>
           </div>
         </div>
 
@@ -284,21 +284,21 @@ export default async function Home() {
         </div>
         <div>
           <p>No blank slates. No disposable conversations. Just richer stories every time you return.</p>
-          <Link href={primaryHref} className="landing-primary-button">
+          <Link href={primaryHref} prefetch={false} className="landing-primary-button">
             {user ? "Return to your stories" : "Start for free"} <ArrowIcon />
           </Link>
         </div>
       </section>
 
       <footer className="landing-footer landing-container">
-        <Link href="/" className="landing-wordmark">
+        <Link href="/" prefetch={false} className="landing-wordmark">
           <span className="landing-wordmark-mark"><SparkIcon /></span>
           <span>Howly<span>.ai</span></span>
         </Link>
         <p>Persistent-memory roleplay, crafted for deeper stories.</p>
         <div>
-          <Link href="/characters">Characters</Link>
-          <Link href="/terms">Terms</Link>
+          <Link href="/characters" prefetch={false}>Characters</Link>
+          <Link href="/terms" prefetch={false}>Terms</Link>
           <span>© 2026 HowlingHeaven Studio</span>
         </div>
       </footer>
