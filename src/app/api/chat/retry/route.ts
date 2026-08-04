@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     message: {
       id: String(inserted.id),
       role: inserted.role,
-      content: inserted.content,
+      content: generated.text,
     },
   });
 }

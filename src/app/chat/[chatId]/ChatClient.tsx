@@ -260,8 +260,10 @@ export default function ChatClient({
           ),
         );
       } else {
-        setError(err instanceof Error ? err.message : "Stream failed");
+        const errorMsg = err instanceof Error ? err.message : "Stream failed";
+        setError(`Failed to generate response: ${errorMsg}`);
         setMessages((m) => m.filter((x) => x.id !== assistantId));
+        setInput((prev) => prev || text);
       }
     } finally {
       abortRef.current = null;
@@ -526,7 +528,19 @@ export default function ChatClient({
           </div>
         ))}
         {error && (
-          <p className="btn-danger text-center text-sm">{error}</p>
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs sm:text-sm text-red-600 dark:text-red-400 flex items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="shrink-0 text-base">⚠️</span>
+              <span className="truncate font-medium">{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="btn-text muted hover:underline shrink-0 text-xs font-bold"
+            >
+              Dismiss
+            </button>
+          </div>
         )}
       </div>
       <form

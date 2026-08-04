@@ -13,7 +13,7 @@ const DEFAULT_FALLBACKS = [
   "gryphe/mythomax-l2-13b",
 ];
 
-const FALLBACK_MODELS = (
+export const FALLBACK_MODELS = (
   process.env.OPENROUTER_FALLBACK_MODELS
     ? process.env.OPENROUTER_FALLBACK_MODELS.split(",").map((s) => s.trim())
     : DEFAULT_FALLBACKS
