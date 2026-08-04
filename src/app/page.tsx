@@ -1,9 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import AvatarImage from "@/components/AvatarImage";
-import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
+import { getCharacterAvatar } from "@/lib/avatar";
 import { createClient } from "@/lib/supabase/server";
+
 import ThemeToggle from "./ThemeToggle";
 
 export const dynamic = "force-dynamic";
@@ -51,31 +50,19 @@ function ArrowIcon() {
   );
 }
 
-const benefits = [
-  {
-    number: "01",
-    title: "Persistent memory",
-    description: "Characters remember story arcs, scene states, promises, and durable facts across sessions.",
-  },
-  {
-    number: "02",
-    title: "Your own characters",
-    description: "Shape a distinct voice, appearance, mannerisms, history, and boundaries for every companion.",
-  },
-  {
-    number: "03",
-    title: "Responsive storytelling",
-    description: "Streaming replies keep long-form roleplay immediate without sacrificing narrative continuity.",
-  },
-];
+function SparkIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
+      <path d="M12 2.75c.55 4.83 3.42 7.7 8.25 8.25-4.83.55-7.7 3.42-8.25 8.25C11.45 14.42 8.58 11.55 3.75 11 8.58 10.45 11.45 7.58 12 2.75Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default async function Home() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (user) redirect("/characters");
 
   const { data: publicCharacters } = await supabase
     .from("characters")
@@ -85,120 +72,235 @@ export default async function Home() {
     .limit(4);
 
   const isUsingFallbacks = !publicCharacters || publicCharacters.length === 0;
-  const featured = isUsingFallbacks ? fallbackFeatured : publicCharacters;
+  const displayFeatured = isUsingFallbacks ? fallbackFeatured : publicCharacters;
+  const primaryHref = user ? "/characters" : "/login";
 
   return (
-    <main className="px-3 pb-[calc(var(--safe-bottom)+1.5rem)] pt-4 sm:px-6 sm:pb-10 sm:pt-6">
-      <header className="shell mb-4 flex items-center justify-between gap-4 sm:mb-6">
-        <Link href="/" className="page-title text-xl" aria-label="Howly.ai home">
-          Howly<span className="text-blue-600 dark:text-blue-400">.ai</span>
-        </Link>
-        <div className="flex items-center gap-3 text-sm">
-          <Link href="/terms" className="muted btn-text hidden sm:inline-flex">Terms</Link>
-          <ThemeToggle />
-          <Link href="/login" className="btn-outline min-h-10 px-4">Sign in</Link>
-        </div>
-      </header>
+    <main className="landing-page">
+      <div className="landing-glow landing-glow-one" />
+      <div className="landing-glow landing-glow-two" />
 
-      <section className="panel shell reveal-up overflow-hidden p-5 sm:p-8">
-        <div className="grid gap-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-          <div className="space-y-5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-              AI roleplay with continuity
-            </div>
-            <h1 className="page-title text-3xl font-extrabold sm:text-5xl">
-              Characters that remember <span className="gradient-text">your story.</span>
-            </h1>
-            <p className="page-subtitle max-w-xl text-base leading-relaxed">
-              Create a companion with a distinct voice, then build conversations that carry shared history forward instead of starting over.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href="/login" className="btn-primary min-h-11 px-6">
-                Start chatting <ArrowIcon />
-              </Link>
-              <Link href="#characters" className="btn-outline min-h-11 px-6">
-                Explore characters
-              </Link>
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--line)] pt-4 text-xs text-[var(--muted)]">
-              <span>Long-form memory</span>
-              <span>Custom personas</span>
-              <span>Streaming replies</span>
-            </div>
+      {!user && (
+        <header className="landing-header landing-container reveal-up">
+          <Link href="/" className="landing-wordmark" aria-label="Howly.ai home">
+            <span className="landing-wordmark-mark"><SparkIcon /></span>
+            <span>Howly<span>.ai</span></span>
+          </Link>
+          <nav className="landing-nav" aria-label="Primary navigation">
+            <Link href="#characters">Characters</Link>
+            <Link href="#experience">Experience</Link>
+            <Link href="/terms">Terms</Link>
+          </nav>
+          <div className="landing-header-actions">
+            <ThemeToggle />
+            <Link href="/login" className="landing-header-cta">
+              Sign in <ArrowIcon />
+            </Link>
           </div>
+        </header>
+      )}
 
-          <div className="group relative overflow-hidden rounded-2xl border border-[var(--line)] bg-slate-950 shadow-xl">
+      {user && (
+        <div className="landing-session landing-container reveal-up">
+          <span><i /> Welcome back. Your stories are waiting.</span>
+          <Link href="/characters">Continue where you left off <ArrowIcon /></Link>
+        </div>
+      )}
+
+      <section className="landing-hero landing-container">
+        <div className="landing-hero-copy reveal-up">
+          <div className="landing-eyebrow">
+            <span>Persistent-memory roleplay</span>
+            <span className="landing-eyebrow-line" />
+          </div>
+          <h1>
+            Characters that remember <em>the whole story.</em>
+          </h1>
+          <p className="landing-lede">
+            Build a companion with a voice, a history, and a point of view—then
+            step into conversations that deepen over time instead of starting over.
+          </p>
+          <div className="landing-actions">
+            <Link href={primaryHref} className="landing-primary-button">
+              {user ? "Explore characters" : "Begin your story"} <ArrowIcon />
+            </Link>
+            <Link href="/characters" className="landing-secondary-button">
+              Meet the cast
+            </Link>
+          </div>
+          <div className="landing-proof" aria-label="Product highlights">
+            <div><strong>131K</strong><span>context window</span></div>
+            <div><strong>∞</strong><span>story possibilities</span></div>
+            <div><strong>Live</strong><span>streaming replies</span></div>
+          </div>
+        </div>
+
+        <div className="landing-hero-visual reveal-up" style={{ animationDelay: "120ms" }}>
+          <div className="landing-visual-frame">
             <Image
               src="/images/hero_roleplay.jpg"
               alt="A roleplay creator exploring a cast of AI characters"
-              width={512}
-              height={512}
+              fill
               priority
-              sizes="(max-width: 1024px) 92vw, 430px"
-              className="h-auto w-full"
+              sizes="(max-width: 900px) 92vw, 46vw"
+              className="landing-hero-image"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/55 to-transparent p-4 pt-16">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-300">Memory carried forward</p>
-              <p className="mt-1 text-sm font-medium text-white/90">Every chapter becomes context for the next.</p>
+            <div className="landing-image-wash" />
+            <div className="landing-chapter-label">
+              <span>Chapter 07</span>
+              <span>The blue hour</span>
             </div>
+            <div className="landing-memory-card">
+              <div className="landing-memory-heading">
+                <span><SparkIcon /> Memory recalled</span>
+                <i />
+              </div>
+              <p>“You remembered the promise we made at the train station.”</p>
+              <small>From your conversation · 18 days ago</small>
+            </div>
+          </div>
+          <div className="landing-orbit-note">
+            <span>01</span>
+            Long-form memory<br />keeps every chapter connected.
           </div>
         </div>
       </section>
 
-      <section id="characters" className="shell mt-8 scroll-mt-4">
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600 dark:text-blue-400">Community characters</p>
-            <h2 className="mt-1 text-xl font-bold">Choose someone to meet</h2>
-          </div>
-          <Link href="/login" className="btn-text muted text-sm">Sign in to view all</Link>
+      <section className="landing-marquee" aria-label="Howly capabilities">
+        <div>
+          <span>Distinct voices</span><i />
+          <span>Persistent memory</span><i />
+          <span>Your characters</span><i />
+          <span>Living worlds</span><i />
+          <span>Distinct voices</span><i />
+          <span>Persistent memory</span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {featured.map((character, index) => {
+      </section>
+
+      <section id="characters" className="landing-section landing-container">
+        <div className="landing-section-heading">
+          <div>
+            <span className="landing-kicker">Featured characters</span>
+            <h2>Someone is waiting<br />to meet you.</h2>
+          </div>
+          <div className="landing-section-aside">
+            <p>Start with a community favorite, or shape every detail of someone entirely your own.</p>
+            <Link href="/characters">Browse every character <ArrowIcon /></Link>
+          </div>
+        </div>
+
+        <div className="landing-character-grid">
+          {displayFeatured.map((character, index) => {
             const avatarSrc = getCharacterAvatar(character.name, character.alias, character.avatar_url);
-            const fallbackSrc = getDefaultCharacterAvatar(character.name, character.alias);
+            const tags = Array.isArray(character.tags) ? character.tags.slice(0, 2) : [];
             const href = isUsingFallbacks ? "/characters" : `/characters/${character.id}`;
-            const tag = Array.isArray(character.tags) ? character.tags[0] : undefined;
 
             return (
               <Link
                 key={character.id}
                 href={href}
-                className="panel panel-hover stagger-item overflow-hidden p-3"
-                style={{ animationDelay: `${index * 80}ms` }}
+                className="landing-character-card stagger-item"
+                style={{ animationDelay: `${80 + index * 70}ms` }}
               >
-                <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-[var(--surface-solid)]">
-                  <AvatarImage
+                <div className="landing-character-image-wrap">
+                  <Image
                     src={avatarSrc}
-                    fallbackSrc={fallbackSrc}
                     alt={`Portrait of ${character.name}`}
-                    sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 220px"
-                    className="object-cover transition-transform duration-300 hover:scale-105"
+                    fill
+                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 23vw"
+                    className="landing-character-image"
                   />
-                  {tag && <span className="badge absolute right-2 top-2 border-none bg-slate-950/80 text-white shadow-md backdrop-blur-md">{tag}</span>}
+                  <span className="landing-card-number">0{index + 1}</span>
+                  <span className="landing-card-arrow"><ArrowIcon /></span>
                 </div>
-                <h3 className="text-sm font-bold">{character.name}</h3>
-                <p className="muted mt-0.5 line-clamp-1 text-xs">
-                  {character.alias || character.persona_display || "An unforgettable roleplay companion"}
-                </p>
+                <div className="landing-character-meta">
+                  <div>
+                    <h3>{character.name}</h3>
+                    <p>{character.alias || character.persona_display || "An unforgettable roleplay companion"}</p>
+                  </div>
+                  <div className="landing-tag-row">
+                    {tags.map((tag) => <span key={tag}>{tag}</span>)}
+                  </div>
+                </div>
               </Link>
             );
           })}
         </div>
       </section>
 
-      <section className="shell mt-8 grid gap-4 sm:grid-cols-3">
-        {benefits.map((benefit, index) => (
-          <article key={benefit.number} className="panel stagger-item p-5" style={{ animationDelay: `${80 + index * 60}ms` }}>
-            <span className="mb-4 grid h-9 w-9 place-items-center rounded-lg border border-blue-500/20 bg-blue-500/10 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
-              {benefit.number}
-            </span>
-            <h2 className="text-base font-semibold">{benefit.title}</h2>
-            <p className="muted mt-1.5 text-sm leading-relaxed">{benefit.description}</p>
-          </article>
-        ))}
+      <section id="experience" className="landing-experience">
+        <div className="landing-container">
+          <div className="landing-experience-intro">
+            <span className="landing-kicker">Made for immersion</span>
+            <h2>The conversation ends.<br /><em>The connection doesn’t.</em></h2>
+            <p>
+              Howly keeps the details that make a story feel real—your shared history,
+              the mood of the scene, and the small things a character would never forget.
+            </p>
+          </div>
+
+          <div className="landing-feature-grid">
+            <article className="landing-feature landing-feature-large">
+              <span className="landing-feature-index">01 / Memory</span>
+              <div className="landing-memory-stack" aria-hidden="true">
+                <div><small>Scene</small><p>The last train north</p><span>Active now</span></div>
+                <div><small>Relationship</small><p>Trust earned slowly</p><span>Updated</span></div>
+                <div><small>Promise</small><p>Meet beneath the old clock</p><span>Remembered</span></div>
+              </div>
+              <div className="landing-feature-copy">
+                <h3>Continuity that feels natural</h3>
+                <p>Durable facts and rolling summaries keep long stories coherent without making the conversation feel mechanical.</p>
+              </div>
+            </article>
+
+            <article className="landing-feature">
+              <span className="landing-feature-index">02 / Creation</span>
+              <div className="landing-voice-lines" aria-hidden="true">
+                <i /><i /><i /><i /><i /><i /><i /><i /><i />
+              </div>
+              <div className="landing-feature-copy">
+                <h3>A voice, not a template</h3>
+                <p>Define mannerisms, boundaries, history, and appearance to create someone unmistakably their own.</p>
+              </div>
+            </article>
+
+            <article className="landing-feature landing-feature-accent">
+              <span className="landing-feature-index">03 / Flow</span>
+              <div className="landing-stream-mark" aria-hidden="true"><SparkIcon /></div>
+              <div className="landing-feature-copy">
+                <h3>Replies at the speed of thought</h3>
+                <p>Responsive edge streaming keeps the rhythm of a real exchange—focused, immediate, and alive.</p>
+              </div>
+            </article>
+          </div>
+        </div>
       </section>
+
+      <section className="landing-final-cta landing-container">
+        <div>
+          <span className="landing-kicker">Your next chapter</span>
+          <h2>Meet a character<br />worth remembering.</h2>
+        </div>
+        <div>
+          <p>No blank slates. No disposable conversations. Just richer stories every time you return.</p>
+          <Link href={primaryHref} className="landing-primary-button">
+            {user ? "Return to your stories" : "Start for free"} <ArrowIcon />
+          </Link>
+        </div>
+      </section>
+
+      <footer className="landing-footer landing-container">
+        <Link href="/" className="landing-wordmark">
+          <span className="landing-wordmark-mark"><SparkIcon /></span>
+          <span>Howly<span>.ai</span></span>
+        </Link>
+        <p>Persistent-memory roleplay, crafted for deeper stories.</p>
+        <div>
+          <Link href="/characters">Characters</Link>
+          <Link href="/terms">Terms</Link>
+          <span>© 2026 HowlingHeaven Studio</span>
+        </div>
+      </footer>
     </main>
   );
 }
