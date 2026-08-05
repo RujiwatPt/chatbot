@@ -34,7 +34,7 @@ export async function streamAssistantText(params: {
     frequencyPenalty: 0.2,
     presencePenalty: 0.15,
     maxOutputTokens: 1200,
-    abortSignal: AbortSignal.timeout(60000),
+    abortSignal: AbortSignal.timeout(110000),
   });
 
   return {
@@ -64,7 +64,7 @@ export async function generateAssistantText(params: {
     frequencyPenalty: 0.2,
     presencePenalty: 0.15,
     maxOutputTokens: 1200,
-    abortSignal: AbortSignal.timeout(60000),
+    abortSignal: AbortSignal.timeout(110000),
   });
   finalText = first.text.trim();
 
@@ -99,7 +99,7 @@ export async function generateAssistantText(params: {
         temperature: 0.7,
         frequencyPenalty: 0.15,
         maxOutputTokens: 1200,
-        abortSignal: AbortSignal.timeout(45000),
+        abortSignal: AbortSignal.timeout(90000),
       });
       finalText = rewritten.text.trim();
       validation = validateInCharacterOutput({

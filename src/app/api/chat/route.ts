@@ -149,20 +149,25 @@ export async function POST(request: Request) {
 
   after(async () => {
     try {
-      const finalText = (await generated.fullTextPromise).trim();
+      const finalText = (
+        await Promise.resolve(generated.fullTextPromise).catch((err: unknown) => {
+          console.warn("[fullTextPromise_warning]", err);
+          return "";
+        })
+      ).trim();
       if (finalText) {
         await supabase.from("messages").insert({
           chat_id: chatId,
           role: "assistant",
           content: await encryptText(finalText, user.id),
         });
+        await maybeSummarize(supabase, chatId, ctx.character, user.id);
+        console.log("[chat_streaming_complete]", {
+          chatId,
+          model: generated.modelId,
+          length: finalText.length,
+        });
       }
-      await maybeSummarize(supabase, chatId, ctx.character, user.id);
-      console.log("[chat_streaming_complete]", {
-        chatId,
-        model: generated.modelId,
-        length: finalText.length,
-      });
     } catch (err) {
       console.error("[after_save_error]", err);
     }
