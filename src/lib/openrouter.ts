@@ -36,11 +36,10 @@ async function getOpenRouterApiKey(): Promise<string> {
 // Inject the fallback chain into every chat-completions request so the
 // upstream API tries each model in order if the primary fails.
 const openrouterFetch: typeof fetch = async (input, init) => {
-  let chainUsed: string[] | null = null;
   const customInit = { ...init };
 
   if (!customInit.signal) {
-    customInit.signal = AbortSignal.timeout(50000);
+    customInit.signal = AbortSignal.timeout(110000);
   }
 
   // Ensure Authorization header is present if process.env.OPENROUTER_API_KEY was empty at init
@@ -53,36 +52,7 @@ const openrouterFetch: typeof fetch = async (input, init) => {
     customInit.headers = headers;
   }
 
-  if (
-    customInit?.body &&
-    typeof customInit.body === "string" &&
-    typeof input === "string" &&
-    input.includes("/chat/completions")
-  ) {
-    try {
-      const body = JSON.parse(customInit.body);
-      if (typeof body?.model === "string" && !body.models) {
-        // OpenRouter API caps `models` at 3 items total (primary + up to 2 fallbacks).
-        const chain = [
-          body.model,
-          ...FALLBACK_MODELS.filter((m) => m !== body.model),
-        ].slice(0, 3);
-        body.models = chain;
-        chainUsed = chain;
-        customInit.body = JSON.stringify(body);
-      }
-    } catch {
-      // not JSON we recognize — pass through
-    }
-  }
-  const res = await fetch(input, customInit);
-  if (chainUsed) {
-    console.log("[openrouter_fallback_chain]", {
-      models: chainUsed,
-      status: res.status,
-    });
-  }
-  return res;
+  return await fetch(input, customInit);
 };
 
 export const openrouter = createOpenAICompatible({

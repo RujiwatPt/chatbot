@@ -252,7 +252,10 @@ export default function ChatClient({
       });
       if (!res.ok || !res.body) {
         const errText = await res.text().catch(() => "");
-        throw new Error(errText || `Error ${res.status}`);
+        throw new Error(
+          errText ||
+            "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
+        );
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -288,8 +291,16 @@ export default function ChatClient({
           ),
         );
       } else {
-        const errorMsg = err instanceof Error ? err.message : "Stream failed";
-        setError(`Failed to generate response: ${errorMsg}`);
+        const rawMsg = err instanceof Error ? err.message : "";
+        const userFacingMessage =
+          rawMsg.includes("high load") ||
+          rawMsg.includes("503") ||
+          rawMsg.includes("500") ||
+          rawMsg.includes("429")
+            ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
+            : rawMsg ||
+              "The model is experiencing some high load, try changing model or wait for a moment before trying again.";
+        setError(userFacingMessage);
         setMessages((m) => m.filter((x) => x.id !== assistantId));
         setInput((prev) => prev || text);
       }

@@ -141,9 +141,10 @@ export async function POST(request: Request) {
       userName: effectiveUserName,
     });
   } catch (err) {
+    console.error("[chat_generation_error]", err);
     return new Response(
-      err instanceof Error ? err.message : "generation_failed",
-      { status: 500 },
+      "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
+      { status: 503 },
     );
   }
 
