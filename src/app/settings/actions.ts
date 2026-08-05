@@ -57,25 +57,22 @@ export async function deleteAccount(form: FormData) {
     throw new Error("Email confirmation does not match your account email.");
   }
 
-  // 1. Delete all user chats (cascades to all messages & feedback logs)
-  const { error: chatsErr } = await supabase.from("chats").delete().eq("user_id", user.id);
-  if (chatsErr) {
-    throw new Error(`Failed to delete user chats: ${chatsErr.message}`);
+  // 1. Attempt atomic user deletion from auth.users via SECURITY DEFINER RPC (GDPR right to erasure)
+  const { error: rpcErr } = await supabase.rpc("delete_own_user");
+
+  if (rpcErr) {
+    // Fallback: Delete user table records manually if RPC is not deployed
+    const { error: chatsErr } = await supabase.from("chats").delete().eq("user_id", user.id);
+    if (chatsErr) throw new Error(`Failed to delete user chats: ${chatsErr.message}`);
+
+    const { error: charErr } = await supabase.from("characters").delete().eq("user_id", user.id);
+    if (charErr) throw new Error(`Failed to delete user characters: ${charErr.message}`);
+
+    const { error: profileErr } = await supabase.from("profiles").delete().eq("id", user.id);
+    if (profileErr) throw new Error(`Failed to delete user profile: ${profileErr.message}`);
   }
 
-  // 2. Delete all custom characters created by this user
-  const { error: charErr } = await supabase.from("characters").delete().eq("user_id", user.id);
-  if (charErr) {
-    throw new Error(`Failed to delete user characters: ${charErr.message}`);
-  }
-
-  // 3. Delete user profile record
-  const { error: profileErr } = await supabase.from("profiles").delete().eq("id", user.id);
-  if (profileErr) {
-    throw new Error(`Failed to delete user profile: ${profileErr.message}`);
-  }
-
-  // 4. Sign out user session and redirect to login
+  // 2. Sign out user session and redirect to login
   await supabase.auth.signOut();
   redirect("/login");
 }

@@ -14,15 +14,29 @@ export default async function ChatPage({
 }) {
   const { chatId } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { data: chat } = await supabase
-    .from("chats")
-    .select("id, title, character:characters(name, alias, avatar_url, scenario)")
-    .eq("id", chatId)
-    .maybeSingle();
+  // Fetch auth, chat metadata, and message rows concurrently. The message query
+  // only needs chatId; user.id is used later just to decrypt the content.
+  const [
+    {
+      data: { user },
+    },
+    { data: chat },
+    { data: rows },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("chats")
+      .select("id, title, character:characters(name, alias, avatar_url, scenario)")
+      .eq("id", chatId)
+      .maybeSingle(),
+    supabase
+      .from("messages")
+      .select("id, role, content")
+      .eq("chat_id", chatId)
+      .in("role", ["user", "assistant"])
+      .order("id", { ascending: true }),
+  ]);
 
   if (!chat) notFound();
 
@@ -35,13 +49,6 @@ export default async function ChatPage({
     character?.alias,
     character?.avatar_url,
   );
-
-  const { data: rows } = await supabase
-    .from("messages")
-    .select("id, role, content")
-    .eq("chat_id", chatId)
-    .in("role", ["user", "assistant"])
-    .order("id", { ascending: true });
 
   const initialMessages = await Promise.all(
     (rows ?? []).map(async (r) => ({

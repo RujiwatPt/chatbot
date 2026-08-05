@@ -62,10 +62,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId, message } = parsed.data;
 
-  const ctx = await loadChatContext(supabase, chatId);
-  if (!ctx) return new Response("not_found", { status: 404 });
-
-  // Rate limit: fast memory sliding window check per-user (20 msg/min)
+  // Rate limit: fast in-memory sliding window check per-user (20 msg/min).
+  // Fail fast here before spending any DB round-trips.
   const rl = checkRateLimit({
     identifier: user.id,
     namespace: "chat_user",
@@ -75,6 +73,23 @@ export async function POST(request: Request) {
   if (!rl.success) {
     return rateLimitResponse(rl.resetSeconds);
   }
+
+  // Load chat context and the durable DB rate-limit backstop concurrently — they are
+  // independent, and RLS already scopes the message count to the user's own chats.
+  const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+  const [ctx, backstop] = await Promise.all([
+    loadChatContext(supabase, chatId),
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "user")
+      .gte("created_at", oneMinuteAgo),
+  ]);
+
+  if ((backstop.count ?? 0) >= RATE_LIMIT_PER_MINUTE) {
+    return rateLimitResponse(60);
+  }
+  if (!ctx) return new Response("not_found", { status: 404 });
 
   // If the user asks to be called something, remember it on the chat so it
   // persists and takes priority for the rest of the conversation.
