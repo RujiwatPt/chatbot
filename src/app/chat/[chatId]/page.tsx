@@ -27,7 +27,7 @@ export default async function ChatPage({
     supabase.auth.getUser(),
     supabase
       .from("chats")
-      .select("id, title, model, character:characters(name, alias, avatar_url, scenario, model)")
+      .select("*, character:characters(name, alias, avatar_url, scenario, model)")
       .eq("id", chatId)
       .maybeSingle(),
     supabase

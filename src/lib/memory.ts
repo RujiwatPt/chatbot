@@ -150,7 +150,7 @@ export async function loadChatContext(
     supabase
       .from("chats")
       .select(
-        "user_id, user_name, user_pronouns, user_description, model, character:characters(name, alias, persona, scenario, greeting, model)",
+        "*, character:characters(name, alias, persona, scenario, greeting, model)",
       )
       .eq("id", chatId)
       .maybeSingle(),
