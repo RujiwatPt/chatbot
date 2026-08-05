@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
+import { MODEL_OPTIONS, getModelNickname } from "@/lib/openrouter";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
 
@@ -80,6 +81,7 @@ export default function ChatClient({
   chatTitle,
   avatarUrl,
   scenario,
+  initialModelId,
   deleteAction,
 }: {
   chatId: string;
@@ -88,6 +90,7 @@ export default function ChatClient({
   chatTitle?: string;
   avatarUrl?: string;
   scenario?: string | null;
+  initialModelId?: string;
   deleteAction?: (formData?: FormData) => void;
 }) {
   const COOLDOWN_MS = 1200;
@@ -96,10 +99,28 @@ export default function ChatClient({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionState, setActionState] = useState<"none" | "sending" | "retrying" | "undoing">("none");
+  const [activeModelId, setActiveModelId] = useState<string>(
+    initialModelId || "sao10k/l3.3-euryale-70b",
+  );
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [headerHidden, setHeaderHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("chat-header-hidden") === "true";
   });
+
+  async function handleModelSelect(modelId: string) {
+    setActiveModelId(modelId);
+    setModelPickerOpen(false);
+    try {
+      await fetch("/api/chat/model", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chatId, modelId }),
+      });
+    } catch {
+      // ignore
+    }
+  }
 
   const toggleHeader = () => {
     setHeaderHidden((prev) => {
@@ -402,6 +423,60 @@ export default function ChatClient({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pl-1 text-xs">
+            {/* Model Selector Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setModelPickerOpen((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--line)] bg-[color:var(--surface)] text-foreground hover:border-blue-500/40 transition-colors shadow-sm font-medium text-xs"
+                title="Switch AI Model"
+              >
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                  ⚡ {getModelNickname(activeModelId)}
+                </span>
+                <svg className="w-3 h-3 muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {modelPickerOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-64 sm:w-72 rounded-xl border border-[var(--line)] bg-[color:var(--surface-solid)] p-2 shadow-lg backdrop-blur-md z-50 space-y-1">
+                  <div className="px-2 py-1 border-b border-[var(--line)] mb-1 flex items-center justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Select AI Model
+                    </p>
+                    <span className="text-[10px] text-blue-500 font-semibold">Whitelisted</span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {MODEL_OPTIONS.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleModelSelect(m.id)}
+                        className={`w-full text-left p-2 rounded-lg transition-colors flex flex-col gap-0.5 ${
+                          activeModelId === m.id
+                            ? "bg-blue-500/10 border border-blue-500/30"
+                            : "hover:bg-[color:var(--surface)]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-xs text-foreground">
+                            {m.name}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                            {m.tag}
+                          </span>
+                        </div>
+                        <p className="text-[11px] muted leading-tight">
+                          {m.description}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <FontSizeControl />
             <Link href="/chat" prefetch={false} className="btn-text muted hidden sm:inline">
               All chats

@@ -27,7 +27,7 @@ export default async function ChatPage({
     supabase.auth.getUser(),
     supabase
       .from("chats")
-      .select("id, title, character:characters(name, alias, avatar_url, scenario)")
+      .select("id, title, model, character:characters(name, alias, avatar_url, scenario, model)")
       .eq("id", chatId)
       .maybeSingle(),
     supabase
@@ -58,6 +58,8 @@ export default async function ChatPage({
     })),
   );
 
+  const currentModelId = chat.model || character?.model || "sao10k/l3.3-euryale-70b";
+
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-1 sm:py-2">
       <ChatClient
@@ -67,6 +69,7 @@ export default async function ChatPage({
         chatTitle={chat.title ?? character?.alias ?? character?.name ?? "Chat"}
         avatarUrl={avatarUrl}
         scenario={character?.scenario ?? null}
+        initialModelId={currentModelId}
         deleteAction={deleteChat.bind(null, chatId)}
       />
     </main>

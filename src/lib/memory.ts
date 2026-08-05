@@ -150,7 +150,7 @@ export async function loadChatContext(
     supabase
       .from("chats")
       .select(
-        "user_id, user_name, user_pronouns, user_description, character:characters(name, alias, persona, scenario, greeting, model)",
+        "user_id, user_name, user_pronouns, user_description, model, character:characters(name, alias, persona, scenario, greeting, model)",
       )
       .eq("id", chatId)
       .maybeSingle(),
@@ -175,6 +175,10 @@ export async function loadChatContext(
     Array.isArray(chat?.character) ? chat?.character[0] : chat?.character
   ) as Character | undefined;
   if (!character) return null;
+
+  if (chat?.model) {
+    character.model = chat.model;
+  }
 
   const userId = chat?.user_id as string | undefined;
   const userName = (chat?.user_name as string | null) ?? null;

@@ -96,16 +96,72 @@ export const openrouter = createOpenAICompatible({
   fetch: openrouterFetch,
 });
 
-export const ALLOWED_MODELS = new Set([
-  "sao10k/l3.3-euryale-70b",
-  "sophosympatheia/midnight-rose-70b",
-  "neversleep/llama-3-lumimaid-70b",
-  "gryphe/mythomax-l2-13b",
-  "meta-llama/llama-3.3-70b-instruct",
-  "google/gemini-2.5-flash",
-  "anthropic/claude-3.5-haiku",
-  "deepseek/deepseek-r1-distill-llama-70b",
-]);
+export const MODEL_OPTIONS = [
+  {
+    id: "sao10k/l3.3-euryale-70b",
+    name: "Euryale 70B",
+    tag: "Default Roleplay",
+    speed: "Standard",
+    description: "Rich, immersive prose & deep character adherence.",
+  },
+  {
+    id: "google/gemini-2.5-flash",
+    name: "Gemini Flash",
+    tag: "Ultra Fast",
+    speed: "Blazing Fast",
+    description: "Lightning-speed streaming & instant responses.",
+  },
+  {
+    id: "gryphe/mythomax-l2-13b",
+    name: "MythoMax 13B",
+    tag: "Fast & Light",
+    speed: "Fast",
+    description: "Classic lightweight roleplay model with rapid generation.",
+  },
+  {
+    id: "sophosympatheia/midnight-rose-70b",
+    name: "Midnight Rose 70B",
+    tag: "Sensory Prose",
+    speed: "Standard",
+    description: "Detailed, evocative storytelling and deep mood.",
+  },
+  {
+    id: "neversleep/llama-3-lumimaid-70b",
+    name: "Lumimaid 70B",
+    tag: "Creative Roleplay",
+    speed: "Standard",
+    description: "Expressive dialogue and vibrant character dynamics.",
+  },
+  {
+    id: "anthropic/claude-3.5-haiku",
+    name: "Claude Haiku",
+    tag: "Smart & Fast",
+    speed: "Fast",
+    description: "Intelligent, concise, and quick response turnarounds.",
+  },
+  {
+    id: "meta-llama/llama-3.3-70b-instruct",
+    name: "Llama 3.3 70B",
+    tag: "Balanced",
+    speed: "Standard",
+    description: "Strong instruction following & balanced voice.",
+  },
+  {
+    id: "deepseek/deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1 70B",
+    tag: "Nuanced",
+    speed: "Standard",
+    description: "Deep reasoning & nuanced emotional depth.",
+  },
+] as const;
+
+export const ALLOWED_MODELS = new Set<string>(MODEL_OPTIONS.map((m) => m.id));
+
+export function getModelNickname(id: string | null | undefined): string {
+  const sanitized = sanitizeModel(id);
+  const found = MODEL_OPTIONS.find((m) => m.id === sanitized);
+  return found?.name ?? "Euryale 70B";
+}
 
 export function sanitizeModel(id: string | null | undefined): string {
   if (id && ALLOWED_MODELS.has(id)) {
