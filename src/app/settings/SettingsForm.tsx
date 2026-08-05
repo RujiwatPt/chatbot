@@ -6,11 +6,13 @@ import { updateProfile } from "./actions";
 interface SettingsFormProps {
   initialDisplayName: string;
   initialPronouns: string;
+  initialBio: string;
 }
 
 export default function SettingsForm({
   initialDisplayName,
   initialPronouns,
+  initialBio,
 }: SettingsFormProps) {
   return (
     <form action={updateProfile} className="space-y-4">
@@ -49,6 +51,24 @@ export default function SettingsForm({
         </select>
         <p className="muted text-xs">
           Companions will use your preferred pronouns in roleplay actions.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="bio" className="label">
+          Default Persona Description / Bio
+        </label>
+        <textarea
+          id="bio"
+          name="bio"
+          rows={3}
+          maxLength={500}
+          defaultValue={initialBio}
+          placeholder="e.g. A 24-year-old artist with messy hair, quiet demeanor, and a penchant for night walks."
+          className="field resize-none text-xs sm:text-sm"
+        />
+        <p className="muted text-xs">
+          This description will auto-fill when starting new roleplay sessions.
         </p>
       </div>
 

@@ -17,7 +17,7 @@ export default async function SettingsPage() {
     supabase.auth.getUser(),
     supabase
       .from("profiles")
-      .select("display_name, pronouns, invite_code, created_at")
+      .select("display_name, pronouns, bio, invite_code, created_at")
       .maybeSingle(),
   ]);
 
@@ -70,6 +70,7 @@ export default async function SettingsPage() {
         <SettingsForm
           initialDisplayName={profile?.display_name ?? ""}
           initialPronouns={profile?.pronouns ?? ""}
+          initialBio={profile?.bio ?? ""}
         />
       </section>
 

@@ -120,6 +120,7 @@ export async function POST(request: Request) {
     feedback: ctx.feedback,
     userName: effectiveUserName,
     userPronouns: ctx.userPronouns,
+    userDescription: ctx.userDescription,
   });
 
   const messages = [

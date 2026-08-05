@@ -44,11 +44,13 @@ export function buildSystemPrompt(opts: {
   feedback?: string[];
   userName?: string | null;
   userPronouns?: string | null;
+  userDescription?: string | null;
 }) {
   const { character, facts, sceneState, summary, feedback } = opts;
   const selfName = character.alias?.trim() || character.name;
   const userName = opts.userName?.trim() || "";
   const userPronouns = opts.userPronouns?.trim() || "";
+  const userDescription = opts.userDescription?.trim() || "";
   const parts: string[] = [];
 
   parts.push(
@@ -65,12 +67,14 @@ export function buildSystemPrompt(opts: {
     }</character_definition>`,
   );
 
-  if (userName || userPronouns) {
+  if (userName || userPronouns || userDescription) {
     parts.push(
       `<user_profile>\nThe person you are roleplaying with${
         userName ? ` is named ${userName}` : ""
       }.${
-        userPronouns ? ` Use ${userPronouns} pronouns when referring to them.` : ""
+        userPronouns ? ` Preferred pronouns: ${userPronouns}.` : ""
+      }${
+        userDescription ? `\nUser Description / Persona:\n${userDescription}` : ""
       }\n</user_profile>`,
     );
   }
@@ -139,13 +143,14 @@ export async function loadChatContext(
   feedback: string[];
   userName: string | null;
   userPronouns: string | null;
+  userDescription: string | null;
 } | null> {
   // Parallelize initial database context fetches (chats, memories, feedback)
   const [chatRes, memoryRes, feedbackRes] = await Promise.all([
     supabase
       .from("chats")
       .select(
-        "user_id, user_name, user_pronouns, character:characters(name, alias, persona, scenario, greeting, model)",
+        "user_id, user_name, user_pronouns, user_description, character:characters(name, alias, persona, scenario, greeting, model)",
       )
       .eq("id", chatId)
       .maybeSingle(),
@@ -174,6 +179,7 @@ export async function loadChatContext(
   const userId = chat?.user_id as string | undefined;
   const userName = (chat?.user_name as string | null) ?? null;
   const userPronouns = (chat?.user_pronouns as string | null) ?? null;
+  const userDescription = (chat?.user_description as string | null) ?? null;
 
   const decryptedMemories = await Promise.all(
     (memoryRows ?? []).map(async (rawM) => ({
@@ -256,6 +262,7 @@ export async function loadChatContext(
     feedback,
     userName,
     userPronouns,
+    userDescription,
   };
 }
 

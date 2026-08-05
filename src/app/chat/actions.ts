@@ -15,6 +15,8 @@ export async function startChat(characterId: string, formData?: FormData) {
   const userName = String(formData?.get("user_name") ?? "").trim() || null;
   const userPronouns =
     String(formData?.get("user_pronouns") ?? "").trim() || null;
+  const userDescription =
+    String(formData?.get("user_description") ?? "").trim() || null;
 
   const { data: character, error: cerr } = await supabase
     .from("characters")
@@ -32,6 +34,7 @@ export async function startChat(characterId: string, formData?: FormData) {
       title: character.name,
       user_name: userName,
       user_pronouns: userPronouns,
+      user_description: userDescription,
     })
     .select("id")
     .single();

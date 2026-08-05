@@ -33,7 +33,7 @@ export default async function CharacterDetailPage({
       .maybeSingle(),
     supabase
       .from("profiles")
-      .select("display_name, pronouns")
+      .select("display_name, pronouns, bio")
       .maybeSingle(),
     supabase
       .from("chats")
@@ -155,6 +155,23 @@ export default async function CharacterDetailPage({
                 <option value="they/them">they/them</option>
               </select>
             </div>
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="user_description" className="label">
+              Your Description / Persona
+            </label>
+            <textarea
+              id="user_description"
+              name="user_description"
+              rows={2}
+              maxLength={500}
+              defaultValue={profile?.bio ?? ""}
+              placeholder="e.g. A quiet traveler who loves astronomy, wears a worn leather jacket, and has a dry sense of humor."
+              className="field resize-none text-xs sm:text-sm"
+            />
+            <p className="muted text-[11px]">
+              Provide background details or personality traits for {character.name} to remember.
+            </p>
           </div>
           <StartChatSubmitButton />
         </form>

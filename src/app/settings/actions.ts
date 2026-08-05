@@ -17,6 +17,7 @@ export async function updateProfile(form: FormData) {
 
   const displayName = String(form.get("display_name") ?? "").trim();
   const pronouns = String(form.get("pronouns") ?? "").trim();
+  const bio = String(form.get("bio") ?? "").trim();
 
   if (displayName.length > 60) {
     throw new Error("Display name must be 60 characters or less.");
@@ -24,12 +25,16 @@ export async function updateProfile(form: FormData) {
   if (pronouns.length > 30) {
     throw new Error("Pronouns must be 30 characters or less.");
   }
+  if (bio.length > 500) {
+    throw new Error("Description must be 500 characters or less.");
+  }
 
   const { error } = await supabase
     .from("profiles")
     .update({
       display_name: displayName || null,
       pronouns: pronouns || null,
+      bio: bio || null,
     })
     .eq("id", user.id);
 
