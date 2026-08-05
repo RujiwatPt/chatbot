@@ -105,20 +105,6 @@ export const MODEL_OPTIONS = [
     description: "Rich, immersive prose & deep character adherence.",
   },
   {
-    id: "google/gemini-2.5-flash",
-    name: "Gemini Flash",
-    tag: "Ultra Fast",
-    speed: "Blazing Fast",
-    description: "Lightning-speed streaming & instant responses.",
-  },
-  {
-    id: "gryphe/mythomax-l2-13b",
-    name: "MythoMax 13B",
-    tag: "Fast & Light",
-    speed: "Fast",
-    description: "Classic lightweight roleplay model with rapid generation.",
-  },
-  {
     id: "sophosympatheia/midnight-rose-70b",
     name: "Midnight Rose 70B",
     tag: "Sensory Prose",
@@ -133,11 +119,11 @@ export const MODEL_OPTIONS = [
     description: "Expressive dialogue and vibrant character dynamics.",
   },
   {
-    id: "anthropic/claude-3.5-haiku",
-    name: "Claude Haiku",
-    tag: "Smart & Fast",
+    id: "gryphe/mythomax-l2-13b",
+    name: "MythoMax 13B",
+    tag: "Fast & Light",
     speed: "Fast",
-    description: "Intelligent, concise, and quick response turnarounds.",
+    description: "Classic lightweight roleplay model with rapid generation.",
   },
   {
     id: "meta-llama/llama-3.3-70b-instruct",
@@ -145,13 +131,6 @@ export const MODEL_OPTIONS = [
     tag: "Balanced",
     speed: "Standard",
     description: "Strong instruction following & balanced voice.",
-  },
-  {
-    id: "deepseek/deepseek-r1-distill-llama-70b",
-    name: "DeepSeek R1 70B",
-    tag: "Nuanced",
-    speed: "Standard",
-    description: "Deep reasoning & nuanced emotional depth.",
   },
 ] as const;
 

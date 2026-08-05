@@ -512,6 +512,7 @@ export default function ChatClient({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
             <span className="font-semibold">{chatbotName}</span>
+            <span className="text-[11px] text-blue-500 font-medium font-mono">({getModelNickname(activeModelId)})</span>
             <span className="muted text-[10px] uppercase font-semibold tracking-wide border-l border-[var(--line)] pl-1.5">Expand Header</span>
           </button>
         </div>
