@@ -20,7 +20,7 @@ function renderRoleplayText(text: string, isUser = false) {
           className={
             isUser
               ? "user-roleplay-italic italic font-serif leading-relaxed"
-              : "italic text-neutral-600 dark:text-neutral-300 font-serif leading-relaxed"
+              : "italic text-muted font-serif leading-relaxed"
           }
         >
           {part}

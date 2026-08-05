@@ -1,8 +1,9 @@
 @import "tailwindcss";
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 :root,
-:root[data-theme="light"] {
+:root[data-theme="light"],
+html:not(.dark):not([data-theme="dark"]) {
   --background: #f8fafc;
   --foreground: #0f172a;
   --surface: rgba(255, 255, 255, 0.85);
@@ -47,7 +48,8 @@
   --font-display: var(--font-display);
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+html.dark {
     --background: #090d16;
     --foreground: #f8fafc;
     --surface: rgba(15, 23, 42, 0.65);
