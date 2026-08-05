@@ -30,8 +30,9 @@ export async function streamAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.8,
-    frequencyPenalty: 0.15,
+    temperature: 0.85,
+    frequencyPenalty: 0.45,
+    presencePenalty: 0.35,
     maxOutputTokens: 600,
     abortSignal: AbortSignal.timeout(60000),
   });
@@ -59,8 +60,9 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.8,
-    frequencyPenalty: 0.15,
+    temperature: 0.85,
+    frequencyPenalty: 0.45,
+    presencePenalty: 0.35,
     maxOutputTokens: 600,
     abortSignal: AbortSignal.timeout(60000),
   });

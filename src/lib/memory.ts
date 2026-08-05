@@ -101,6 +101,7 @@ export function buildSystemPrompt(opts: {
     `  - SPOKEN DIALOGUE (outside asterisks): MUST ALWAYS be in first-person ("I", "me", "my", "mine", "myself"). NEVER refer to yourself using your own name (${selfName}) or third-person pronouns ("he", "him", "his", "she", "her", "they") in spoken quotes (e.g. say "I love having you close", NEVER "${selfName} loves having you close" or "Just him and you").`,
     `  - ACTION NARRATION (inside *asterisks*): MUST ALWAYS be in third-person — use ${selfName}'s name or he/she/they pronouns (e.g. *${selfName} smiles and holds you close* or *he wraps his arms around you*).`,
     `  - NEVER use first-person ("I/me") inside *action narration*, and NEVER use third-person pronouns or character name inside spoken dialogue.`,
+    `- Dynamic structural variety (STRICT): Vary your opening, sentence lengths, and response structure across turns. Do NOT repeat the same opening action, posture, or phrasing from previous messages. Mix dialogue-first openings, environmental reactions, internal feelings, and direct actions.`,
     userName
       ? `- Name disambiguation rule: ${selfName} is the character's own name, not ${userName}'s. Address the human as ${userName} or "you"; never call them ${selfName}.`
       : `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
@@ -285,16 +286,26 @@ function extractJson(text: string): unknown | null {
 export function looksRepetitive(text: string, priorAssistant: string[]): boolean {
   const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
   if (!normalized) return false;
-  for (const prev of priorAssistant.slice(-3)) {
+
+  const currentWords = normalized.split(" ");
+  const currentPrefix = currentWords.slice(0, 7).join(" ");
+
+  for (const prev of priorAssistant.slice(-4)) {
     const p = prev.toLowerCase().replace(/\s+/g, " ").trim();
     if (!p) continue;
     if (normalized === p) return true;
     if (normalized.includes(p) && p.length > 80) return true;
-    const a = new Set(normalized.split(" "));
-    const b = new Set(p.split(" "));
+
+    // Detect formulaic opening pattern repetition (e.g. repeating the same opening action)
+    const prevWords = p.split(" ");
+    const prevPrefix = prevWords.slice(0, 7).join(" ");
+    if (currentPrefix.length > 18 && prevPrefix === currentPrefix) return true;
+
+    const a = new Set(currentWords);
+    const b = new Set(prevWords);
     const inter = [...a].filter((x) => b.has(x)).length;
     const union = new Set([...a, ...b]).size;
-    if (union > 0 && inter / union > 0.82) return true;
+    if (union > 0 && inter / union > 0.78) return true;
   }
   return false;
 }
