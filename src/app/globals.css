@@ -1315,21 +1315,21 @@ a {
 .landing-feature-grid {
   position: relative;
   display: grid;
-  grid-template-columns: 1.35fr 0.8fr;
-  grid-template-rows: repeat(2, minmax(19rem, auto));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  margin-top: 4.5rem;
+  margin-top: 3rem;
 }
 
 .landing-feature {
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 1.25rem;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.045);
-  padding: 1.4rem;
+  padding: 1.6rem;
 }
 
 .landing-feature-large {
@@ -1538,8 +1538,7 @@ a {
   .landing-experience-intro { grid-template-columns: 1fr; }
   .landing-experience-intro > p { grid-column: auto; max-width: 32rem; }
   .landing-feature-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
-  .landing-feature-large { grid-column: auto; min-height: 34rem; }
-  .landing-feature { min-height: 22rem; }
+  .landing-feature { min-height: auto; }
   .landing-memory-stack { width: 100%; }
   .landing-memory-stack div { grid-template-columns: 1fr auto; }
   .landing-memory-stack small { grid-column: 1 / -1; }

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getCharacterAvatar } from "@/lib/avatar";
+import AvatarImage from "@/components/AvatarImage";
+import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 import { createClient } from "@/lib/supabase/server";
 
 import ThemeToggle from "./ThemeToggle";
@@ -42,6 +43,21 @@ const fallbackFeatured = [
   },
 ];
 
+const features = [
+  {
+    title: "Continuity that feels natural",
+    body: "Durable facts and rolling summaries keep long stories coherent — no re-explaining who you are every session.",
+  },
+  {
+    title: "A voice, not a template",
+    body: "Define mannerisms, boundaries, history, and appearance to create someone unmistakably their own.",
+  },
+  {
+    title: "Replies at the speed of thought",
+    body: "Responsive streaming keeps the rhythm of a real exchange — focused, immediate, and alive.",
+  },
+];
+
 function ArrowIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none">
@@ -77,9 +93,6 @@ export default async function Home() {
 
   return (
     <main className="landing-page">
-      <div className="landing-glow landing-glow-one" />
-      <div className="landing-glow landing-glow-two" />
-
       {!user && (
         <header className="landing-header landing-container reveal-up">
           <Link href="/" prefetch={false} className="landing-wordmark" aria-label="Howly.ai home">
@@ -145,35 +158,7 @@ export default async function Home() {
               sizes="(max-width: 900px) 92vw, 46vw"
               className="landing-hero-image"
             />
-            <div className="landing-image-wash" />
-            <div className="landing-chapter-label">
-              <span>Chapter 07</span>
-              <span>The blue hour</span>
-            </div>
-            <div className="landing-memory-card">
-              <div className="landing-memory-heading">
-                <span><SparkIcon /> Memory recalled</span>
-                <i />
-              </div>
-              <p>“You remembered the promise we made at the train station.”</p>
-              <small>From your conversation · 18 days ago</small>
-            </div>
           </div>
-          <div className="landing-orbit-note">
-            <span>01</span>
-            Long-form memory<br />keeps every chapter connected.
-          </div>
-        </div>
-      </section>
-
-      <section className="landing-marquee" aria-label="Howly capabilities">
-        <div>
-          <span>Distinct voices</span><i />
-          <span>Persistent memory</span><i />
-          <span>Your characters</span><i />
-          <span>Living worlds</span><i />
-          <span>Distinct voices</span><i />
-          <span>Persistent memory</span>
         </div>
       </section>
 
@@ -190,8 +175,9 @@ export default async function Home() {
         </div>
 
         <div className="landing-character-grid">
-          {displayFeatured.map((character, index) => {
+          {displayFeatured.map((character) => {
             const avatarSrc = getCharacterAvatar(character.name, character.alias, character.avatar_url);
+            const fallbackSrc = getDefaultCharacterAvatar(character.name, character.alias);
             const tags = Array.isArray(character.tags) ? character.tags.slice(0, 2) : [];
             const href = isUsingFallbacks ? "/characters" : `/characters/${character.id}`;
 
@@ -200,19 +186,16 @@ export default async function Home() {
                 key={character.id}
                 href={href}
                 prefetch={false}
-                className="landing-character-card stagger-item"
-                style={{ animationDelay: `${80 + index * 70}ms` }}
+                className="landing-character-card"
               >
                 <div className="landing-character-image-wrap">
-                  <Image
+                  <AvatarImage
                     src={avatarSrc}
+                    fallbackSrc={fallbackSrc}
                     alt={`Portrait of ${character.name}`}
-                    fill
                     sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 23vw"
                     className="landing-character-image"
                   />
-                  <span className="landing-card-number">0{index + 1}</span>
-                  <span className="landing-card-arrow"><ArrowIcon /></span>
                 </div>
                 <div className="landing-character-meta">
                   <div>
@@ -241,38 +224,15 @@ export default async function Home() {
           </div>
 
           <div className="landing-feature-grid">
-            <article className="landing-feature landing-feature-large">
-              <span className="landing-feature-index">01 / Memory</span>
-              <div className="landing-memory-stack" aria-hidden="true">
-                <div><small>Scene</small><p>The last train north</p><span>Active now</span></div>
-                <div><small>Relationship</small><p>Trust earned slowly</p><span>Updated</span></div>
-                <div><small>Promise</small><p>Meet beneath the old clock</p><span>Remembered</span></div>
-              </div>
-              <div className="landing-feature-copy">
-                <h3>Continuity that feels natural</h3>
-                <p>Durable facts and rolling summaries keep long stories coherent without making the conversation feel mechanical.</p>
-              </div>
-            </article>
-
-            <article className="landing-feature">
-              <span className="landing-feature-index">02 / Creation</span>
-              <div className="landing-voice-lines" aria-hidden="true">
-                <i /><i /><i /><i /><i /><i /><i /><i /><i />
-              </div>
-              <div className="landing-feature-copy">
-                <h3>A voice, not a template</h3>
-                <p>Define mannerisms, boundaries, history, and appearance to create someone unmistakably their own.</p>
-              </div>
-            </article>
-
-            <article className="landing-feature landing-feature-accent">
-              <span className="landing-feature-index">03 / Flow</span>
-              <div className="landing-stream-mark" aria-hidden="true"><SparkIcon /></div>
-              <div className="landing-feature-copy">
-                <h3>Replies at the speed of thought</h3>
-                <p>Responsive edge streaming keeps the rhythm of a real exchange—focused, immediate, and alive.</p>
-              </div>
-            </article>
+            {features.map((feature, index) => (
+              <article key={feature.title} className="landing-feature">
+                <span className="landing-feature-index">0{index + 1}</span>
+                <div className="landing-feature-copy">
+                  <h3>{feature.title}</h3>
+                  <p>{feature.body}</p>
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>
