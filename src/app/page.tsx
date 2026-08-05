@@ -152,7 +152,7 @@ export default async function Home() {
           <div className="landing-visual-frame">
             <Image
               src="/images/hero_roleplay.jpg"
-              alt="A roleplay creator exploring a cast of AI characters"
+              alt="An anonymous cosmic shadow entity surrounded by infinite possibilities"
               fill
               priority
               sizes="(max-width: 900px) 92vw, 46vw"
