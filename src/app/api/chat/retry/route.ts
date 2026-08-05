@@ -31,6 +31,18 @@ export async function POST(request: Request) {
     return rateLimitResponse(rl.resetSeconds);
   }
 
+  // Durable DB rate-limit backstop (20 msg/min per user across chats)
+  const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+  const { count: recentMsgCount } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "user")
+    .gte("created_at", oneMinuteAgo);
+
+  if ((recentMsgCount ?? 0) >= 20) {
+    return rateLimitResponse(60);
+  }
+
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId } = parsed.data;

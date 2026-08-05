@@ -96,6 +96,24 @@ export const openrouter = createOpenAICompatible({
   fetch: openrouterFetch,
 });
 
+export const ALLOWED_MODELS = new Set([
+  "sao10k/l3.3-euryale-70b",
+  "sophosympatheia/midnight-rose-70b",
+  "neversleep/llama-3-lumimaid-70b",
+  "gryphe/mythomax-l2-13b",
+  "meta-llama/llama-3.3-70b-instruct",
+  "google/gemini-2.5-flash",
+  "anthropic/claude-3.5-haiku",
+  "deepseek/deepseek-r1-distill-llama-70b",
+]);
+
+export function sanitizeModel(id: string | null | undefined): string {
+  if (id && ALLOWED_MODELS.has(id)) {
+    return id;
+  }
+  return DEFAULT_MODEL;
+}
+
 export function model(id: string | null | undefined) {
-  return openrouter(id || DEFAULT_MODEL);
+  return openrouter(sanitizeModel(id));
 }

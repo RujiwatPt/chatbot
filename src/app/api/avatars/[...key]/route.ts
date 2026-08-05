@@ -9,6 +9,16 @@ export async function GET(
   const { key } = await params;
   const objectKey = key.join("/");
 
+  // Validate objectKey format strictly (must be avatars/<userId>/<filename>)
+  if (
+    !objectKey.startsWith("avatars/") ||
+    objectKey.includes("..") ||
+    objectKey.includes("\\") ||
+    !/^avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(objectKey)
+  ) {
+    return new Response("invalid_key_format", { status: 400 });
+  }
+
   try {
     const { env } = await getCloudflareContext();
     const bucket = (
@@ -31,8 +41,8 @@ export async function GET(
       return new Response(object.body as unknown as BodyInit, {
         headers: {
           "Content-Type":
-            object.httpMetadata?.contentType || "application/octet-stream",
-          "Cache-Control": "public, max-age=31536000, immutable",
+            object.httpMetadata?.contentType || "image/png",
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         },
       });
     }

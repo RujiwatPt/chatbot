@@ -7,8 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { generatePersonaBio } from "@/lib/persona";
 import { ensureTagsExist } from "@/lib/tags";
 
+import { sanitizeModel } from "@/lib/openrouter";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 function readForm(form: FormData) {
   const rawTags = form.getAll("tags").map((t) => String(t).trim()).filter(Boolean);
+  const rawModel = String(form.get("model") ?? "").trim();
   return {
     name: String(form.get("name") ?? "").trim(),
     alias: String(form.get("alias") ?? "").trim() || null,
@@ -16,6 +20,7 @@ function readForm(form: FormData) {
     greeting: String(form.get("greeting") ?? "").trim() || null,
     scenario: String(form.get("scenario") ?? "").trim() || null,
     avatar_url: String(form.get("avatar_url") ?? "").trim() || null,
+    model: sanitizeModel(rawModel),
     is_public: form.get("is_public") === "on",
     tags: Array.from(new Set(rawTags)),
   };
@@ -105,6 +110,30 @@ export async function updateCharacter(id: string, form: FormData) {
 
 export async function deleteCharacter(id: string) {
   const supabase = await createClient();
+
+  const { data: char } = await supabase
+    .from("characters")
+    .select("avatar_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (char?.avatar_url && char.avatar_url.startsWith("/api/avatars/")) {
+    const objectKey = char.avatar_url.replace("/api/avatars/", "");
+    try {
+      const { env } = await getCloudflareContext();
+      const bucket = (
+        env as unknown as {
+          AVATARS_BUCKET?: { delete: (k: string) => Promise<void> };
+        }
+      ).AVATARS_BUCKET;
+      if (bucket && typeof bucket.delete === "function") {
+        await bucket.delete(objectKey);
+      }
+    } catch {
+      // outside Cloudflare or R2 unavailable
+    }
+  }
+
   const { error } = await supabase.from("characters").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/characters");
