@@ -243,6 +243,13 @@ export default function ChatClient({
           m.map((x) => (x.id === assistantId ? { ...x, content: acc } : x)),
         );
       }
+      const finalFlushed = decoder.decode();
+      if (finalFlushed) {
+        acc += finalFlushed;
+        setMessages((m) =>
+          m.map((x) => (x.id === assistantId ? { ...x, content: acc } : x)),
+        );
+      }
     } catch (err) {
       const aborted =
         err instanceof DOMException && err.name === "AbortError";

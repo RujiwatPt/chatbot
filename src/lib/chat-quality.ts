@@ -30,10 +30,10 @@ export async function streamAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.85,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.35,
-    maxOutputTokens: 600,
+    temperature: 0.8,
+    frequencyPenalty: 0.2,
+    presencePenalty: 0.15,
+    maxOutputTokens: 1200,
     abortSignal: AbortSignal.timeout(60000),
   });
 
@@ -60,10 +60,10 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.85,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.35,
-    maxOutputTokens: 600,
+    temperature: 0.8,
+    frequencyPenalty: 0.2,
+    presencePenalty: 0.15,
+    maxOutputTokens: 1200,
     abortSignal: AbortSignal.timeout(60000),
   });
   finalText = first.text.trim();
@@ -98,7 +98,7 @@ export async function generateAssistantText(params: {
         prompt: rewritePrompt,
         temperature: 0.7,
         frequencyPenalty: 0.15,
-        maxOutputTokens: 600,
+        maxOutputTokens: 1200,
         abortSignal: AbortSignal.timeout(45000),
       });
       finalText = rewritten.text.trim();
