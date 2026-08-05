@@ -17,32 +17,37 @@ export default async function CharacterDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [
+    {
+      data: { user },
+    },
+    { data: character },
+    { data: profile },
+    { data: chats },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("characters")
+      .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id, tags")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("display_name, pronouns")
+      .maybeSingle(),
+    supabase
+      .from("chats")
+      .select("id, title, created_at")
+      .eq("character_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  const { data: character } = await supabase
-    .from("characters")
-    .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id, tags")
-    .eq("id", id)
-    .maybeSingle();
   if (!character) notFound();
 
   const avatarUrl = getCharacterAvatar(character.name, character.alias, character.avatar_url);
   const avatarFallbackUrl = getDefaultCharacterAvatar(character.name, character.alias);
   const isOwner = character.user_id === user?.id;
   const tags: string[] = Array.isArray(character.tags) ? character.tags : [];
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, pronouns")
-    .maybeSingle();
-
-  const { data: chats } = await supabase
-    .from("chats")
-    .select("id, title, created_at")
-    .eq("character_id", id)
-    .order("created_at", { ascending: false });
 
   const start = startChat.bind(null, id);
 
