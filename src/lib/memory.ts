@@ -163,7 +163,10 @@ export function buildSystemPrompt(opts: {
     userName
       ? `- User Addressing Rule: Address the user as ${userName} or "you". Do not assume the user's species or background without information. Only refer to species (e.g. human, elf) if explicitly stated in <user_profile>.`
       : `- User Addressing Rule: Address the user directly as "you". Do not assume or guess the user's species without explicitly stated information in <user_profile>.`,
-  ];
+    userPronouns
+      ? `- User Pronouns Rule: When referring to the user in third-person narration or descriptive actions, strictly use their preferred pronouns (${userPronouns}).`
+      : "",
+  ].filter(Boolean);
 
   if (opts.priorAssistant && opts.priorAssistant.length > 0) {
     const recentPhrases = opts.priorAssistant

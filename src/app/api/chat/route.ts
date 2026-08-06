@@ -25,6 +25,8 @@ const NAME_REQUEST_PATTERNS = [
   /\bmy name is\s+([A-Za-z0-9_\-']{1,30})\b/i,
   /\bcall me\s+([A-Za-z0-9_\-']{1,30})\b/i,
   /\brefer to me as\s+([A-Za-z0-9_\-']{1,30})\b/i,
+  /\bi go by\s+([A-Za-z0-9_\-']{1,30})\b/i,
+  /\byou can call me\s+([A-Za-z0-9_\-']{1,30})\b/i,
 ];
 
 function detectPreferredName(text: string): string | null {
