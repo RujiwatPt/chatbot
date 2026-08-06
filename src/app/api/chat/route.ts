@@ -22,8 +22,9 @@ const Body = z.object({
 const RATE_LIMIT_PER_MINUTE = 20;
 
 const NAME_REQUEST_PATTERNS = [
-  /(?:call me|my name is|i'm|i am)\s+([A-Z][a-z0-9_-]{1,30})\b/i,
-  /refer to me as\s+([A-Z][a-z0-9_-]{1,30})\b/i,
+  /\bmy name is\s+([A-Z][a-zA-Z0-9_\-']{1,30})\b/,
+  /\bcall me\s+([A-Z][a-zA-Z0-9_\-']{1,30})\b/,
+  /\brefer to me as\s+([A-Z][a-zA-Z0-9_\-']{1,30})\b/,
 ];
 
 function detectPreferredName(text: string): string | null {
@@ -33,15 +34,33 @@ function detectPreferredName(text: string): string | null {
       const candidate = m[1].trim();
       const lower = candidate.toLowerCase();
       if (
-        lower !== "a" &&
-        lower !== "an" &&
-        lower !== "the" &&
-        lower !== "so" &&
-        lower !== "just" &&
-        lower !== "really"
+        lower.endsWith("ing") ||
+        lower.endsWith("ed") ||
+        [
+          "a",
+          "an",
+          "the",
+          "so",
+          "just",
+          "really",
+          "here",
+          "there",
+          "ready",
+          "going",
+          "coming",
+          "cuming",
+          "tired",
+          "fine",
+          "ok",
+          "okay",
+          "sorry",
+          "later",
+          "now",
+        ].includes(lower)
       ) {
-        return candidate;
+        continue;
       }
+      return candidate;
     }
   }
   return null;
