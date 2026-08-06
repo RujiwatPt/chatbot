@@ -71,12 +71,28 @@ export async function POST(request: Request) {
 
   const maxRemainingId = (maxMsg?.id as number | undefined) ?? 0;
 
-  // Delete memory rows derived from the undone turn
+  // Delete memory rows derived from undone turns or extending past maxRemainingId
   await supabase
     .from("memories")
     .delete()
     .eq("chat_id", chatId)
     .gt("up_to_message_id", maxRemainingId);
+
+  // If active summary contains undone message IDs, purge summary row to prevent ghost events
+  const { data: summaryRow } = await supabase
+    .from("memories")
+    .select("id, up_to_message_id")
+    .eq("chat_id", chatId)
+    .eq("kind", "summary")
+    .maybeSingle();
+
+  if (
+    summaryRow &&
+    ((summaryRow.up_to_message_id ?? 0) > maxRemainingId ||
+      toDelete.some((id) => id <= (summaryRow.up_to_message_id ?? 0)))
+  ) {
+    await supabase.from("memories").delete().eq("id", summaryRow.id);
+  }
 
   return Response.json({ ok: true, deletedIds: toDelete.map(String) });
 }

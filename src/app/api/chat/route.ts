@@ -5,6 +5,7 @@ import {
   buildSystemPrompt,
   loadChatContext,
   maybeSummarize,
+  refreshSceneState,
 } from "@/lib/memory";
 import { generateAssistantText } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
@@ -168,13 +169,21 @@ export async function POST(request: Request) {
     );
   }
 
+  // Synchronously persist assistant message before returning to eliminate persistence race conditions
+  const { error: assistantInsertErr } = await supabase.from("messages").insert({
+    chat_id: chatId,
+    role: "assistant",
+    content: await encryptText(finalText, user.id),
+  });
+  if (assistantInsertErr) {
+    console.error("[assistant_message_insert_failed]", assistantInsertErr);
+  }
+
   after(async () => {
     try {
-      await supabase.from("messages").insert({
-        chat_id: chatId,
-        role: "assistant",
-        content: await encryptText(finalText, user.id),
-      });
+      if (!ctx.sceneState || (ctx.recent.length + 1) % 5 === 0) {
+        await refreshSceneState(supabase, chatId, ctx.character, user.id);
+      }
       await maybeSummarize(supabase, chatId, ctx.character, user.id);
       console.log("[chat_generation_complete]", {
         chatId,
@@ -184,7 +193,7 @@ export async function POST(request: Request) {
         repetitive: generated.repetitive,
       });
     } catch (err) {
-      console.error("[after_save_error]", err);
+      console.error("[after_summarize_error]", err);
     }
   });
 

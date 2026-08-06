@@ -35,6 +35,9 @@ const POST_SUMMARY_CAP = 100;
 // Max estimated tokens allowed in the verbatim recent message window (~4500 tokens ≈ 18,000 chars)
 export const MAX_RECENT_TOKENS = 4500;
 
+// Max estimated tokens allowed for the entire system prompt payload (~2500 tokens)
+export const MAX_SYSTEM_TOKENS = 2500;
+
 // Re-summarize when there are at least this many messages past the recent
 // window since the last summary (i.e. older than the tail-N we keep verbatim).
 const SUMMARIZE_MIN_NEW = 10;
@@ -198,8 +201,21 @@ export function buildSystemPrompt(opts: {
     }
   }
 
-  parts.push(directives.join("\n"));
-  return parts.join("\n\n");
+  let finalPrompt = [...parts, directives.join("\n\n")].join("\n\n");
+
+  // Enforce total system prompt token budget to prevent overflowing context limits
+  if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
+    const trimmedFacts = facts.slice(0, 15);
+    const trimmedParts = parts.filter((p) => !p.startsWith("<durable_facts>"));
+    if (trimmedFacts.length) {
+      trimmedParts.push(
+        `<durable_facts>\n${trimmedFacts.map((f) => `- ${f}`).join("\n")}\n</durable_facts>`,
+      );
+    }
+    finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+  }
+
+  return finalPrompt;
 }
 
 export async function loadChatContext(
@@ -229,7 +245,8 @@ export async function loadChatContext(
       .from("memories")
       .select("kind, content, id, up_to_message_id")
       .eq("chat_id", chatId)
-      .order("id", { ascending: false }),
+      .order("id", { ascending: false })
+      .limit(60),
     supabase
       .from("message_feedback")
       .select("feedback")
@@ -329,6 +346,24 @@ export async function loadChatContext(
   }
   const recent = budgetedMessages.reverse();
 
+  // Close Context Hole: Fold any unbudgeted messages between summaryUpTo and recent into summary
+  if (decryptedMessages.length > budgetedMessages.length) {
+    const unbudgeted = decryptedMessages.slice(budgetedMessages.length);
+    const intermediateSummary = unbudgeted
+      .map(
+        (m) =>
+          `${m.role === "user" ? "User" : character.name}: ${m.content.slice(0, 120)}${m.content.length > 120 ? "..." : ""}`,
+      )
+      .reverse()
+      .join(" | ");
+
+    if (summary) {
+      summary = `${summary}\n\nRecent unsummarized transition: ${intermediateSummary}`;
+    } else {
+      summary = `Previous events: ${intermediateSummary}`;
+    }
+  }
+
   // Prioritize durable fact categories and deduplicate/cap to top 30 to preserve context budget
   const uniqueFacts = Array.from(new Set(facts));
   const rank = (fact: string) => {
@@ -359,10 +394,13 @@ export async function loadChatContext(
     }
   }
 
+  // Drop identity facts from facts list when merged to user profile to prevent double-injection
+  const finalFacts = cappedFacts.filter((f) => !f.startsWith("[identity]"));
+
   return {
     character,
     recent,
-    facts: cappedFacts,
+    facts: finalFacts,
     sceneState,
     summary,
     feedback,
@@ -635,10 +673,11 @@ export async function maybeSummarize(
         .filter((f) => f.length > 10)
     : [];
 
-  if (!summaryText) {
-    console.warn("[summarizer] empty summary in parsed output", {
+  if (!summaryText || summaryText.length < 60) {
+    console.warn("[summarizer] summary quality gate failed (empty or too short)", {
       chatId,
       model: character.model,
+      length: summaryText.length,
     });
     return;
   }
@@ -684,21 +723,46 @@ export async function maybeSummarize(
         })),
       );
       await supabase.from("memories").insert(encryptedFacts);
+
+      // Enforce DB Fact Cap: Keep maximum 50 facts per chat
+      const { data: allFacts } = await supabase
+        .from("memories")
+        .select("id")
+        .eq("chat_id", chatId)
+        .eq("kind", "fact")
+        .order("id", { ascending: true });
+
+      if (allFacts && allFacts.length > 50) {
+        const excessCount = allFacts.length - 50;
+        const idsToDelete = allFacts.slice(0, excessCount).map((f) => f.id);
+        await supabase.from("memories").delete().in("id", idsToDelete);
+      }
     }
   }
 
-  // Refresh scene state from the most recent chat turns (actual current scene)
+  await refreshSceneState(supabase, chatId, character, targetUserId);
+}
+
+export async function refreshSceneState(
+  supabase: SupabaseClient,
+  chatId: string,
+  character: Character,
+  userId: string,
+): Promise<void> {
   const { data: currentSceneMessages } = await supabase
     .from("messages")
-    .select("role, content")
+    .select("id, role, content")
     .eq("chat_id", chatId)
     .order("id", { ascending: false })
     .limit(10);
 
+  if (!currentSceneMessages || currentSceneMessages.length === 0) return;
+
+  const upTo = currentSceneMessages[0].id as number;
   const tail = (
     await Promise.all(
-      ((currentSceneMessages ?? []).reverse()).map(
-        async (m) => `${m.role}: ${await decryptText(m.content, targetUserId)}`,
+      [...currentSceneMessages].reverse().map(
+        async (m) => `${m.role}: ${await decryptText(m.content, userId)}`,
       ),
     )
   ).join("\n");
@@ -733,13 +797,13 @@ export async function maybeSummarize(
               relationship: s.relationship,
               goal: s.goal,
             }),
-            targetUserId,
+            userId,
           ),
           up_to_message_id: upTo,
         });
       }
     }
-  } catch {
-    // best effort only
+  } catch (err) {
+    console.error("[refresh_scene_state_error]", err);
   }
 }
