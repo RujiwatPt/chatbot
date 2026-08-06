@@ -685,7 +685,7 @@ export default function ChatClient({
           }}
           rows={1}
           aria-label="Message"
-          placeholder="Message or click Send to continue..."
+          placeholder="Message"
           className="chat-composer-input min-h-11 flex-1 resize-none"
         />
         {busy ? (
