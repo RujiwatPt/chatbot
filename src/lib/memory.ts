@@ -45,6 +45,7 @@ export function buildSystemPrompt(opts: {
   userName?: string | null;
   userPronouns?: string | null;
   userDescription?: string | null;
+  priorAssistant?: string[];
 }) {
   const { character, facts, sceneState, summary, feedback } = opts;
   const selfName = character.alias?.trim() || character.name;
@@ -116,6 +117,18 @@ export function buildSystemPrompt(opts: {
       ? `- User Addressing Rule: Address the user as ${userName} or "you". Do not assume the user's species or background without information. Only refer to species (e.g. human, elf) if explicitly stated in <user_profile>.`
       : `- User Addressing Rule: Address the user directly as "you". Do not assume or guess the user's species without explicitly stated information in <user_profile>.`,
   ];
+
+  if (opts.priorAssistant && opts.priorAssistant.length > 0) {
+    const recentPhrases = opts.priorAssistant
+      .slice(-4)
+      .map((p) => p.trim().slice(0, 45))
+      .filter(Boolean);
+    if (recentPhrases.length > 0) {
+      directives.push(
+        `- ANTI-REPETITION MANDATE (CRITICAL): Do NOT reuse or repeat any of these recent opening phrases/structures from your previous turns: [${recentPhrases.map((s) => `"${s}..."`).join(", ")}]. You MUST open your response with a completely different sentence structure, vocalization, or physical action!`,
+      );
+    }
+  }
 
   if (feedback && feedback.length > 0) {
     if (feedback.includes("too_verbose")) {

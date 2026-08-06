@@ -108,6 +108,10 @@ export async function POST(request: Request) {
     return new Response("failed_to_save_message", { status: 500 });
   }
 
+  const priorAssistant = ctx.recent
+    .filter((m) => m.role === "assistant")
+    .map((m) => m.content);
+
   let system = buildSystemPrompt({
     character: ctx.character,
     facts: ctx.facts,
@@ -117,6 +121,7 @@ export async function POST(request: Request) {
     userName: effectiveUserName,
     userPronouns: ctx.userPronouns,
     userDescription: ctx.userDescription,
+    priorAssistant,
   });
 
   if (isContinueNudge) {

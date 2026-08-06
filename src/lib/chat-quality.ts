@@ -60,9 +60,9 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.85,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.35,
+    temperature: 0.88,
+    frequencyPenalty: 0.55,
+    presencePenalty: 0.45,
     maxOutputTokens: 1200,
     abortSignal: AbortSignal.timeout(110000),
   });
