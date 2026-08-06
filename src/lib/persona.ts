@@ -34,3 +34,41 @@ export async function generatePersonaBio(input: {
     return null;
   }
 }
+
+export function getCleanPersonaDisplay(
+  personaDisplay: string | null | undefined,
+  persona: string,
+): string {
+  if (personaDisplay && personaDisplay.trim().length > 0) {
+    return personaDisplay.trim();
+  }
+
+  if (!persona || typeof persona !== "string") return "";
+
+  const lines = persona
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => {
+      if (!l) return false;
+      const lower = l.toLowerCase();
+      if (lower.startsWith("[roleplay mode") || lower.startsWith("[story progression")) return false;
+      if (lower.startsWith("response contract:") || lower.includes("character_definition>")) return false;
+      if (lower.startsWith("<character") || lower.startsWith("</character")) return false;
+      if (lower.startsWith("name:") || lower.startsWith("persona & traits:")) return false;
+      if (lower.startsWith("greeting anchor") || lower.startsWith("scenario:")) return false;
+      if (lower.includes("voice & narration") || lower.includes("direct speech")) return false;
+      if (lower.includes("output formatting") || lower.includes("turn length")) return false;
+      if (lower.includes("you are portraying") || lower.includes("strict requirement")) return false;
+      if (lower.startsWith("- stay 100%") || lower.startsWith("- write evocative") || lower.startsWith("- avoid clichés")) return false;
+      if (lower.startsWith("- format narration") || lower.startsWith("- never break") || lower.startsWith("- anti-repetition")) return false;
+      if (lower.includes("example (correct)") || lower.includes("example (forbidden)")) return false;
+      return true;
+    });
+
+  const cleaned = lines.join(" ").trim();
+  if (cleaned.length > 0) {
+    return cleaned;
+  }
+
+  return persona.slice(0, 200).trim();
+}

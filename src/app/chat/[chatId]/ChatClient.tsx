@@ -93,6 +93,7 @@ function StopIcon() {
 export default function ChatClient({
   chatId,
   initialMessages,
+  initialHasMore = false,
   chatbotName,
   chatTitle,
   avatarUrl,
@@ -102,6 +103,7 @@ export default function ChatClient({
 }: {
   chatId: string;
   initialMessages: Msg[];
+  initialHasMore?: boolean;
   chatbotName: string;
   chatTitle?: string;
   avatarUrl?: string;
@@ -112,12 +114,19 @@ export default function ChatClient({
   const COOLDOWN_MS = 1200;
   const avatarFallbackUrl = getDefaultCharacterAvatar(chatbotName);
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const loadingHistoryRef = useRef(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionState, setActionState] = useState<"none" | "sending" | "retrying" | "undoing">("none");
-  const [activeModelId, setActiveModelId] = useState<string>(
-    initialModelId || "sao10k/l3.3-euryale-70b",
-  );
+  const [activeModelId, setActiveModelId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("howly-selected-model");
+      if (saved) return saved;
+    }
+    return initialModelId || "sao10k/l3.3-euryale-70b";
+  });
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [headerHidden, setHeaderHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -126,6 +135,9 @@ export default function ChatClient({
 
   async function handleModelSelect(modelId: string) {
     setActiveModelId(modelId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("howly-selected-model", modelId);
+    }
     setModelPickerOpen(false);
     try {
       await fetch("/api/chat/model", {
@@ -161,11 +173,58 @@ export default function ChatClient({
     abortRef.current?.abort();
   }
 
+  async function loadOlderHistory() {
+    if (loadingHistoryRef.current || !hasMore || messages.length === 0) return;
+    const earliestId = messages[0].id;
+    if (!earliestId || earliestId.startsWith("u-") || earliestId.startsWith("a-")) return;
+
+    loadingHistoryRef.current = true;
+    setLoadingHistory(true);
+
+    const el = scrollRef.current;
+    const previousScrollHeight = el ? el.scrollHeight : 0;
+    const previousScrollTop = el ? el.scrollTop : 0;
+
+    try {
+      const res = await fetch("/api/chat/history", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chatId, beforeId: earliestId, limit: 30 }),
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as { messages: Msg[]; hasMore: boolean };
+        if (data.messages && data.messages.length > 0) {
+          setMessages((prev) => [...data.messages, ...prev]);
+          setHasMore(data.hasMore);
+
+          requestAnimationFrame(() => {
+            if (el) {
+              const newScrollHeight = el.scrollHeight;
+              el.scrollTop = previousScrollTop + (newScrollHeight - previousScrollHeight);
+            }
+          });
+        } else {
+          setHasMore(false);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      loadingHistoryRef.current = false;
+      setLoadingHistory(false);
+    }
+  }
+
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     userScrolledUpRef.current = !isAtBottom;
+
+    if (el.scrollTop < 80 && hasMore && !loadingHistoryRef.current) {
+      loadOlderHistory();
+    }
   }
 
   useEffect(() => {
@@ -363,23 +422,32 @@ export default function ChatClient({
 
   async function retryLast() {
     if (busy) return;
+
+    const lastMsg = messages[messages.length - 1];
+    const lastAssistantMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
+
+    const originalMsg = lastAssistantMsg ? { ...lastAssistantMsg } : null;
+
     setBusy(true);
     setActionState("retrying");
     setError(null);
 
-    // Provide immediate visual feedback by clearing the last assistant message content
-    setMessages((prev) => {
-      const lastAssistantIndex = [...prev]
-        .map((m, i) => ({ m, i }))
-        .reverse()
-        .find((x) => x.m.role === "assistant")?.i;
-      if (lastAssistantIndex !== undefined) {
-        return prev.map((m, i) =>
-          i === lastAssistantIndex ? { ...m, content: "" } : m,
-        );
-      }
-      return prev;
-    });
+    const tempId = `a-${Date.now()}`;
+
+    // If the last item is the assistant message being retried, clear its content for visual feedback.
+    // Otherwise, append a temporary empty assistant message item.
+    if (originalMsg && lastMsg?.id === originalMsg.id) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === originalMsg.id ? { ...m, content: "" } : m)),
+      );
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { id: tempId, role: "assistant", content: "" },
+      ]);
+    }
 
     try {
       const res = await fetch("/api/chat/retry", {
@@ -387,26 +455,45 @@ export default function ChatClient({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ chatId }),
       });
+
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        throw new Error(errText || `Error ${res.status}`);
+        throw new Error(
+          errText ||
+            "The model is experiencing high load, try changing model or wait a moment.",
+        );
       }
+
       const body = (await res.json()) as {
         ok: boolean;
         message: { id: string; role: "assistant"; content: string };
       };
+
       setMessages((prev) => {
-        const lastAssistantIndex = [...prev]
+        const targetIdx = [...prev]
           .map((m, i) => ({ m, i }))
           .reverse()
-          .find((x) => x.m.role === "assistant")?.i;
-        if (lastAssistantIndex !== undefined) {
-          return prev.map((m, i) => (i === lastAssistantIndex ? body.message : m));
+          .find(
+            (x) =>
+              x.m.role === "assistant" &&
+              (x.m.id === originalMsg?.id || x.m.id === tempId || x.m.content === ""),
+          )?.i;
+
+        if (targetIdx !== undefined) {
+          return prev.map((m, i) => (i === targetIdx ? body.message : m));
         }
         return [...prev, body.message];
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Retry failed");
+      // Restore original state on error: remove temp placeholder and restore original assistant message content if mutated
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== tempId);
+        if (originalMsg) {
+          return filtered.map((m) => (m.id === originalMsg.id ? originalMsg : m));
+        }
+        return filtered;
+      });
     } finally {
       setBusy(false);
       setActionState("none");
@@ -505,7 +592,7 @@ export default function ChatClient({
                       </p>
                       <span className="text-[10px] text-blue-500 font-semibold">Whitelisted</span>
                     </div>
-                    <div className="max-h-60 overflow-y-auto space-y-1">
+                    <div className="max-h-[280px] overflow-y-auto pr-1 space-y-1">
                       {MODEL_OPTIONS.map((m) => (
                         <button
                           key={m.id}
@@ -588,6 +675,23 @@ export default function ChatClient({
         onScroll={handleScroll}
         className="chat-scroll panel min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
       >
+        {hasMore && (
+          <div className="flex justify-center py-1">
+            {loadingHistory ? (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-500">
+                <SpinnerIcon /> Loading older history...
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={loadOlderHistory}
+                className="btn-outline btn-sm text-xs font-semibold px-3 py-1 text-blue-500 border-blue-500/30 hover:border-blue-500/60"
+              >
+                ↑ Load older messages
+              </button>
+            )}
+          </div>
+        )}
         {scenario && (
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 sm:p-3.5 space-y-1 backdrop-blur-sm shadow-sm">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">

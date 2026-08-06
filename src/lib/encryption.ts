@@ -125,6 +125,6 @@ export async function decryptText(
     return decrypted;
   } catch (err) {
     console.error("[decryption_failure] Key rotation mismatch or corrupt ciphertext for user:", userId, err);
-    return "[Encrypted Message]";
+    throw new Error(`[decryption_failure] Failed to decrypt message payload for user ${userId}`);
   }
 }

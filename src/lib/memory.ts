@@ -25,10 +25,6 @@ export type SceneState = {
   goal: string;
 };
 
-// How many recent messages we leave un-summarized at the tail when the
-// summarizer runs. Below this many post-summary messages, we don't summarize.
-export const RECENT_WINDOW = 30;
-
 // Hard cap on messages fetched before token-budget pruning.
 const POST_SUMMARY_CAP = 100;
 
@@ -242,6 +238,26 @@ export function buildSystemPrompt(opts: {
       );
       finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
     }
+
+    // Stage 4: Drop optional sections cleanly before raw line-boundary slice fallback
+    if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
+      trimmedParts = trimmedParts.filter((p) => !p.startsWith("<narrative_summary>"));
+      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+    }
+    if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
+      trimmedParts = trimmedParts.filter((p) => !p.startsWith("<durable_facts>"));
+      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+    }
+    if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
+      trimmedParts = trimmedParts.filter((p) => !p.startsWith("<scene_state>"));
+      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+    }
+    if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
+      const maxChars = MAX_SYSTEM_TOKENS * 4;
+      const rawSlice = finalPrompt.slice(0, maxChars);
+      const lastNewline = rawSlice.lastIndexOf("\n");
+      finalPrompt = lastNewline > maxChars * 0.7 ? rawSlice.slice(0, lastNewline) : rawSlice;
+    }
   }
 
   return finalPrompt;
@@ -351,6 +367,7 @@ export async function loadChatContext(
     .from("messages")
     .select("role, content")
     .eq("chat_id", chatId)
+    .neq("content", "")
     .gt("id", summaryUpTo)
     .order("id", { ascending: false })
     .limit(POST_SUMMARY_CAP);
@@ -609,6 +626,7 @@ export async function maybeSummarize(
     .from("messages")
     .select("id, role, content")
     .eq("chat_id", chatId)
+    .neq("content", "")
     .gt("id", sinceId)
     .order("id", { ascending: false })
     .limit(60);
@@ -616,25 +634,28 @@ export async function maybeSummarize(
   if (!recentCandidateMessages || recentCandidateMessages.length < 10) return;
 
   let accumulatedTokens = 0;
-  let cutoffIndex = recentCandidateMessages.length - 1;
+  let lastIncludedIndex = recentCandidateMessages.length - 1;
   for (let i = 0; i < recentCandidateMessages.length; i++) {
     const m = recentCandidateMessages[i];
     const dec = await decryptText(m.content, targetUserId);
     const tokens = estimateTokens(dec);
     if (i >= 4 && accumulatedTokens + tokens > MAX_RECENT_TOKENS) {
-      cutoffIndex = i;
+      lastIncludedIndex = i - 1;
       break;
     }
     accumulatedTokens += tokens;
   }
 
-  const oldestRecentId = recentCandidateMessages[cutoffIndex].id as number;
+  // When truncated, messages 0..lastIncludedIndex remain in recent; oldestRecentId is at lastIncludedIndex.
+  // When not truncated, all candidate messages fit in recent; oldestRecentId is the oldest candidate message.
+  const oldestRecentId = recentCandidateMessages[lastIncludedIndex].id as number;
 
   // Messages eligible to fold in: id < oldestRecentId AND id > sinceId
   const { data: toFold } = await supabase
     .from("messages")
     .select("id, role, content")
     .eq("chat_id", chatId)
+    .neq("content", "")
     .gt("id", sinceId)
     .lt("id", oldestRecentId)
     .order("id", { ascending: true });
@@ -815,6 +836,7 @@ export async function refreshSceneState(
     .from("messages")
     .select("id, role, content")
     .eq("chat_id", chatId)
+    .neq("content", "")
     .order("id", { ascending: false })
     .limit(10);
 

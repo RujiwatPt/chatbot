@@ -106,7 +106,10 @@ export default function AvatarCropModal({ imageSrc, onCrop, onCancel }: Props) {
     exportCanvas.height = targetSize;
 
     const ctx = exportCanvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      setExporting(false);
+      return;
+    }
 
     const viewSize = 320;
     const ratio = targetSize / viewSize;

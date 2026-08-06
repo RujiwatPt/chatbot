@@ -5,9 +5,14 @@ import {
   deduplicateFacts,
   looksRepetitive,
   validateInCharacterOutput,
+  buildSystemPrompt,
+  estimateTokens,
+  MAX_SYSTEM_TOKENS,
 } from "../memory.js";
 import { detectPreferredName } from "../../app/api/chat/route.js";
 import { sanitizeNext } from "../../app/auth/callback/route.js";
+import { getDefaultCharacterAvatar } from "../avatar.js";
+import { getCleanPersonaDisplay } from "../persona.js";
 
 test("isFactRedundant detects identical and similar facts", () => {
   assert.strictEqual(
@@ -72,3 +77,49 @@ test("sanitizeNext blocks open redirects", () => {
   assert.strictEqual(sanitizeNext("https://evil.example.com"), "/characters");
   assert.strictEqual(sanitizeNext(null), "/characters");
 });
+
+test("getDefaultCharacterAvatar anchors on exact word matches", () => {
+  assert.strictEqual(getDefaultCharacterAvatar("Kael"), "/images/avatar_kael.jpg");
+  assert.strictEqual(getDefaultCharacterAvatar("Sam"), "/images/avatar_sam.jpg");
+  // User characters with containing substrings should NOT match stock seed portraits
+  assert.strictEqual(getDefaultCharacterAvatar("Samuel"), "/images/hero_roleplay.jpg");
+  assert.strictEqual(getDefaultCharacterAvatar("Samantha"), "/images/hero_roleplay.jpg");
+  assert.strictEqual(getDefaultCharacterAvatar("Wolfgang"), "/images/hero_roleplay.jpg");
+  assert.strictEqual(getDefaultCharacterAvatar("Miranda"), "/images/hero_roleplay.jpg");
+});
+
+test("getCleanPersonaDisplay strips system prompt instructions", () => {
+  const rawPersona = `[ROLEPLAY MODE: Active]
+You are portraying Aiko in an ongoing roleplay.
+RESPONSE CONTRACT:
+- Stay 100% in character
+Aiko is a quiet 17-year-old student who loves drawing.
+- Voice & Narration Split (STRICT REQUIREMENT)`;
+
+  const cleaned = getCleanPersonaDisplay(null, rawPersona);
+  assert.strictEqual(cleaned, "Aiko is a quiet 17-year-old student who loves drawing.");
+});
+
+test("buildSystemPrompt guarantees MAX_SYSTEM_TOKENS cap even with huge inputs", () => {
+  const hugePersona = "X".repeat(15000);
+  const hugeFacts = Array.from({ length: 50 }, (_, i) => `[world] Fact ${i}: ${"Y".repeat(200)}`);
+  const hugeSummary = "Z".repeat(10000);
+
+  const prompt = buildSystemPrompt({
+    character: {
+      name: "Kael",
+      alias: null,
+      persona: hugePersona,
+      scenario: "Test scenario",
+      greeting: "Hello",
+      model: "sao10k/l3.3-euryale-70b",
+    },
+    facts: hugeFacts,
+    sceneState: null,
+    summary: hugeSummary,
+  });
+
+  const tokens = estimateTokens(prompt);
+  assert.ok(tokens <= MAX_SYSTEM_TOKENS, `Expected <= ${MAX_SYSTEM_TOKENS}, got ${tokens}`);
+});
+

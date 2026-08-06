@@ -55,38 +55,66 @@ export const openrouter = createOpenAICompatible({
 export const MODEL_OPTIONS = [
   {
     id: "sao10k/l3.3-euryale-70b",
-    name: "Euryale 70B",
+    name: "Sao10K: Euryale 70B",
     tag: "Default Roleplay",
     speed: "Standard",
     description: "Rich, immersive prose & deep character adherence.",
   },
   {
-    id: "sophosympatheia/midnight-rose-70b",
-    name: "Midnight Rose 70B",
-    tag: "Sensory Prose",
-    speed: "Standard",
-    description: "Detailed, evocative storytelling and deep mood.",
+    id: "aion-labs/aion-3.0-mini",
+    name: "AionLabs: Aion 3.0 Mini",
+    tag: "Fast RP",
+    speed: "Fast",
+    description: "Lightweight, responsive roleplay model.",
   },
   {
-    id: "neversleep/llama-3-lumimaid-70b",
-    name: "Lumimaid 70B",
-    tag: "Creative Roleplay",
+    id: "aion-labs/aion-3.0",
+    name: "AionLabs: Aion 3.0",
+    tag: "Advanced RP",
     speed: "Standard",
-    description: "Expressive dialogue and vibrant character dynamics.",
+    description: "Balanced, immersive conversation & story development.",
+  },
+  {
+    id: "nousresearch/hermes-4-70b",
+    name: "Nous: Hermes 4 70B",
+    tag: "Reasoning & RP",
+    speed: "Standard",
+    description: "Advanced reasoning and creative dialogue dynamics.",
+  },
+  {
+    id: "cognitivecomputations/dolphin-mistral-24b-venice-edition",
+    name: "Dolphin Mistral 24B",
+    tag: "Venice Uncensored",
+    speed: "Fast",
+    description: "Venice edition uncensored storytelling model.",
+  },
+  {
+    id: "thedrummer/unslopnemo-12b",
+    name: "TheDrummer: UnslopNemo 12B",
+    tag: "Anti-Cliché",
+    speed: "Fast",
+    description: "Trained to avoid repetitive tropes and cliché AI phrasing.",
+  },
+  {
+    id: "anthracite-org/magnum-v4-72b",
+    name: "Anthracite: Magnum v4 72B",
+    tag: "Deep Creative",
+    speed: "Standard",
+    description: "High-capability creative writing and roleplay engine.",
   },
   {
     id: "gryphe/mythomax-l2-13b",
     name: "MythoMax 13B",
-    tag: "Fast & Light",
+    tag: "Classic Light",
     speed: "Fast",
     description: "Classic lightweight roleplay model with rapid generation.",
   },
   {
-    id: "meta-llama/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
-    tag: "Balanced",
-    speed: "Standard",
-    description: "Strong instruction following & balanced voice.",
+    id: "thedrummer/rocinante-12b",
+    name: "TheDrummer: Rocinante 12B",
+    tag: "Storytelling",
+    speed: "Fast",
+    description: "Character-focused narrative storytelling model.",
   },
 ] as const;
 
@@ -95,10 +123,13 @@ export const ALLOWED_MODELS = new Set<string>(MODEL_OPTIONS.map((m) => m.id));
 export function getModelNickname(id: string | null | undefined): string {
   const sanitized = sanitizeModel(id);
   const found = MODEL_OPTIONS.find((m) => m.id === sanitized);
-  return found?.name ?? "Euryale 70B";
+  return found?.name ?? "Sao10K: Euryale 70B";
 }
 
 export function sanitizeModel(id: string | null | undefined): string {
+  if (id === "venice/uncensored") {
+    return "cognitivecomputations/dolphin-mistral-24b-venice-edition";
+  }
   if (id && ALLOWED_MODELS.has(id)) {
     return id;
   }

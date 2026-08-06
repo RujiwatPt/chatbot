@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startChat } from "../../chat/actions";
+import { getCleanPersonaDisplay } from "@/lib/persona";
 
 import AvatarImage from "@/components/AvatarImage";
 import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
@@ -92,7 +93,7 @@ export default async function CharacterDetailPage({
           )}
 
           <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
-            {character.persona_display ?? character.persona}
+            {getCleanPersonaDisplay(character.persona_display, character.persona)}
           </p>
 
           {character.scenario && (

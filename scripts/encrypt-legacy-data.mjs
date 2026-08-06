@@ -35,7 +35,14 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 
 function getAppMasterSecret() {
-  return process.env.ENCRYPTION_SECRET || "fallback-dev-roleplay-chatbot-secret-key-32b";
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret || secret.length < 16) {
+    console.error(
+      "❌ FATAL: ENCRYPTION_SECRET is missing or under 16 characters in environment. Refusing to run encryption migration with a default or insecure key.",
+    );
+    process.exit(1);
+  }
+  return secret;
 }
 
 function deriveUserKey(userId) {
@@ -72,9 +79,10 @@ function encryptText(plaintext, userId) {
 async function migrate() {
   console.log("🔒 Starting Direct PostgreSQL Legacy Encryption Migration...");
 
+  const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false";
   const client = new Client({
     connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized },
   });
   await client.connect();
 

@@ -12,7 +12,7 @@ function applyTheme(theme: Theme) {
 
 export default function ThemeToggle({ className = "" }: { className?: string }) {
   function toggleTheme() {
-    const currentTheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const currentTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
     const nextTheme: Theme = currentTheme === "light" ? "dark" : "light";
     applyTheme(nextTheme);
     localStorage.setItem(STORAGE_KEY, nextTheme);

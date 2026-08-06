@@ -35,7 +35,8 @@ export default async function ChatPage({
       .select("id, role, content")
       .eq("chat_id", chatId)
       .in("role", ["user", "assistant"])
-      .order("id", { ascending: true }),
+      .order("id", { ascending: false })
+      .limit(50),
   ]);
 
   if (!chat) notFound();
@@ -50,12 +51,26 @@ export default async function ChatPage({
     character?.avatar_url,
   );
 
+  const rawRows = rows ?? [];
+  const initialHasMore = rawRows.length >= 50;
+  const reversedRows = [...rawRows].reverse();
+
   const initialMessages = await Promise.all(
-    (rows ?? []).map(async (r) => ({
-      id: String(r.id),
-      role: r.role as "user" | "assistant",
-      content: user ? await decryptText(r.content, user.id) : r.content,
-    })),
+    reversedRows.map(async (r) => {
+      try {
+        return {
+          id: String(r.id),
+          role: r.role as "user" | "assistant",
+          content: user ? await decryptText(r.content, user.id) : r.content,
+        };
+      } catch {
+        return {
+          id: String(r.id),
+          role: r.role as "user" | "assistant",
+          content: "[Unable to decrypt message - key mismatch]",
+        };
+      }
+    }),
   );
 
   const currentModelId = chat.model || character?.model || "sao10k/l3.3-euryale-70b";
@@ -65,6 +80,7 @@ export default async function ChatPage({
       <ChatClient
         chatId={chatId}
         initialMessages={initialMessages}
+        initialHasMore={initialHasMore}
         chatbotName={character?.alias ?? character?.name ?? "Chatbot"}
         chatTitle={chat.title ?? character?.alias ?? character?.name ?? "Chat"}
         avatarUrl={avatarUrl}

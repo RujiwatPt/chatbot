@@ -35,7 +35,11 @@ export async function ensureTagsExist(
   supabase: SupabaseClient,
   tags: string[],
 ): Promise<void> {
-  const cleanTags = tags.map((t) => t.trim()).filter(Boolean);
+  const cleanTags = Array.from(new Set(tags))
+    .map((t) => t.trim().slice(0, 30))
+    .filter((t) => t.length > 0 && /^[A-Za-z0-9_\-\s]+$/.test(t))
+    .slice(0, 10);
+
   if (!cleanTags.length) return;
 
   const rows = cleanTags.map((name) => ({

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 import { PRESET_TAGS } from "@/lib/tags";
+import { getCleanPersonaDisplay } from "@/lib/persona";
 import AvatarImage from "@/components/AvatarImage";
 import PublicBadge from "@/components/PublicBadge";
 
@@ -30,9 +31,9 @@ export default async function CharactersPage({
       { count: "exact" },
     );
 
-  const safeQ = q.replace(/[,.()%\\\\]/g, "").trim();
+  const safeQ = q.replace(/[^a-zA-Z0-9\s\-']/g, "").trim();
   if (safeQ) {
-    const term = `%${safeQ}%`;
+    const term = `%${safeQ.replace(/\s+/g, "%")}%`;
     query = query.or(
       `name.ilike.${term},alias.ilike.${term},persona_display.ilike.${term},persona.ilike.${term}`,
     );
@@ -224,7 +225,7 @@ export default async function CharactersPage({
                         )}
 
                         <p className="muted mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 sm:line-clamp-4">
-                          {c.persona_display ?? c.persona}
+                          {getCleanPersonaDisplay(c.persona_display, c.persona)}
                         </p>
                       </div>
 

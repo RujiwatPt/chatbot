@@ -32,7 +32,7 @@ loadEnvFile(".env");
 loadEnvFile(".env.local");
 
 const dbUrl = process.env.SUPABASE_DB_URL;
-const oldSecret = process.argv[2] || "fallback-dev-roleplay-chatbot-secret-key-32b";
+const oldSecret = process.argv[2];
 const newSecret = process.argv[3] || process.env.ENCRYPTION_SECRET;
 
 if (!dbUrl) {
@@ -40,8 +40,17 @@ if (!dbUrl) {
   process.exit(1);
 }
 
+if (!oldSecret || oldSecret.length < 16) {
+  console.error(
+    "❌ FATAL: Please provide a valid OLD ENCRYPTION_SECRET (at least 16 chars). Usage: node scripts/rekey-data.mjs <OLD_SECRET> <NEW_SECRET>",
+  );
+  process.exit(1);
+}
+
 if (!newSecret || newSecret.length < 16) {
-  console.error("Please provide a valid NEW ENCRYPTION_SECRET (at least 16 chars). Usage: node scripts/rekey-data.mjs <OLD_SECRET> <NEW_SECRET>");
+  console.error(
+    "❌ FATAL: Please provide a valid NEW ENCRYPTION_SECRET (at least 16 chars). Usage: node scripts/rekey-data.mjs <OLD_SECRET> <NEW_SECRET>",
+  );
   process.exit(1);
 }
 
@@ -98,9 +107,10 @@ async function rekey() {
   console.log(`- Old Secret: ${oldSecret.slice(0, 6)}...`);
   console.log(`- New Secret: ${newSecret.slice(0, 6)}...`);
 
+  const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false";
   const client = new Client({
     connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized },
   });
   await client.connect();
 

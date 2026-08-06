@@ -119,8 +119,15 @@ export async function POST(request: Request) {
     system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
   }
 
-  const messages = ctx.recent.map((m, idx) => {
-    if (idx === ctx.recent.length - 1 && m.role === "user" && isContinueNudge) {
+  // Ensure prompt messages array strictly ends with a user turn for correct LLM conversation alignment
+  const lastUserIndex = ctx.recent.reduce(
+    (lastIdx, m, idx) => (m.role === "user" ? idx : lastIdx),
+    -1,
+  );
+  const alignedRecent = lastUserIndex >= 0 ? ctx.recent.slice(0, lastUserIndex + 1) : ctx.recent;
+
+  const messages = alignedRecent.map((m, idx) => {
+    if (idx === alignedRecent.length - 1 && m.role === "user" && isContinueNudge) {
       return {
         role: m.role,
         content: "[Continue: progress story forward without repeating previous turn]",
