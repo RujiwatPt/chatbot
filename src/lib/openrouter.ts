@@ -4,21 +4,6 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export const DEFAULT_MODEL =
   process.env.OPENROUTER_MODEL ?? "sao10k/l3.3-euryale-70b";
 
-// Fallback chain. OpenRouter accepts a `models` array in the request body
-// and tries each in order if the primary errors or is unavailable. OpenRouter
-// caps `models` at 3 entries total (primary + up to 2 fallbacks).
-const DEFAULT_FALLBACKS = [
-  "sophosympatheia/midnight-rose-70b",
-  "neversleep/llama-3-lumimaid-70b",
-  "gryphe/mythomax-l2-13b",
-];
-
-export const FALLBACK_MODELS = (
-  process.env.OPENROUTER_FALLBACK_MODELS
-    ? process.env.OPENROUTER_FALLBACK_MODELS.split(",").map((s) => s.trim())
-    : DEFAULT_FALLBACKS
-).filter(Boolean);
-
 async function getOpenRouterApiKey(): Promise<string> {
   let key = process.env.OPENROUTER_API_KEY;
   if (!key) {
@@ -33,8 +18,6 @@ async function getOpenRouterApiKey(): Promise<string> {
   return key || "";
 }
 
-// Inject the fallback chain into every chat-completions request so the
-// upstream API tries each model in order if the primary fails.
 const openrouterFetch: typeof fetch = async (input, init) => {
   const customInit = { ...init };
 
@@ -50,23 +33,6 @@ const openrouterFetch: typeof fetch = async (input, init) => {
       headers.set("Authorization", `Bearer ${apiKey}`);
     }
     customInit.headers = headers;
-  }
-
-  // Inject OpenRouter models array for transparent server-side fallback
-  if (customInit.body && typeof customInit.body === "string" && customInit.method === "POST") {
-    try {
-      const parsed = JSON.parse(customInit.body) as Record<string, unknown>;
-      if (typeof parsed.model === "string" && !Array.isArray(parsed.models)) {
-        const primary = parsed.model;
-        const fallbacks = FALLBACK_MODELS.filter((m) => m !== primary).slice(0, 2);
-        if (fallbacks.length > 0) {
-          parsed.models = [primary, ...fallbacks];
-          customInit.body = JSON.stringify(parsed);
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
   }
 
   return await fetch(input, customInit);
