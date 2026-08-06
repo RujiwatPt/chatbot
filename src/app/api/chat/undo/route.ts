@@ -27,6 +27,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId } = parsed.data;
 
+  // Verify chat ownership
+  const { data: ownership } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("id", chatId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!ownership) return new Response("not_found", { status: 404 });
+
   const { data: latestUser } = await supabase
     .from("messages")
     .select("id")
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
   const { error } = await supabase.from("messages").delete().in("id", toDelete);
   if (error) return new Response(error.message, { status: 500 });
 
-  // Sanitize memory progress pointers if deleted messages were past the memory checkpoint
+  // Find remaining max message ID
   const { data: maxMsg } = await supabase
     .from("messages")
     .select("id")
@@ -62,9 +71,10 @@ export async function POST(request: Request) {
 
   const maxRemainingId = (maxMsg?.id as number | undefined) ?? 0;
 
+  // Delete memory rows derived from the undone turn
   await supabase
     .from("memories")
-    .update({ up_to_message_id: maxRemainingId })
+    .delete()
     .eq("chat_id", chatId)
     .gt("up_to_message_id", maxRemainingId);
 

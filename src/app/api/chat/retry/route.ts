@@ -6,7 +6,7 @@ import {
   maybeSummarize,
 } from "@/lib/memory";
 import { generateAssistantText } from "@/lib/chat-quality";
-import { encryptText } from "@/lib/encryption";
+import { decryptText, encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 export const maxDuration = 120;
 
@@ -47,6 +47,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId } = parsed.data;
 
+  // Verify chat ownership
+  const { data: ownership } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("id", chatId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!ownership) return new Response("not_found", { status: 404 });
+
   const { data: latestUser } = await supabase
     .from("messages")
     .select("id, content")
@@ -57,9 +66,15 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!latestUser) return new Response("no_user_message", { status: 400 });
 
+  const decryptedUserMsg = await decryptText(latestUser.content, user.id);
+  const isContinueNudge =
+    !decryptedUserMsg ||
+    decryptedUserMsg === "[Continue]" ||
+    decryptedUserMsg === "*continue*";
+
   const { data: latestAssistant } = await supabase
     .from("messages")
-    .select("id")
+    .select("id, content")
     .eq("chat_id", chatId)
     .eq("role", "assistant")
     .gt("id", latestUser.id)
@@ -67,7 +82,9 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
+  let rejectedAssistantContent: string | null = null;
   if (latestAssistant) {
+    rejectedAssistantContent = await decryptText(latestAssistant.content, user.id);
     const { error: delErr } = await supabase
       .from("messages")
       .delete()
@@ -78,7 +95,15 @@ export async function POST(request: Request) {
   const ctx = await loadChatContext(supabase, chatId);
   if (!ctx) return new Response("not_found", { status: 404 });
 
-  const system = buildSystemPrompt({
+  const priorAssistant = ctx.recent
+    .filter((m) => m.role === "assistant")
+    .map((m) => m.content);
+
+  if (rejectedAssistantContent) {
+    priorAssistant.push(rejectedAssistantContent);
+  }
+
+  let system = buildSystemPrompt({
     character: ctx.character,
     facts: ctx.facts,
     sceneState: ctx.sceneState,
@@ -87,7 +112,13 @@ export async function POST(request: Request) {
     userName: ctx.userName,
     userPronouns: ctx.userPronouns,
     userDescription: ctx.userDescription,
+    priorAssistant,
   });
+
+  if (isContinueNudge) {
+    system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
+  }
+
   const messages = ctx.recent.map((m) => ({ role: m.role, content: m.content }));
 
   const generated = await generateAssistantText({
@@ -95,9 +126,7 @@ export async function POST(request: Request) {
     sceneState: ctx.sceneState,
     system,
     messages,
-    priorAssistant: ctx.recent
-      .filter((m) => m.role === "assistant")
-      .map((m) => m.content),
+    priorAssistant,
     userName: ctx.userName,
   });
 
