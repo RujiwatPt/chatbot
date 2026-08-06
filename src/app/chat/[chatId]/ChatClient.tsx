@@ -12,22 +12,38 @@ type Msg = { id: string; role: "user" | "assistant"; content: string };
 
 function renderRoleplayText(text: string, isUser = false) {
   if (!text) return null;
-  const parts = text.split(/(\*[^*]+\*)/g);
+  // Notion-style rich text parser: matches **bold** and *action narration*
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, idx) => {
+    if (!part) return null;
+
+    // Handle **bold** (strips ** delimiter in rendering)
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      const innerContent = part.slice(2, -2);
+      return (
+        <strong key={idx} className="font-bold">
+          {innerContent}
+        </strong>
+      );
+    }
+
+    // Handle *italic action narration* (strips * delimiter in rendering)
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      const innerContent = part.slice(1, -1);
       return (
         <span
           key={idx}
           className={
             isUser
               ? "user-roleplay-italic italic font-serif leading-relaxed"
-              : "italic text-muted font-serif leading-relaxed"
+              : "italic text-muted font-serif leading-relaxed opacity-95"
           }
         >
-          {part}
+          {innerContent}
         </span>
       );
     }
+
     return <span key={idx}>{part}</span>;
   });
 }
