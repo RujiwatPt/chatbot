@@ -6,7 +6,7 @@ import {
   loadChatContext,
   maybeSummarize,
 } from "@/lib/memory";
-import { streamAssistantText } from "@/lib/chat-quality";
+import { generateAssistantText } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -19,11 +19,8 @@ const Body = z.object({
 });
 
 // Per-user rate limit: how many user messages allowed in the trailing minute.
-// Uses RLS-scoped count, so each authed user's window is isolated.
 const RATE_LIMIT_PER_MINUTE = 20;
 
-// Detect an explicit "call me X" / "my name is X" request so we can remember
-// what the user wants to be called and prioritize it for the rest of the chat.
 const NAME_REQUEST_PATTERNS = [
   /(?:call me|my name is|i'm|i am)\s+([A-Z][a-z0-9_-]{1,30})\b/i,
   /refer to me as\s+([A-Z][a-z0-9_-]{1,30})\b/i,
@@ -51,7 +48,6 @@ function detectPreferredName(text: string): string | null {
 }
 
 export async function POST(request: Request) {
-  // Auth was already enforced by middleware; RLS handles per-row authorization.
   const supabase = await createClient();
   const {
     data: { user },
@@ -62,8 +58,6 @@ export async function POST(request: Request) {
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId, message } = parsed.data;
 
-  // Rate limit: fast in-memory sliding window check per-user (20 msg/min).
-  // Fail fast here before spending any DB round-trips.
   const rl = checkRateLimit({
     identifier: user.id,
     namespace: "chat_user",
@@ -74,25 +68,27 @@ export async function POST(request: Request) {
     return rateLimitResponse(rl.resetSeconds);
   }
 
-  // Load chat context and the durable DB rate-limit backstop concurrently — they are
-  // independent, and RLS already scopes the message count to the user's own chats.
   const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-  const [ctx, backstop] = await Promise.all([
+  const [ctx, backstop, { data: ownership }] = await Promise.all([
     loadChatContext(supabase, chatId),
     supabase
       .from("messages")
       .select("id", { count: "exact", head: true })
       .eq("role", "user")
       .gte("created_at", oneMinuteAgo),
+    supabase
+      .from("chats")
+      .select("id")
+      .eq("id", chatId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   if ((backstop.count ?? 0) >= RATE_LIMIT_PER_MINUTE) {
     return rateLimitResponse(60);
   }
-  if (!ctx) return new Response("not_found", { status: 404 });
+  if (!ownership || !ctx) return new Response("not_found", { status: 404 });
 
-  // If the user asks to be called something, remember it on the chat so it
-  // persists and takes priority for the rest of the conversation.
   const preferredName = detectPreferredName(message);
   if (preferredName && preferredName !== ctx.userName) {
     await supabase
@@ -102,14 +98,15 @@ export async function POST(request: Request) {
   }
   const effectiveUserName = preferredName ?? ctx.userName;
 
-  // Persist the user's new message (RLS guarantees the chat is theirs)
-  {
-    const { error } = await supabase.from("messages").insert({
-      chat_id: chatId,
-      role: "user",
-      content: await encryptText(message, user.id),
-    });
-    if (error) return new Response(error.message, { status: 500 });
+  const { error: insertError } = await supabase.from("messages").insert({
+    chat_id: chatId,
+    role: "user",
+    content: await encryptText(message, user.id),
+  });
+
+  if (insertError) {
+    console.error("[user_message_insert_failed]", insertError);
+    return new Response("failed_to_save_message", { status: 500 });
   }
 
   const system = buildSystemPrompt({
@@ -130,7 +127,7 @@ export async function POST(request: Request) {
 
   let generated;
   try {
-    generated = await streamAssistantText({
+    generated = await generateAssistantText({
       character: ctx.character,
       sceneState: ctx.sceneState,
       system,
@@ -148,33 +145,35 @@ export async function POST(request: Request) {
     );
   }
 
+  const finalText = generated.text.trim();
+  if (!finalText) {
+    return new Response(
+      "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
+      { status: 503 },
+    );
+  }
+
   after(async () => {
     try {
-      const finalText = (
-        await Promise.resolve(generated.fullTextPromise).catch((err: unknown) => {
-          console.warn("[fullTextPromise_warning]", err);
-          return "";
-        })
-      ).trim();
-      if (finalText) {
-        await supabase.from("messages").insert({
-          chat_id: chatId,
-          role: "assistant",
-          content: await encryptText(finalText, user.id),
-        });
-        await maybeSummarize(supabase, chatId, ctx.character, user.id);
-        console.log("[chat_streaming_complete]", {
-          chatId,
-          model: generated.modelId,
-          length: finalText.length,
-        });
-      }
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        role: "assistant",
+        content: await encryptText(finalText, user.id),
+      });
+      await maybeSummarize(supabase, chatId, ctx.character, user.id);
+      console.log("[chat_generation_complete]", {
+        chatId,
+        model: generated.modelId,
+        length: finalText.length,
+        validation: generated.validation,
+        repetitive: generated.repetitive,
+      });
     } catch (err) {
       console.error("[after_save_error]", err);
     }
   });
 
-  return new Response(generated.stream, {
+  return new Response(finalText, {
     headers: { "content-type": "text/plain; charset=utf-8" },
   });
 }
