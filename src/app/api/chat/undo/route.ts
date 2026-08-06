@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { maybeSummarize, type Character } from "@/lib/memory";
 
 const Body = z.object({
   chatId: z.string().uuid(),
@@ -92,6 +94,27 @@ export async function POST(request: Request) {
       toDelete.some((id) => id <= (summaryRow.up_to_message_id ?? 0)))
   ) {
     await supabase.from("memories").delete().eq("id", summaryRow.id);
+
+    // Trigger background re-summarization on remaining messages
+    const { data: chat } = await supabase
+      .from("chats")
+      .select("*, character:characters(name, alias, persona, scenario, greeting, model)")
+      .eq("id", chatId)
+      .maybeSingle();
+
+    const character = (
+      Array.isArray(chat?.character) ? chat?.character[0] : chat?.character
+    ) as Character | undefined;
+
+    if (character) {
+      after(async () => {
+        try {
+          await maybeSummarize(supabase, chatId, character, user.id);
+        } catch (err) {
+          console.error("[undo_resummarize_error]", err);
+        }
+      });
+    }
   }
 
   return Response.json({ ok: true, deletedIds: toDelete.map(String) });

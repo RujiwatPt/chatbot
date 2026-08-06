@@ -193,6 +193,12 @@ export async function POST(request: Request) {
 
   const assistantMsgId = String(inserted.id);
 
+  // Fetch total message count for exact scene refresh turn cadence
+  const { count: totalMsgCount } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("chat_id", chatId);
+
   after(async () => {
     try {
       const finalText = (await streamed.fullTextPromise).trim();
@@ -202,7 +208,7 @@ export async function POST(request: Request) {
           .update({ content: await encryptText(finalText, user.id) })
           .eq("id", inserted.id);
 
-        if (!ctx.sceneState || (ctx.recent.length + 1) % 5 === 0) {
+        if (!ctx.sceneState || ((totalMsgCount ?? 0) + 1) % 5 === 0) {
           await refreshSceneState(supabase, chatId, ctx.character, user.id);
         }
         await maybeSummarize(supabase, chatId, ctx.character, user.id);

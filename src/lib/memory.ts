@@ -203,16 +203,45 @@ export function buildSystemPrompt(opts: {
 
   let finalPrompt = [...parts, directives.join("\n\n")].join("\n\n");
 
-  // Enforce total system prompt token budget to prevent overflowing context limits
+  // Multi-stage fallback prompt budgeting to guarantee system prompt never overflows context limits
   if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
-    const trimmedFacts = facts.slice(0, 15);
-    const trimmedParts = parts.filter((p) => !p.startsWith("<durable_facts>"));
+    // Stage 1: Trim facts to 10
+    const trimmedFacts = facts.slice(0, 10);
+    let trimmedParts = parts.filter((p) => !p.startsWith("<durable_facts>"));
     if (trimmedFacts.length) {
       trimmedParts.push(
         `<durable_facts>\n${trimmedFacts.map((f) => `- ${f}`).join("\n")}\n</durable_facts>`,
       );
     }
     finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+
+    // Stage 2: Truncate summary to 1200 chars if still over
+    if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS && summary) {
+      const truncatedSummary = `${summary.slice(0, 1200)}...`;
+      trimmedParts = trimmedParts.map((p) =>
+        p.startsWith("<narrative_summary>")
+          ? `<narrative_summary>\n${truncatedSummary}\n</narrative_summary>`
+          : p,
+      );
+      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+    }
+
+    // Stage 3: Trim persona if still over
+    if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS && character.persona.length > 800) {
+      const trimmedPersona = `${character.persona.slice(0, 800)}...`;
+      trimmedParts = trimmedParts.map((p) =>
+        p.startsWith("<character_definition>")
+          ? `<character_definition>\nName: ${selfName}\nPersona & Traits:\n${trimmedPersona}\n${
+              character.scenario ? `Scenario: ${character.scenario}\n` : ""
+            }${
+              character.greeting
+                ? `Greeting Anchor / Voice Reference:\n*${character.greeting}*\n`
+                : ""
+            }</character_definition>`
+          : p,
+      );
+      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+    }
   }
 
   return finalPrompt;
@@ -575,15 +604,31 @@ export async function maybeSummarize(
 
   const sinceId: number = prior?.up_to_message_id ?? 0;
 
-  // We summarize messages OLDER than the recent window. Find the cutoff.
-  const { data: recentEdge } = await supabase
+  // Dynamically determine oldestRecentId by walking messages backwards up to MAX_RECENT_TOKENS
+  const { data: recentCandidateMessages } = await supabase
     .from("messages")
-    .select("id")
+    .select("id, role, content")
     .eq("chat_id", chatId)
+    .gt("id", sinceId)
     .order("id", { ascending: false })
-    .limit(RECENT_WINDOW);
-  if (!recentEdge || recentEdge.length < RECENT_WINDOW) return;
-  const oldestRecentId = recentEdge[recentEdge.length - 1].id as number;
+    .limit(60);
+
+  if (!recentCandidateMessages || recentCandidateMessages.length < 10) return;
+
+  let accumulatedTokens = 0;
+  let cutoffIndex = recentCandidateMessages.length - 1;
+  for (let i = 0; i < recentCandidateMessages.length; i++) {
+    const m = recentCandidateMessages[i];
+    const dec = await decryptText(m.content, targetUserId);
+    const tokens = estimateTokens(dec);
+    if (i >= 4 && accumulatedTokens + tokens > MAX_RECENT_TOKENS) {
+      cutoffIndex = i;
+      break;
+    }
+    accumulatedTokens += tokens;
+  }
+
+  const oldestRecentId = recentCandidateMessages[cutoffIndex].id as number;
 
   // Messages eligible to fold in: id < oldestRecentId AND id > sinceId
   const { data: toFold } = await supabase
@@ -724,17 +769,34 @@ export async function maybeSummarize(
       );
       await supabase.from("memories").insert(encryptedFacts);
 
-      // Enforce DB Fact Cap: Keep maximum 50 facts per chat
-      const { data: allFacts } = await supabase
+      // Enforce Priority-Aware DB Fact Cap: Keep max 50 facts, evicting lowest-priority [other] facts first
+      const { data: allFactRows } = await supabase
         .from("memories")
-        .select("id")
+        .select("id, content")
         .eq("chat_id", chatId)
         .eq("kind", "fact")
         .order("id", { ascending: true });
 
-      if (allFacts && allFacts.length > 50) {
-        const excessCount = allFacts.length - 50;
-        const idsToDelete = allFacts.slice(0, excessCount).map((f) => f.id);
+      if (allFactRows && allFactRows.length > 50) {
+        const decryptedWithRank = await Promise.all(
+          allFactRows.map(async (f) => {
+            const dec = await decryptText(f.content, targetUserId);
+            const rank = dec.startsWith("[identity]")
+              ? 0
+              : dec.startsWith("[promise]")
+                ? 1
+                : dec.startsWith("[world]")
+                  ? 2
+                  : 3;
+            return { id: f.id, rank };
+          }),
+        );
+
+        // Sort lowest priority (highest rank 3: [other]) to the front for eviction
+        decryptedWithRank.sort((a, b) => b.rank - a.rank);
+
+        const excessCount = allFactRows.length - 50;
+        const idsToDelete = decryptedWithRank.slice(0, excessCount).map((f) => f.id);
         await supabase.from("memories").delete().in("id", idsToDelete);
       }
     }
