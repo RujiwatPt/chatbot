@@ -18,6 +18,16 @@ export async function POST(request: Request) {
   if (!parsed.success) return new Response("bad_request", { status: 400 });
   const { chatId, messageId, feedback } = parsed.data;
 
+  // Verify chat ownership before permitting feedback row insertion
+  const { data: chat } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("id", chatId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!chat) return new Response("forbidden", { status: 403 });
+
   const { error } = await supabase.from("message_feedback").upsert(
     {
       user_id: user.id,

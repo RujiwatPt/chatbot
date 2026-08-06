@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-function sanitizeNext(nextParam: string | null): string {
+export function sanitizeNext(nextParam: string | null): string {
   if (!nextParam) return "/characters";
   // Only allow same-origin absolute paths.
   if (!nextParam.startsWith("/")) return "/characters";

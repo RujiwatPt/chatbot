@@ -47,7 +47,9 @@ export async function POST(request: Request) {
     }
 
     const fileBuffer = await file.arrayBuffer();
-    const extension = file.name.split(".").pop() || "png";
+    const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+    const rawExtension = (file.name.split(".").pop() || "").toLowerCase();
+    const extension = ALLOWED_EXTENSIONS.has(rawExtension) ? rawExtension : "png";
     const filename = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
     const objectKey = `avatars/${filename}`;
 

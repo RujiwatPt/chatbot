@@ -30,7 +30,7 @@ const NAME_REQUEST_PATTERNS = [
   /\byou can call me\s+([A-Za-z0-9_\-']{1,30})\b/i,
 ];
 
-function detectPreferredName(text: string): string | null {
+export function detectPreferredName(text: string): string | null {
   for (const pat of NAME_REQUEST_PATTERNS) {
     const m = text.match(pat);
     if (m?.[1]) {

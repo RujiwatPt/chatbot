@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
-function applySecurityHeaders(response: Response) {
+function applySecurityHeaders(request: NextRequest, response: Response, nonce: string) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -26,7 +26,7 @@ function applySecurityHeaders(response: Response) {
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https:",
       "style-src 'self' 'unsafe-inline'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'nonce-${nonce}'`,
       "connect-src 'self' https: wss:",
     ].join("; "),
   );
@@ -35,6 +35,9 @@ function applySecurityHeaders(response: Response) {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+
+  request.headers.set("x-nonce", nonce);
 
   // Apply Edge Rate Limiting on API endpoints (60 req/min per IP)
   if (pathname.startsWith("/api/")) {
@@ -48,12 +51,12 @@ export async function middleware(request: NextRequest) {
 
     if (!rl.success) {
       const res = rateLimitResponse(rl.resetSeconds);
-      return applySecurityHeaders(res);
+      return applySecurityHeaders(request, res, nonce);
     }
   }
 
   const response = await updateSession(request);
-  return applySecurityHeaders(response);
+  return applySecurityHeaders(request, response, nonce);
 }
 
 export const config = {

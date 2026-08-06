@@ -9,7 +9,8 @@
     "preview:worker": "npm run build:worker && npx wrangler dev",
     "deploy:worker": "npm run build:worker && npx wrangler deploy",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npx tsx --test src/lib/__tests__/unit.test.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.42",

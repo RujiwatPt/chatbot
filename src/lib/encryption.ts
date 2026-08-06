@@ -28,6 +28,7 @@ async function getAppMasterSecret(): Promise<string> {
 
 // Module-level per-instance cache: Intentionally per-instance in serverless environments
 // (32 bytes per distinct active user) to eliminate CPU overhead from repeated HKDF derivations.
+const MAX_USER_KEY_CACHE_SIZE = 500;
 const userKeyCache = new Map<string, Buffer>();
 
 /**
@@ -37,6 +38,10 @@ const userKeyCache = new Map<string, Buffer>();
 async function deriveUserKey(userId: string): Promise<Buffer> {
   const cached = userKeyCache.get(userId);
   if (cached) return cached;
+
+  if (userKeyCache.size >= MAX_USER_KEY_CACHE_SIZE) {
+    userKeyCache.clear();
+  }
 
   const masterSecret = await getAppMasterSecret();
   const key = Buffer.from(
@@ -59,19 +64,18 @@ export async function encryptText(
   plaintext: string,
   userId: string,
 ): Promise<string> {
-  if (
-    !plaintext ||
-    typeof plaintext !== "string" ||
-    plaintext.startsWith(PREFIX)
-  ) {
+  if (!plaintext || typeof plaintext !== "string") {
     return plaintext;
   }
+
+  // Prepend zero-width space to escape user messages starting literally with PREFIX to prevent collisions
+  const safePlaintext = plaintext.startsWith(PREFIX) ? `\u200B${plaintext}` : plaintext;
 
   const key = await deriveUserKey(userId);
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
-  let encrypted = cipher.update(plaintext, "utf8", "hex");
+  let encrypted = cipher.update(safePlaintext, "utf8", "hex");
   encrypted += cipher.final("hex");
 
   const tag = cipher.getAuthTag().toString("hex");
@@ -113,9 +117,14 @@ export async function decryptText(
     let decrypted = decipher.update(encryptedHex, "hex", "utf8");
     decrypted += decipher.final("utf8");
 
+    // Remove zero-width space escape prefix if present
+    if (decrypted.startsWith(`\u200B${PREFIX}`)) {
+      return decrypted.slice(1);
+    }
+
     return decrypted;
   } catch (err) {
-    console.error("[encryption_decrypt_error] Failed to decrypt message:", err);
+    console.error("[decryption_failure] Key rotation mismatch or corrupt ciphertext for user:", userId, err);
     return "[Encrypted Message]";
   }
 }

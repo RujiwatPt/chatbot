@@ -5,7 +5,7 @@ import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit
 const Body = z.object({
   code: z
     .string()
-    .min(3)
+    .min(6)
     .max(50)
     .regex(/^[A-Za-z0-9_-]+$/, "Invalid code format"),
 });
@@ -27,6 +27,16 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return new Response("unauthorized", { status: 401 });
+
+  const userRl = checkRateLimit({
+    identifier: user.id,
+    namespace: "redeem_invite_user",
+    limit: 5,
+    windowSeconds: 60,
+  });
+  if (!userRl.success) {
+    return rateLimitResponse(userRl.resetSeconds);
+  }
 
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
