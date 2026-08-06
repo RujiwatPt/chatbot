@@ -119,7 +119,15 @@ export async function POST(request: Request) {
     system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
   }
 
-  const messages = ctx.recent.map((m) => ({ role: m.role, content: m.content }));
+  const messages = ctx.recent.map((m, idx) => {
+    if (idx === ctx.recent.length - 1 && m.role === "user" && isContinueNudge) {
+      return {
+        role: m.role,
+        content: "[Continue: progress story forward without repeating previous turn]",
+      };
+    }
+    return { role: m.role, content: m.content };
+  });
 
   const generated = await generateAssistantText({
     character: ctx.character,
@@ -130,12 +138,20 @@ export async function POST(request: Request) {
     userName: ctx.userName,
   });
 
+  const finalText = generated.text.trim();
+  if (!finalText) {
+    return new Response(
+      "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
+      { status: 503 },
+    );
+  }
+
   const { data: inserted, error } = await supabase
     .from("messages")
     .insert({
       chat_id: chatId,
       role: "assistant",
-      content: await encryptText(generated.text, user.id),
+      content: await encryptText(finalText, user.id),
     })
     .select("id, role, content")
     .single();
@@ -152,7 +168,7 @@ export async function POST(request: Request) {
     message: {
       id: String(inserted.id),
       role: inserted.role,
-      content: generated.text,
+      content: finalText,
     },
   });
 }

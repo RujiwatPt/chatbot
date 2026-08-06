@@ -341,6 +341,21 @@ export default function ChatClient({
     setBusy(true);
     setActionState("retrying");
     setError(null);
+
+    // Provide immediate visual feedback by clearing the last assistant message content
+    setMessages((prev) => {
+      const lastAssistantIndex = [...prev]
+        .map((m, i) => ({ m, i }))
+        .reverse()
+        .find((x) => x.m.role === "assistant")?.i;
+      if (lastAssistantIndex !== undefined) {
+        return prev.map((m, i) =>
+          i === lastAssistantIndex ? { ...m, content: "" } : m,
+        );
+      }
+      return prev;
+    });
+
     try {
       const res = await fetch("/api/chat/retry", {
         method: "POST",
@@ -564,11 +579,20 @@ export default function ChatClient({
             Say something to begin.
           </p>
         )}
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`${m.role === "user" ? "flex justify-end" : "flex justify-start gap-2.5 items-start"} message-in`}
-          >
+        {messages.map((m) => {
+          const isContinueMsg =
+            m.role === "user" &&
+            (m.content === "*continue*" ||
+              m.content === "[Continue]" ||
+              m.content.startsWith("[Continue:"));
+
+          if (isContinueMsg) return null;
+
+          return (
+            <div
+              key={m.id}
+              className={`${m.role === "user" ? "flex justify-end" : "flex justify-start gap-2.5 items-start"} message-in`}
+            >
             {m.role === "assistant" && avatarUrl && (
               <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm mt-1">
                 <AvatarImage
@@ -628,7 +652,8 @@ export default function ChatClient({
               )}
             </div>
           </div>
-        ))}
+        );
+      })}
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs sm:text-sm text-red-600 dark:text-red-400 flex items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-2 min-w-0">
