@@ -52,6 +52,23 @@ const openrouterFetch: typeof fetch = async (input, init) => {
     customInit.headers = headers;
   }
 
+  // Inject OpenRouter models array for transparent server-side fallback
+  if (customInit.body && typeof customInit.body === "string" && customInit.method === "POST") {
+    try {
+      const parsed = JSON.parse(customInit.body) as Record<string, unknown>;
+      if (typeof parsed.model === "string" && !Array.isArray(parsed.models)) {
+        const primary = parsed.model;
+        const fallbacks = FALLBACK_MODELS.filter((m) => m !== primary).slice(0, 2);
+        if (fallbacks.length > 0) {
+          parsed.models = [primary, ...fallbacks];
+          customInit.body = JSON.stringify(parsed);
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
   return await fetch(input, customInit);
 };
 
