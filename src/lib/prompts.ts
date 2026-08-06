@@ -31,7 +31,7 @@ export const PERSONA_BIO_SYSTEM = `You rewrite a second-person character descrip
 Rules:
 - Use the character's name and consistent third-person pronouns inferred from the description.
 - Keep every trait, mannerism, and detail faithful — do not invent, exaggerate, or omit.
-- When the description refers to the human roleplayer (often "the user"), refer to them as "you".
+- When the description refers to the user, refer to them as "you".
 - 2-4 short paragraphs. No headings, no lists, no meta-commentary, and do not quote these instructions.
 - Output only the bio text.`;
 

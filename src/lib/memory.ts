@@ -69,7 +69,7 @@ export function buildSystemPrompt(opts: {
 
   if (userName || userPronouns || userDescription) {
     parts.push(
-      `<user_profile>\nThe person you are roleplaying with${
+      `<user_profile>\nThe user you are speaking with${
         userName ? ` is named ${userName}` : ""
       }.${
         userPronouns ? ` Preferred pronouns: ${userPronouns}.` : ""
@@ -108,8 +108,8 @@ export function buildSystemPrompt(opts: {
     `  - SPOKEN DIALOGUE (outside asterisks): MUST ALWAYS be in natural first-person ("I", "me", "my", "mine", "myself"). NEVER refer to yourself using your own name (${selfName}) or third-person pronouns in spoken quotes.`,
     `- Dynamic structural variety (STRICT): Vary your opening, sentence lengths, and response structure across turns. Do NOT repeat the same opening action, posture, or phrasing from previous messages. Mix dialogue-first openings, environmental reactions, internal feelings, and direct actions.`,
     userName
-      ? `- Name disambiguation rule: ${selfName} is the character's own name, not ${userName}'s. Address the human as ${userName} or "you"; never call them ${selfName}.`
-      : `- Name disambiguation rule: ${selfName} is the character's own name, not the user's name. Address the user as "you" unless the user explicitly provides their name.`,
+      ? `- User Naming Rule: Address the user as ${userName} or "you". Never call the user ${selfName}, and NEVER refer to them as "the human" or "human".`
+      : `- User Naming Rule: Address the user directly as "you". Never call them ${selfName}, and NEVER refer to them as "the human" or "human".`,
   ];
 
   if (feedback && feedback.length > 0) {
@@ -359,6 +359,9 @@ export function validateInCharacterOutput(params: {
     "language model",
     "i can't help with that",
     "i cannot help with that",
+    "the human",
+    "this human",
+    "dear human",
   ];
   for (const phrase of banned) {
     if (text.toLowerCase().includes(phrase)) {
