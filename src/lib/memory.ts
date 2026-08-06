@@ -108,8 +108,8 @@ export function buildSystemPrompt(opts: {
     `  - SPOKEN DIALOGUE (outside asterisks): MUST ALWAYS be in natural first-person ("I", "me", "my", "mine", "myself"). NEVER refer to yourself using your own name (${selfName}) or third-person pronouns in spoken quotes.`,
     `- Dynamic structural variety (STRICT): Vary your opening, sentence lengths, and response structure across turns. Do NOT repeat the same opening action, posture, or phrasing from previous messages. Mix dialogue-first openings, environmental reactions, internal feelings, and direct actions.`,
     userName
-      ? `- User Naming Rule: Address the user as ${userName} or "you". Never call the user ${selfName}, and NEVER refer to them as "the human" or "human".`
-      : `- User Naming Rule: Address the user directly as "you". Never call them ${selfName}, and NEVER refer to them as "the human" or "human".`,
+      ? `- User Addressing Rule: Address the user as ${userName} or "you". Do not assume the user's species or background without information. Only refer to species (e.g. human, elf) if explicitly stated in <user_profile>.`
+      : `- User Addressing Rule: Address the user directly as "you". Do not assume or guess the user's species without explicitly stated information in <user_profile>.`,
   ];
 
   if (feedback && feedback.length > 0) {
@@ -359,9 +359,6 @@ export function validateInCharacterOutput(params: {
     "language model",
     "i can't help with that",
     "i cannot help with that",
-    "the human",
-    "this human",
-    "dear human",
   ];
   for (const phrase of banned) {
     if (text.toLowerCase().includes(phrase)) {
