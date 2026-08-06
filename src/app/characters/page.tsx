@@ -30,8 +30,9 @@ export default async function CharactersPage({
       { count: "exact" },
     );
 
-  if (q) {
-    const term = `%${q}%`;
+  const safeQ = q.replace(/[,.()%\\\\]/g, "").trim();
+  if (safeQ) {
+    const term = `%${safeQ}%`;
     query = query.or(
       `name.ilike.${term},alias.ilike.${term},persona_display.ilike.${term},persona.ilike.${term}`,
     );

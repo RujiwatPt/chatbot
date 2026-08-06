@@ -7,7 +7,7 @@ import {
   maybeSummarize,
   refreshSceneState,
 } from "@/lib/memory";
-import { generateAssistantText } from "@/lib/chat-quality";
+import { streamAssistantText } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -49,15 +49,14 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
+  if (!user) {
+    return new Response("unauthorized", { status: 401 });
+  }
 
-  const parsed = Body.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return new Response("bad_request", { status: 400 });
-  const { chatId, message } = parsed.data;
-
+  // Edge / in-memory per-user rate limit check
   const rl = checkRateLimit({
     identifier: user.id,
-    namespace: "chat_user",
+    namespace: "chat_user_msg",
     limit: RATE_LIMIT_PER_MINUTE,
     windowSeconds: 60,
   });
@@ -65,55 +64,71 @@ export async function POST(request: Request) {
     return rateLimitResponse(rl.resetSeconds);
   }
 
+  // Durable DB rate-limit backstop (20 msg/min per user across chats)
   const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-  const [ctx, backstop, { data: ownership }] = await Promise.all([
-    loadChatContext(supabase, chatId),
-    supabase
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "user")
-      .gte("created_at", oneMinuteAgo),
-    supabase
-      .from("chats")
-      .select("id")
-      .eq("id", chatId)
-      .eq("user_id", user.id)
-      .maybeSingle(),
-  ]);
+  const { count: recentMsgCount } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "user")
+    .gte("created_at", oneMinuteAgo);
 
-  if ((backstop.count ?? 0) >= RATE_LIMIT_PER_MINUTE) {
+  if ((recentMsgCount ?? 0) >= RATE_LIMIT_PER_MINUTE) {
     return rateLimitResponse(60);
   }
-  if (!ownership || !ctx) return new Response("not_found", { status: 404 });
 
-  const preferredName = detectPreferredName(message);
-  if (preferredName && preferredName !== ctx.userName) {
+  const parsed = Body.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return new Response("bad_request", { status: 400 });
+  }
+
+  const { chatId, message: rawUserMessage } = parsed.data;
+
+  // Verify chat ownership
+  const { data: ownership } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("id", chatId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!ownership) {
+    return new Response("not_found", { status: 404 });
+  }
+
+  const userPromptContent = rawUserMessage.trim();
+  const isContinueNudge =
+    !userPromptContent ||
+    userPromptContent === "[Continue]" ||
+    userPromptContent === "*continue*";
+
+  // Check if user is introducing or updating their preferred name
+  const detectedName = detectPreferredName(userPromptContent);
+  if (detectedName) {
     await supabase
       .from("chats")
-      .update({ user_name: preferredName })
+      .update({ user_name: detectedName })
       .eq("id", chatId);
   }
-  const effectiveUserName = preferredName ?? ctx.userName;
 
-  const rawMessage = message.trim();
-  const isContinueNudge =
-    !rawMessage || rawMessage === "[Continue]" || rawMessage === "*continue*";
-  const userPromptContent = isContinueNudge ? "*continue*" : rawMessage;
-
-  const { error: insertError } = await supabase.from("messages").insert({
-    chat_id: chatId,
-    role: "user",
-    content: await encryptText(userPromptContent, user.id),
-  });
-
-  if (insertError) {
-    console.error("[user_message_insert_failed]", insertError);
-    return new Response("failed_to_save_message", { status: 500 });
+  // Load chat context
+  const ctx = await loadChatContext(supabase, chatId);
+  if (!ctx) {
+    return new Response("not_found", { status: 404 });
   }
 
-  const priorAssistant = ctx.recent
-    .filter((m) => m.role === "assistant")
-    .map((m) => m.content);
+  const effectiveUserName = detectedName || ctx.userName;
+
+  // Persist user prompt if not a continuation nudge
+  if (!isContinueNudge) {
+    const { error: userInsertErr } = await supabase.from("messages").insert({
+      chat_id: chatId,
+      role: "user",
+      content: await encryptText(userPromptContent, user.id),
+    });
+    if (userInsertErr) {
+      return new Response(userInsertErr.message, { status: 500 });
+    }
+  }
 
   let system = buildSystemPrompt({
     character: ctx.character,
@@ -124,7 +139,6 @@ export async function POST(request: Request) {
     userName: effectiveUserName,
     userPronouns: ctx.userPronouns,
     userDescription: ctx.userDescription,
-    priorAssistant,
   });
 
   if (isContinueNudge) {
@@ -141,9 +155,9 @@ export async function POST(request: Request) {
     },
   ];
 
-  let generated;
+  let streamed;
   try {
-    generated = await generateAssistantText({
+    streamed = await streamAssistantText({
       character: ctx.character,
       sceneState: ctx.sceneState,
       system,
@@ -161,43 +175,54 @@ export async function POST(request: Request) {
     );
   }
 
-  const finalText = generated.text.trim();
-  if (!finalText) {
-    return new Response(
-      "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
-      { status: 503 },
-    );
+  // Synchronously persist initial assistant message row to obtain durable DB message ID for client feedback affordance
+  const { data: inserted, error: assistantInsertErr } = await supabase
+    .from("messages")
+    .insert({
+      chat_id: chatId,
+      role: "assistant",
+      content: "",
+    })
+    .select("id")
+    .single();
+
+  if (assistantInsertErr || !inserted) {
+    console.error("[assistant_initial_insert_failed]", assistantInsertErr);
+    return new Response("failed_to_initialize_message", { status: 500 });
   }
 
-  // Synchronously persist assistant message before returning to eliminate persistence race conditions
-  const { error: assistantInsertErr } = await supabase.from("messages").insert({
-    chat_id: chatId,
-    role: "assistant",
-    content: await encryptText(finalText, user.id),
-  });
-  if (assistantInsertErr) {
-    console.error("[assistant_message_insert_failed]", assistantInsertErr);
-  }
+  const assistantMsgId = String(inserted.id);
 
   after(async () => {
     try {
-      if (!ctx.sceneState || (ctx.recent.length + 1) % 5 === 0) {
-        await refreshSceneState(supabase, chatId, ctx.character, user.id);
+      const finalText = (await streamed.fullTextPromise).trim();
+      if (finalText) {
+        await supabase
+          .from("messages")
+          .update({ content: await encryptText(finalText, user.id) })
+          .eq("id", inserted.id);
+
+        if (!ctx.sceneState || (ctx.recent.length + 1) % 5 === 0) {
+          await refreshSceneState(supabase, chatId, ctx.character, user.id);
+        }
+        await maybeSummarize(supabase, chatId, ctx.character, user.id);
+      } else {
+        await supabase.from("messages").delete().eq("id", inserted.id);
       }
-      await maybeSummarize(supabase, chatId, ctx.character, user.id);
       console.log("[chat_generation_complete]", {
         chatId,
-        model: generated.modelId,
+        messageId: assistantMsgId,
+        model: streamed.modelId,
         length: finalText.length,
-        validation: generated.validation,
-        repetitive: generated.repetitive,
       });
     } catch (err) {
-      console.error("[after_summarize_error]", err);
+      console.error("[after_stream_save_error]", err);
     }
   });
 
-  return new Response(finalText, {
-    headers: { "content-type": "text/plain; charset=utf-8" },
+  return streamed.toTextStreamResponse({
+    headers: {
+      "x-message-id": assistantMsgId,
+    },
   });
 }

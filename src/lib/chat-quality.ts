@@ -42,6 +42,7 @@ export async function streamAssistantText(params: {
     stream: result.textStream,
     fullTextPromise: result.text,
     modelId: routedModel,
+    toTextStreamResponse: (init?: ResponseInit) => result.toTextStreamResponse(init),
   };
 }
 

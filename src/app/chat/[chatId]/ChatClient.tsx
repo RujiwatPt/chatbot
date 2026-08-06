@@ -275,6 +275,7 @@ export default function ChatClient({
             "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
         );
       }
+      const serverMsgId = res.headers.get("x-message-id");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
@@ -282,16 +283,24 @@ export default function ChatClient({
         if (done) break;
         acc += decoder.decode(value, { stream: true });
         setMessages((m) =>
-          m.map((x) => (x.id === assistantId ? { ...x, content: acc } : x)),
+          m.map((x) =>
+            x.id === assistantId || (serverMsgId && x.id === serverMsgId)
+              ? { ...x, id: serverMsgId || x.id, content: acc }
+              : x,
+          ),
         );
       }
       const finalFlushed = decoder.decode();
       if (finalFlushed) {
         acc += finalFlushed;
-        setMessages((m) =>
-          m.map((x) => (x.id === assistantId ? { ...x, content: acc } : x)),
-        );
       }
+      setMessages((m) =>
+        m.map((x) =>
+          x.id === assistantId || (serverMsgId && x.id === serverMsgId)
+            ? { ...x, id: serverMsgId || x.id, content: acc }
+            : x,
+        ),
+      );
     } catch (err) {
       const aborted =
         err instanceof DOMException && err.name === "AbortError";
