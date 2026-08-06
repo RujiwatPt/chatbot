@@ -672,16 +672,6 @@ export default function ChatClient({
           >
             {actionState === "undoing" ? <SpinnerIcon /> : <UndoIcon />}
           </button>
-          <button
-            type="button"
-            className="chat-icon-button text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-500/10 transition-colors px-2 py-1 text-[11px] rounded-lg border border-blue-500/20 shadow-sm"
-            onClick={() => send(undefined, "*continue*")}
-            disabled={busy}
-            aria-label="Continue scene forward"
-            title="Nudge character to continue the story forward without user text"
-          >
-            ✨ Continue
-          </button>
         </div>
         <textarea
           value={input}
