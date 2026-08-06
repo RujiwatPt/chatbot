@@ -15,7 +15,7 @@ export const maxDuration = 120;
 
 const Body = z.object({
   chatId: z.string().uuid(),
-  message: z.string().min(1).max(8000),
+  message: z.string().max(8000),
 });
 
 // Per-user rate limit: how many user messages allowed in the trailing minute.
@@ -92,10 +92,15 @@ export async function POST(request: Request) {
   }
   const effectiveUserName = preferredName ?? ctx.userName;
 
+  const rawMessage = message.trim();
+  const isContinueNudge =
+    !rawMessage || rawMessage === "[Continue]" || rawMessage === "*continue*";
+  const userPromptContent = isContinueNudge ? "*continue*" : rawMessage;
+
   const { error: insertError } = await supabase.from("messages").insert({
     chat_id: chatId,
     role: "user",
-    content: await encryptText(message, user.id),
+    content: await encryptText(userPromptContent, user.id),
   });
 
   if (insertError) {
@@ -103,7 +108,7 @@ export async function POST(request: Request) {
     return new Response("failed_to_save_message", { status: 500 });
   }
 
-  const system = buildSystemPrompt({
+  let system = buildSystemPrompt({
     character: ctx.character,
     facts: ctx.facts,
     sceneState: ctx.sceneState,
@@ -114,9 +119,18 @@ export async function POST(request: Request) {
     userDescription: ctx.userDescription,
   });
 
+  if (isContinueNudge) {
+    system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
+  }
+
   const messages = [
     ...ctx.recent.map((m) => ({ role: m.role, content: m.content })),
-    { role: "user" as const, content: message },
+    {
+      role: "user" as const,
+      content: isContinueNudge
+        ? "[Continue: progress story forward without repeating previous turn]"
+        : userPromptContent,
+    },
   ];
 
   let generated;

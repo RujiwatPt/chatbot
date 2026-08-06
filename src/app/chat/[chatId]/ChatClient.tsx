@@ -214,24 +214,26 @@ export default function ChatClient({
 
   const cooldownMsLeft = Math.max(0, cooldownUntil - now);
   const onCooldown = cooldownMsLeft > 0;
-  const canSend = Boolean(input.trim()) && !onCooldown && !busy;
+  const canSend = !onCooldown && !busy;
   const hasAssistantMessage = messages.some((message) => message.role === "assistant" && message.content);
   const hasUserMessage = messages.some((message) => message.role === "user");
 
-  async function send(e?: React.FormEvent) {
+  async function send(e?: React.FormEvent, customText?: string) {
     e?.preventDefault();
-    const text = input.trim();
-    if (!text || inFlightRef.current || Date.now() < cooldownUntil) return;
+    const rawText = customText !== undefined ? customText : input;
+    const text = rawText.trim();
+    if (inFlightRef.current || Date.now() < cooldownUntil) return;
     inFlightRef.current = true;
     setInput("");
     setBusy(true);
     setActionState("sending");
     setError(null);
 
+    const userDisplayText = text || "*continue*";
     const userMsg: Msg = {
       id: `u-${Date.now()}`,
       role: "user",
-      content: text,
+      content: userDisplayText,
     };
     const assistantId = `a-${Date.now()}`;
     setMessages((m) => [
@@ -247,7 +249,7 @@ export default function ChatClient({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chatId, message: text }),
+        body: JSON.stringify({ chatId, message: text || "*continue*" }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -664,6 +666,16 @@ export default function ChatClient({
           >
             {actionState === "undoing" ? <SpinnerIcon /> : <UndoIcon />}
           </button>
+          <button
+            type="button"
+            className="chat-icon-button text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-500/10 transition-colors px-2 py-1 text-[11px] rounded-lg border border-blue-500/20 shadow-sm"
+            onClick={() => send(undefined, "*continue*")}
+            disabled={busy}
+            aria-label="Continue scene forward"
+            title="Nudge character to continue the story forward without user text"
+          >
+            ✨ Continue
+          </button>
         </div>
         <textarea
           value={input}
@@ -677,7 +689,7 @@ export default function ChatClient({
           }}
           rows={1}
           aria-label="Message"
-          placeholder="Message"
+          placeholder="Message or click Send to continue..."
           className="chat-composer-input min-h-11 flex-1 resize-none"
         />
         {busy ? (
