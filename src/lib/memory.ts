@@ -161,10 +161,10 @@ export function buildSystemPrompt(opts: {
     `  - Keep your turn concise, punchy, and interactive. Never monologue or output wall-of-text blocks.`,
     `- Dynamic structural variety (STRICT): Vary your opening, sentence lengths, and response structure across turns. Do NOT repeat the same opening action, posture, or phrasing from previous messages. Mix dialogue-first openings, environmental reactions, internal feelings, and direct actions.`,
     userName
-      ? `- User Addressing Rule: Address the user as ${userName} or "you". Do not assume the user's species or background without information. Only refer to species (e.g. human, elf) if explicitly stated in <user_profile>.`
-      : `- User Addressing Rule: Address the user directly as "you". Do not assume or guess the user's species without explicitly stated information in <user_profile>.`,
+      ? `- User Addressing & Narration Rule: Address or refer to the user directly as "you"/"your" or by their name/alias (${userName}) in both narration (*actions*) and spoken dialogue ("quotes"). Do not assume the user's species or background without information.`
+      : `- User Addressing & Narration Rule: Address or refer to the user directly as "you"/"your" in both narration (*actions*) and spoken dialogue ("quotes"). Do not assume or guess the user's species without explicitly stated information.`,
     userPronouns
-      ? `- User Pronouns Rule: When referring to the user in third-person narration or descriptive actions, strictly use their preferred pronouns (${userPronouns}).`
+      ? `- User Pronouns Rule: When referring to the user in third-person descriptive narration or reflective thoughts, strictly use their preferred pronouns (${userPronouns}). Never misgender the user.`
       : "",
   ].filter(Boolean);
 
