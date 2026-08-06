@@ -335,14 +335,22 @@ export async function loadChatContext(
   uniqueFacts.sort((a, b) => rank(a) - rank(b));
   const cappedFacts = uniqueFacts.slice(0, 30);
 
-  // If userDescription is missing, derive a user description from identity facts
+  // Derive and enrich user description from identity facts
   let effectiveUserDesc = userDescription;
-  if (!effectiveUserDesc) {
-    const identityFacts = cappedFacts
-      .filter((f) => f.startsWith("[identity]"))
-      .map((f) => f.replace(/^\[identity\]\s*/, ""));
-    if (identityFacts.length) {
+  const identityFacts = cappedFacts
+    .filter((f) => f.startsWith("[identity]"))
+    .map((f) => f.replace(/^\[identity\]\s*/, ""));
+
+  if (identityFacts.length) {
+    if (!effectiveUserDesc) {
       effectiveUserDesc = identityFacts.join(". ");
+    } else {
+      const extraFacts = identityFacts.filter(
+        (f) => !effectiveUserDesc!.toLowerCase().includes(f.toLowerCase()),
+      );
+      if (extraFacts.length) {
+        effectiveUserDesc = `${effectiveUserDesc}\nLearned identity details: ${extraFacts.join("; ")}`;
+      }
     }
   }
 
