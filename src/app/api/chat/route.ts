@@ -22,9 +22,9 @@ const Body = z.object({
 const RATE_LIMIT_PER_MINUTE = 20;
 
 const NAME_REQUEST_PATTERNS = [
-  /\bmy name is\s+([A-Z][a-zA-Z0-9_\-']{1,30})\b/,
-  /\bcall me\s+([A-Z][a-zA-Z0-9_\-']{1,30})\b/,
-  /\brefer to me as\s+([A-Z][a-zA-Z0-9_\-']{1,30})\b/,
+  /\bmy name is\s+([A-Za-z0-9_\-']{1,30})\b/i,
+  /\bcall me\s+([A-Za-z0-9_\-']{1,30})\b/i,
+  /\brefer to me as\s+([A-Za-z0-9_\-']{1,30})\b/i,
 ];
 
 function detectPreferredName(text: string): string | null {
@@ -33,33 +33,8 @@ function detectPreferredName(text: string): string | null {
     if (m?.[1]) {
       const candidate = m[1].trim();
       const lower = candidate.toLowerCase();
-      if (
-        lower.endsWith("ing") ||
-        lower.endsWith("ed") ||
-        [
-          "a",
-          "an",
-          "the",
-          "so",
-          "just",
-          "really",
-          "here",
-          "there",
-          "ready",
-          "going",
-          "coming",
-          "cuming",
-          "tired",
-          "fine",
-          "ok",
-          "okay",
-          "sorry",
-          "later",
-          "now",
-        ].includes(lower)
-      ) {
-        continue;
-      }
+      const reserved = ["a", "an", "the", "so", "just", "really", "here", "there", "now", "later"];
+      if (reserved.includes(lower)) continue;
       return candidate;
     }
   }

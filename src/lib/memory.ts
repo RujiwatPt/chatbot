@@ -187,14 +187,7 @@ export async function loadChatContext(
   }
 
   const userId = chat?.user_id as string | undefined;
-  const rawUserName = (chat?.user_name as string | null) ?? null;
-  const userName =
-    rawUserName &&
-    !rawUserName.toLowerCase().endsWith("ing") &&
-    !rawUserName.toLowerCase().endsWith("ed") &&
-    !["cuming", "coming", "going", "tired", "fine"].includes(rawUserName.toLowerCase())
-      ? rawUserName
-      : null;
+  const userName = (chat?.user_name as string | null) ?? null;
   const userPronouns = (chat?.user_pronouns as string | null) ?? null;
   const userDescription = (chat?.user_description as string | null) ?? null;
 
