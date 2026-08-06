@@ -453,40 +453,46 @@ export default function ChatClient({
               </button>
 
               {modelPickerOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-64 sm:w-72 rounded-xl border border-[var(--line)] bg-[color:var(--surface-solid)] p-2 shadow-lg backdrop-blur-md z-50 space-y-1">
-                  <div className="px-2 py-1 border-b border-[var(--line)] mb-1 flex items-center justify-between">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                      Select AI Model
-                    </p>
-                    <span className="text-[10px] text-blue-500 font-semibold">Whitelisted</span>
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-black/20 backdrop-blur-xs sm:hidden"
+                    onClick={() => setModelPickerOpen(false)}
+                  />
+                  <div className="fixed left-3 right-3 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full mt-1.5 sm:w-72 rounded-xl border border-[var(--line)] bg-[color:var(--surface-solid)] p-2.5 shadow-2xl backdrop-blur-md z-50 space-y-1 max-w-[calc(100vw-24px)]">
+                    <div className="px-2 py-1 border-b border-[var(--line)] mb-1 flex items-center justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                        Select AI Model
+                      </p>
+                      <span className="text-[10px] text-blue-500 font-semibold">Whitelisted</span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-1">
+                      {MODEL_OPTIONS.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => handleModelSelect(m.id)}
+                          className={`w-full text-left p-2 rounded-lg transition-colors flex flex-col gap-0.5 ${
+                            activeModelId === m.id
+                              ? "bg-blue-500/10 border border-blue-500/30"
+                              : "hover:bg-[color:var(--surface)]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-xs text-foreground">
+                              {m.name}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                              {m.tag}
+                            </span>
+                          </div>
+                          <p className="text-[11px] muted leading-tight">
+                            {m.description}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto space-y-1">
-                    {MODEL_OPTIONS.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => handleModelSelect(m.id)}
-                        className={`w-full text-left p-2 rounded-lg transition-colors flex flex-col gap-0.5 ${
-                          activeModelId === m.id
-                            ? "bg-blue-500/10 border border-blue-500/30"
-                            : "hover:bg-[color:var(--surface)]"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-xs text-foreground">
-                            {m.name}
-                          </span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                            {m.tag}
-                          </span>
-                        </div>
-                        <p className="text-[11px] muted leading-tight">
-                          {m.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                </>
               )}
             </div>
 

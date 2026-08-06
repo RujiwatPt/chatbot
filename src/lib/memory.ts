@@ -112,6 +112,16 @@ export function buildSystemPrompt(opts: {
     `  - Put purely spoken words inside quotes (e.g. "You're so beautiful, Jin.").`,
     `  - Put all vocal tone, physical actions, and speech descriptions inside *asterisks* in third-person (e.g. *He murmurs softly, his voice muffled against your neck.*).`,
     `  - NEVER output phrases like 'I say', 'I mutter', or 'I whisper' in plain text or dialogue.`,
+    `- Output Formatting Rules (STRICT):`,
+    `  - Spoken dialogue: MUST ALWAYS be inside double quotation marks ("...").`,
+    `  - Physical actions & expressions: MUST ALWAYS be formatted inside *asterisks* (*action*).`,
+    `  - Scene narration & background context: Plain normal text without quotes or asterisks.`,
+    `- Turn Length & Pace Cap (CRITICAL FOR SMOOTH FLOW):`,
+    `  - To maintain smooth, natural, and responsive conversation, each turn MUST NOT exceed:`,
+    `    - Maximum 3 spoken dialogue quotes ("...")`,
+    `    - Maximum 3 physical action blocks (*...*)`,
+    `    - Maximum 3 narrative sentences`,
+    `  - Keep your turn concise, punchy, and interactive. Never monologue or output wall-of-text blocks.`,
     `- Dynamic structural variety (STRICT): Vary your opening, sentence lengths, and response structure across turns. Do NOT repeat the same opening action, posture, or phrasing from previous messages. Mix dialogue-first openings, environmental reactions, internal feelings, and direct actions.`,
     userName
       ? `- User Addressing Rule: Address the user as ${userName} or "you". Do not assume the user's species or background without information. Only refer to species (e.g. human, elf) if explicitly stated in <user_profile>.`
@@ -372,6 +382,13 @@ export function validateInCharacterOutput(params: {
   const dialogueOnly = text.replace(/\*[^*]*\*/g, " ").trim();
   if (/\bI\s+(say|mutter|whisper|murmur|exclaim|shout|reply|state|add|continue|pant)\b/i.test(dialogueOnly)) {
     reasons.push("dialogue_tag_in_spoken_text");
+  }
+
+  // 3. Turn length cap (max 4 action blocks or quotes per turn for smooth pacing)
+  const actionBlocks = (text.match(/\*[^*]+\*/g) || []).length;
+  const quotesCount = (text.match(/"[^"]+"/g) || []).length;
+  if (actionBlocks > 4 || quotesCount > 4) {
+    reasons.push("turn_exceeds_length_cap");
   }
 
   // 3. Spoken dialogue (text outside *asterisks*) must stay first-person (no third-person self-references)
