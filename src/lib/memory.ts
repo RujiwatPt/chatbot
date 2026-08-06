@@ -29,12 +29,49 @@ export type SceneState = {
 // summarizer runs. Below this many post-summary messages, we don't summarize.
 export const RECENT_WINDOW = 30;
 
-// Hard cap on messages sent verbatim in a turn. Leverages high-context 70B models.
+// Hard cap on messages fetched before token-budget pruning.
 const POST_SUMMARY_CAP = 100;
+
+// Max estimated tokens allowed in the verbatim recent message window (~4500 tokens ≈ 18,000 chars)
+export const MAX_RECENT_TOKENS = 4500;
 
 // Re-summarize when there are at least this many messages past the recent
 // window since the last summary (i.e. older than the tail-N we keep verbatim).
 const SUMMARIZE_MIN_NEW = 10;
+
+export function estimateTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+export function isFactRedundant(existingFact: string, newFact: string): boolean {
+  const normA = existingFact.toLowerCase().replace(/\[.*?\]/g, "").replace(/[^\w\s]/g, "").trim();
+  const normB = newFact.toLowerCase().replace(/\[.*?\]/g, "").replace(/[^\w\s]/g, "").trim();
+
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  if (normA.includes(normB) || normB.includes(normA)) return true;
+
+  const wordsA = new Set(normA.split(/\s+/).filter((w) => w.length > 3));
+  const wordsB = new Set(normB.split(/\s+/).filter((w) => w.length > 3));
+  if (wordsA.size === 0 || wordsB.size === 0) return false;
+
+  const intersection = [...wordsA].filter((w) => wordsB.has(w)).length;
+  const smallerSize = Math.min(wordsA.size, wordsB.size);
+
+  return intersection / smallerSize >= 0.75;
+}
+
+export function deduplicateFacts(existingFacts: string[], newFacts: string[]): string[] {
+  const result: string[] = [];
+  for (const nf of newFacts) {
+    const isDup = existingFacts.some((ef) => isFactRedundant(ef, nf)) || result.some((rf) => isFactRedundant(rf, nf));
+    if (!isDup) {
+      result.push(nf);
+    }
+  }
+  return result;
+}
 
 export function buildSystemPrompt(opts: {
   character: Character;
@@ -258,9 +295,8 @@ export async function loadChatContext(
     new Set((feedbackRows ?? []).map((f) => f.feedback as string)),
   );
 
-  // Send all messages newer than the summary's coverage, taking the MOST RECENT
-  // messages up to POST_SUMMARY_CAP and reversing to chronological order.
-  const { data: messages } = await supabase
+  // Fetch recent messages newer than the summary, ordered most recent to oldest.
+  const { data: rawMessages } = await supabase
     .from("messages")
     .select("role, content")
     .eq("chat_id", chatId)
@@ -268,12 +304,25 @@ export async function loadChatContext(
     .order("id", { ascending: false })
     .limit(POST_SUMMARY_CAP);
 
-  const recent = await Promise.all(
-    ((messages ?? []).reverse()).map(async (m) => ({
+  const decryptedMessages = await Promise.all(
+    (rawMessages ?? []).map(async (m) => ({
       role: m.role as "user" | "assistant" | "system",
       content: userId ? await decryptText(m.content, userId) : m.content,
     })),
   );
+
+  // Apply token-aware pruning from most recent to oldest
+  const budgetedMessages: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
+  let accumulatedTokens = 0;
+  for (const m of decryptedMessages) {
+    const tokens = estimateTokens(m.content);
+    if (budgetedMessages.length >= 4 && accumulatedTokens + tokens > MAX_RECENT_TOKENS) {
+      break;
+    }
+    budgetedMessages.push(m);
+    accumulatedTokens += tokens;
+  }
+  const recent = budgetedMessages.reverse();
 
   // Prioritize durable fact categories and deduplicate/cap to top 30 to preserve context budget
   const uniqueFacts = Array.from(new Set(facts));
@@ -286,6 +335,17 @@ export async function loadChatContext(
   uniqueFacts.sort((a, b) => rank(a) - rank(b));
   const cappedFacts = uniqueFacts.slice(0, 30);
 
+  // If userDescription is missing, derive a user description from identity facts
+  let effectiveUserDesc = userDescription;
+  if (!effectiveUserDesc) {
+    const identityFacts = cappedFacts
+      .filter((f) => f.startsWith("[identity]"))
+      .map((f) => f.replace(/^\[identity\]\s*/, ""));
+    if (identityFacts.length) {
+      effectiveUserDesc = identityFacts.join(". ");
+    }
+  }
+
   return {
     character,
     recent,
@@ -295,7 +355,7 @@ export async function loadChatContext(
     feedback,
     userName,
     userPronouns,
-    userDescription,
+    userDescription: effectiveUserDesc,
   };
 }
 
@@ -589,15 +649,29 @@ export async function maybeSummarize(
   });
 
   if (factsList.length) {
-    const encryptedFacts = await Promise.all(
-      factsList.map(async (content) => ({
-        chat_id: chatId,
-        kind: "fact",
-        content: await encryptText(content, targetUserId),
-        up_to_message_id: upTo,
-      })),
+    const { data: existingFactRows } = await supabase
+      .from("memories")
+      .select("content")
+      .eq("chat_id", chatId)
+      .eq("kind", "fact");
+
+    const existingFacts = await Promise.all(
+      (existingFactRows ?? []).map(async (f) => decryptText(f.content, targetUserId)),
     );
-    await supabase.from("memories").insert(encryptedFacts);
+
+    const novelFacts = deduplicateFacts(existingFacts, factsList);
+
+    if (novelFacts.length) {
+      const encryptedFacts = await Promise.all(
+        novelFacts.map(async (content) => ({
+          chat_id: chatId,
+          kind: "fact",
+          content: await encryptText(content, targetUserId),
+          up_to_message_id: upTo,
+        })),
+      );
+      await supabase.from("memories").insert(encryptedFacts);
+    }
   }
 
   // Refresh scene state from the most recent chat turns (actual current scene)
