@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateText } from "ai";
-import { model } from "@/lib/openrouter";
+import { model, SUMMARIZER_MODEL } from "@/lib/openrouter";
 import { SCENE_STATE_SYSTEM, SUMMARIZER_SYSTEM } from "@/lib/prompts";
 import { decryptText, encryptText } from "@/lib/encryption";
 
@@ -588,7 +588,7 @@ export async function maybeSummarize(
     attempts += 1;
     try {
       const { text } = await generateText({
-        model: model(character.model),
+        model: model(SUMMARIZER_MODEL),
         system: SUMMARIZER_SYSTEM,
         prompt: userPrompt,
         temperature: 0.2,
@@ -703,7 +703,7 @@ export async function maybeSummarize(
 
   try {
     const { text } = await generateText({
-      model: model(character.model),
+      model: model(SUMMARIZER_MODEL),
       system: SCENE_STATE_SYSTEM,
       prompt: `Character: ${character.name}\nPersona: ${character.persona}\nRecent turns:\n${tail}`,
     });

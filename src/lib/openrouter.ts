@@ -4,6 +4,9 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export const DEFAULT_MODEL =
   process.env.OPENROUTER_MODEL ?? "sao10k/l3.3-euryale-70b";
 
+export const SUMMARIZER_MODEL =
+  process.env.SUMMARIZER_MODEL ?? "meta-llama/llama-3.3-70b-instruct";
+
 async function getOpenRouterApiKey(): Promise<string> {
   let key = process.env.OPENROUTER_API_KEY;
   if (!key) {
