@@ -106,6 +106,11 @@ export function buildSystemPrompt(opts: {
     `  - Example (CORRECT): *${selfName} walks over to the window and looks out with a quiet smile.*`,
     `  - Example (FORBIDDEN): *I walk over to the window and look out with a quiet smile.*`,
     `  - SPOKEN DIALOGUE (outside asterisks): MUST ALWAYS be in natural first-person ("I", "me", "my", "mine", "myself"). NEVER refer to yourself using your own name (${selfName}) or third-person pronouns in spoken quotes.`,
+    `- Direct Speech & Dialogue Tag Rules (STRICT):`,
+    `  - Do NOT append written dialogue tags like '"...", I say', '"...", I mutter', or '"...", I whisper'.`,
+    `  - Put purely spoken words inside quotes (e.g. "You're so beautiful, Jin.").`,
+    `  - Put all vocal tone, physical actions, and speech descriptions inside *asterisks* in third-person (e.g. *He murmurs softly, his voice muffled against your neck.*).`,
+    `  - NEVER output phrases like 'I say', 'I mutter', or 'I whisper' in plain text or dialogue.`,
     `- Dynamic structural variety (STRICT): Vary your opening, sentence lengths, and response structure across turns. Do NOT repeat the same opening action, posture, or phrasing from previous messages. Mix dialogue-first openings, environmental reactions, internal feelings, and direct actions.`,
     userName
       ? `- User Addressing Rule: Address the user as ${userName} or "you". Do not assume the user's species or background without information. Only refer to species (e.g. human, elf) if explicitly stated in <user_profile>.`
@@ -300,24 +305,36 @@ export function looksRepetitive(text: string, priorAssistant: string[]): boolean
   if (!normalized) return false;
 
   const currentWords = normalized.split(" ");
-  const currentPrefix = currentWords.slice(0, 7).join(" ");
+  const currentPrefix = currentWords.slice(0, 5).join(" ");
 
   for (const prev of priorAssistant.slice(-4)) {
     const p = prev.toLowerCase().replace(/\s+/g, " ").trim();
     if (!p) continue;
     if (normalized === p) return true;
-    if (normalized.includes(p) && p.length > 80) return true;
+    if (normalized.includes(p) && p.length > 60) return true;
 
-    // Detect formulaic opening pattern repetition (e.g. repeating the same opening action)
+    // Detect formulaic opening pattern repetition
     const prevWords = p.split(" ");
-    const prevPrefix = prevWords.slice(0, 7).join(" ");
-    if (currentPrefix.length > 18 && prevPrefix === currentPrefix) return true;
+    const prevPrefix = prevWords.slice(0, 5).join(" ");
+    if (currentPrefix.length > 12 && prevPrefix === currentPrefix) return true;
+
+    // Detect repeated action blocks (e.g., repeating identical *He continues to suck...* action lines)
+    const currentActions = text.match(/\*[^*]+\*/g) || [];
+    const prevActions = prev.match(/\*[^*]+\*/g) || [];
+    for (const ca of currentActions) {
+      const normCA = ca.toLowerCase().replace(/\s+/g, " ").trim();
+      if (normCA.length < 25) continue;
+      for (const pa of prevActions) {
+        const normPA = pa.toLowerCase().replace(/\s+/g, " ").trim();
+        if (normCA === normPA) return true;
+      }
+    }
 
     const a = new Set(currentWords);
     const b = new Set(prevWords);
     const inter = [...a].filter((x) => b.has(x)).length;
     const union = new Set([...a, ...b]).size;
-    if (union > 0 && inter / union > 0.78) return true;
+    if (union > 0 && inter / union > 0.65) return true;
   }
   return false;
 }
@@ -338,8 +355,13 @@ export function validateInCharacterOutput(params: {
     reasons.push("first_person_in_action_narration");
   }
 
-  // 2. Spoken dialogue (text outside *asterisks*) must stay first-person (no third-person self-references)
+  // 2. Ban dialogue tags like "I say", "I mutter", "I whisper" in spoken text
   const dialogueOnly = text.replace(/\*[^*]*\*/g, " ").trim();
+  if (/\bI\s+(say|mutter|whisper|murmur|exclaim|shout|reply|state|add|continue|pant)\b/i.test(dialogueOnly)) {
+    reasons.push("dialogue_tag_in_spoken_text");
+  }
+
+  // 3. Spoken dialogue (text outside *asterisks*) must stay first-person (no third-person self-references)
   if (dialogueOnly.length > 0 && selfName) {
     const escapedName = selfName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const nameRegex = new RegExp(`\\b${escapedName}\\b`, "i");
