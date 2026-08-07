@@ -8,7 +8,7 @@
   ],
   "keep_vars": true,
   "limits": {
-    "cpu_ms": 50
+    "cpu_ms": 100
   },
   "placement": {
     "mode": "smart"

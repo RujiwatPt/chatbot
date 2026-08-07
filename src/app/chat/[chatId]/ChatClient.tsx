@@ -222,7 +222,7 @@ export default function ChatClient({
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     userScrolledUpRef.current = !isAtBottom;
 
-    if (el.scrollTop < 80 && hasMore && !loadingHistoryRef.current) {
+    if (didInitialScrollRef.current && el.scrollTop < 80 && hasMore && !loadingHistoryRef.current) {
       loadOlderHistory();
     }
   }
