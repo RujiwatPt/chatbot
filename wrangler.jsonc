@@ -7,9 +7,6 @@
     "nodejs_compat"
   ],
   "keep_vars": true,
-  "limits": {
-    "cpu_ms": 100
-  },
   "placement": {
     "mode": "smart"
   },
