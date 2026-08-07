@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -39,6 +39,19 @@ export async function middleware(request: NextRequest) {
 
   request.headers.set("x-nonce", nonce);
 
+  // Fast path for static assets, touch icons, manifests, and favicon — bypass auth/DB middleware to conserve Worker CPU & subrequests
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/images/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/manifest.json" ||
+    pathname === "/site.webmanifest" ||
+    pathname.startsWith("/apple-touch-icon") ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/i.test(pathname)
+  ) {
+    return applySecurityHeaders(request, NextResponse.next({ request }), nonce);
+  }
+
   // Apply Edge Rate Limiting on API endpoints (60 req/min per IP)
   if (pathname.startsWith("/api/")) {
     const ip = getClientIp(request);
@@ -61,7 +74,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip Next internals + static files; run on everything else
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Skip Next internals, static assets, manifests, and touch icons; run on application routes only
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|site\\.webmanifest|apple-touch-icon.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)",
   ],
 };

@@ -5,7 +5,10 @@ const PREFIX = "enc:v1:";
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // Standard 96-bit IV for AES-GCM
 
+let cachedMasterSecret: string | null = process.env.ENCRYPTION_SECRET?.trim() || null;
+
 async function getAppMasterSecret(): Promise<string> {
+  if (cachedMasterSecret) return cachedMasterSecret;
   let secret = process.env.ENCRYPTION_SECRET;
   if (!secret) {
     try {
@@ -23,7 +26,8 @@ async function getAppMasterSecret(): Promise<string> {
     );
   }
 
-  return secret.trim();
+  cachedMasterSecret = secret.trim();
+  return cachedMasterSecret;
 }
 
 // Module-level per-instance cache: Intentionally per-instance in serverless environments
