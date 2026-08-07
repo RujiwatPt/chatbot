@@ -39,14 +39,21 @@ export async function middleware(request: NextRequest) {
 
   request.headers.set("x-nonce", nonce);
 
-  // Fast path for static assets, touch icons, manifests, and favicon — bypass auth/DB middleware to conserve Worker CPU & subrequests
+  // Edge fast-path: Return instant lightweight 404 for missing touch icons/manifests to prevent running dynamic Next.js SSR 404 page renders
   if (
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/images/") ||
     pathname === "/favicon.ico" ||
     pathname === "/manifest.json" ||
     pathname === "/site.webmanifest" ||
     pathname.startsWith("/apple-touch-icon") ||
+    pathname.startsWith("/android-chrome")
+  ) {
+    return applySecurityHeaders(request, new Response(null, { status: 404 }), nonce);
+  }
+
+  // Fast path for static assets (_next/static, images, fonts, JS, CSS)
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/images/") ||
     /\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$/i.test(pathname)
   ) {
     return applySecurityHeaders(request, NextResponse.next({ request }), nonce);

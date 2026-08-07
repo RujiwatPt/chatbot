@@ -2,7 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+let cachedCredentials: { url: string; key: string } | null = null;
+
 async function getSupabaseCredentials() {
+  if (cachedCredentials) return cachedCredentials;
+
   let url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   let key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
@@ -24,7 +28,8 @@ async function getSupabaseCredentials() {
     );
   }
 
-  return { url, key };
+  cachedCredentials = { url, key };
+  return cachedCredentials;
 }
 
 export async function createClient() {
