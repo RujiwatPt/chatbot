@@ -421,36 +421,27 @@ export default function ChatClient({
   }
 
   async function retryLast() {
-    if (busy) return;
+    if (busy || inFlightRef.current) return;
 
-    const lastMsg = messages[messages.length - 1];
-    const lastAssistantMsg = [...messages]
+    // Find latest user prompt to re-send
+    const lastUserMsg = [...messages]
       .reverse()
-      .find((m) => m.role === "assistant");
+      .find((m) => m.role === "user");
 
-    const originalMsg = lastAssistantMsg ? { ...lastAssistantMsg } : null;
+    if (!lastUserMsg) return;
+
+    const retryPromptText =
+      lastUserMsg.content === "*continue*" || lastUserMsg.content === "[Continue]"
+        ? "*continue*"
+        : lastUserMsg.content;
 
     setBusy(true);
     setActionState("retrying");
     setError(null);
 
-    const tempId = `a-${Date.now()}`;
-
-    // If the last item is the assistant message being retried, clear its content for visual feedback.
-    // Otherwise, append a temporary empty assistant message item.
-    if (originalMsg && lastMsg?.id === originalMsg.id) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === originalMsg.id ? { ...m, content: "" } : m)),
-      );
-    } else {
-      setMessages((prev) => [
-        ...prev,
-        { id: tempId, role: "assistant", content: "" },
-      ]);
-    }
-
     try {
-      const res = await fetch("/api/chat/retry", {
+      // 1. Undo the previous turn in DB
+      const res = await fetch("/api/chat/undo", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ chatId }),
@@ -458,43 +449,23 @@ export default function ChatClient({
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        throw new Error(
-          errText ||
-            "The model is experiencing high load, try changing model or wait a moment.",
-        );
+        throw new Error(errText || "Failed to reset turn for retry.");
       }
 
-      const body = (await res.json()) as {
-        ok: boolean;
-        message: { id: string; role: "assistant"; content: string };
-      };
-
+      // 2. Remove the undone turn from client state
       setMessages((prev) => {
-        const targetIdx = [...prev]
+        const lastUserIndex = [...prev]
           .map((m, i) => ({ m, i }))
           .reverse()
-          .find(
-            (x) =>
-              x.m.role === "assistant" &&
-              (x.m.id === originalMsg?.id || x.m.id === tempId || x.m.content === ""),
-          )?.i;
-
-        if (targetIdx !== undefined) {
-          return prev.map((m, i) => (i === targetIdx ? body.message : m));
-        }
-        return [...prev, body.message];
+          .find((x) => x.m.role === "user")?.i;
+        if (lastUserIndex === undefined) return prev;
+        return prev.slice(0, lastUserIndex);
       });
+
+      // 3. Re-send the prompt via the robust real-time streaming pipeline
+      await send(undefined, retryPromptText);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Retry failed");
-      // Restore original state on error: remove temp placeholder and restore original assistant message content if mutated
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => m.id !== tempId);
-        if (originalMsg) {
-          return filtered.map((m) => (m.id === originalMsg.id ? originalMsg : m));
-        }
-        return filtered;
-      });
-    } finally {
       setBusy(false);
       setActionState("none");
     }
