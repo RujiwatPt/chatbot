@@ -7,7 +7,6 @@ const PUBLIC_PATHS = [
   "/auth/callback",
   "/terms",
   "/privacy",
-  "/redeem-invite",
 ];
 
 export async function updateSession(request: NextRequest) {
@@ -51,27 +50,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Invite gate check: Logged-in users must have a profile (created upon invite redemption)
-  if (pathname !== "/redeem-invite" && pathname !== "/api/redeem-invite") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!profile) {
-      if (isApi) return new NextResponse("invite_required", { status: 403 });
-      const url = request.nextUrl.clone();
-      url.pathname = "/redeem-invite";
-      return NextResponse.redirect(url);
-    }
-  }
-
-  // For API routes, auth & invite gate check is enough
+  // For API routes, auth check is enough
   if (isApi) return response;
 
-  // Logged in users with valid profile should not stay on login or redeem-invite
-  if (pathname === "/login" || pathname === "/redeem-invite") {
+  // Logged in users should not stay on login
+  if (pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/characters";
     return NextResponse.redirect(url);

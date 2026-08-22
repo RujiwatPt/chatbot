@@ -31,12 +31,12 @@ export async function updateProfile(form: FormData) {
 
   const { error } = await supabase
     .from("profiles")
-    .update({
+    .upsert({
+      id: user.id,
       display_name: displayName || null,
       pronouns: pronouns || null,
       bio: bio || null,
-    })
-    .eq("id", user.id);
+    });
 
   if (error) {
     throw new Error(error.message);

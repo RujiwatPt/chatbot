@@ -17,7 +17,7 @@ export default async function SettingsPage() {
     supabase.auth.getUser(),
     supabase
       .from("profiles")
-      .select("display_name, pronouns, bio, invite_code, created_at")
+      .select("display_name, pronouns, bio, created_at")
       .maybeSingle(),
   ]);
 
@@ -51,12 +51,6 @@ export default async function SettingsPage() {
             <span className="muted">Email</span>
             <span className="font-mono font-medium">{user.email ?? "No email linked"}</span>
           </div>
-          {profile?.invite_code && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-[var(--line)] pb-2.5">
-              <span className="muted">Invite Code</span>
-              <span className="font-mono font-medium text-blue-500">{profile.invite_code}</span>
-            </div>
-          )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="muted">Member Since</span>
             <span className="font-medium">{joinedDate}</span>
