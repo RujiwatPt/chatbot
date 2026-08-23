@@ -26,7 +26,7 @@ export type SceneState = {
 };
 
 // Hard cap on messages fetched before token-budget pruning.
-const POST_SUMMARY_CAP = 100;
+const POST_SUMMARY_CAP = 30;
 
 // Max estimated tokens allowed in the verbatim recent message window (~4500 tokens ≈ 18,000 chars)
 export const MAX_RECENT_TOKENS = 4500;
@@ -638,16 +638,21 @@ export async function maybeSummarize(
     .neq("content", "")
     .gt("id", sinceId)
     .order("id", { ascending: false })
-    .limit(60);
+    .limit(35);
 
   if (!recentCandidateMessages || recentCandidateMessages.length < 10) return;
 
+  const candidateEstimates = await Promise.all(
+    recentCandidateMessages.map(async (m) => ({
+      id: m.id as number,
+      tokens: estimateTokens(await decryptText(m.content, targetUserId)),
+    })),
+  );
+
   let accumulatedTokens = 0;
-  let lastIncludedIndex = recentCandidateMessages.length - 1;
-  for (let i = 0; i < recentCandidateMessages.length; i++) {
-    const m = recentCandidateMessages[i];
-    const dec = await decryptText(m.content, targetUserId);
-    const tokens = estimateTokens(dec);
+  let lastIncludedIndex = candidateEstimates.length - 1;
+  for (let i = 0; i < candidateEstimates.length; i++) {
+    const { tokens } = candidateEstimates[i];
     if (i >= 4 && accumulatedTokens + tokens > MAX_RECENT_TOKENS) {
       lastIncludedIndex = i - 1;
       break;
@@ -657,7 +662,7 @@ export async function maybeSummarize(
 
   // When truncated, messages 0..lastIncludedIndex remain in recent; oldestRecentId is at lastIncludedIndex.
   // When not truncated, all candidate messages fit in recent; oldestRecentId is the oldest candidate message.
-  const oldestRecentId = recentCandidateMessages[lastIncludedIndex].id as number;
+  const oldestRecentId = candidateEstimates[lastIncludedIndex].id;
 
   // Messages eligible to fold in: id < oldestRecentId AND id > sinceId
   const { data: toFold } = await supabase

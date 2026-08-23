@@ -12,6 +12,20 @@ const PUBLIC_PATHS = [
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  const { pathname } = request.nextUrl;
+  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isApi = pathname.startsWith("/api/");
+
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.includes("-auth-token") || c.name.startsWith("sb-"),
+  );
+
+  // Fast-path: Public pages without any auth cookie skip the Supabase network call
+  if (!hasAuthCookie && isPublic) {
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -36,10 +50,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.includes(pathname);
-  const isApi = pathname.startsWith("/api/");
 
   // Not logged in → only public paths allowed; API gets a 401 (not a redirect)
   if (!user) {

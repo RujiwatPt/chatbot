@@ -36,7 +36,7 @@ export default async function ChatPage({
       .eq("chat_id", chatId)
       .in("role", ["user", "assistant"])
       .order("id", { ascending: false })
-      .limit(50),
+      .limit(30),
   ]);
 
   if (!chat) notFound();
@@ -52,7 +52,7 @@ export default async function ChatPage({
   );
 
   const rawRows = rows ?? [];
-  const initialHasMore = rawRows.length >= 50;
+  const initialHasMore = rawRows.length >= 30;
   const reversedRows = [...rawRows].reverse();
 
   const initialMessages = await Promise.all(
