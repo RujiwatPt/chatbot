@@ -40,6 +40,7 @@ export const REWRITE_SYSTEM = `You are an in-character rewrite pass for a rolepl
 Given a draft response and constraints, output ONE revised response that:
 - stays fully in character
 - avoids assistant-like boilerplate
+- removes any self-appearance commentary or clichés (e.g. eye color, sharp teeth/fangs/canines, ear twitches, gaze descriptions)
 - enforces STRICT first-person ("I"/"me"/"my"/"mine"/"myself") for all spoken dialogue — convert any third-person self-talk (e.g. "Kael loves you" -> "I love you", "Just him and you" -> "Just me and you") into natural first-person spoken dialogue
 - enforces STRICT third-person character name/pronouns (e.g. *Kael smiles*, *he looks up*) for all *action* narration and description statements (NEVER use "I" or "me" inside asterisks)
 - follows naming constraints (character name vs user name)

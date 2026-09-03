@@ -145,8 +145,11 @@ export function buildSystemPrompt(opts: {
     `- Intimate & Sensual Scenes (Atmosphere, Mutual Pleasure & Climax Progression):`,
     `  - Active Attentiveness to User's Pleasure: When intimate or sexy scenes unfold, ${selfName} must be deeply attentive, passionate, and responsive to the user's pleasure and comfort. Actively encourage the user, respond to their desires, and prioritize mutual enjoyment.`,
     `  - Climax & Peak Intensity Progression: Actively build physical and emotional tension toward mutual climax and release. When the user indicates rising pleasure or closeness to climax, enthusiastically match their intensity through encouraging whispers, shifting rhythm, breathless praise, and passionate physical responsiveness, guiding the encounter toward a deeply satisfying release and warm afterglow.`,
-    `  - Vivid Atmospheric & Sensory Setting: Detail the immediate moment with rich sensory depth (ambient lighting, skin warmth, ragged breathing, heartbeat, vocal nuances, tremors, and tactile contact) while keeping the focus on natural, step-by-step interactivity.`,
-    `- Avoid Clichés & Repetitive Tropes: Use fresh, natural, and authentic prose tailored to ${selfName}'s personality. Do NOT repeat or fixate on the same physical traits, body descriptions, or stock tropes (e.g. repeatedly describing eye color, sharp teeth/fangs, gaze, or repetitive physical quirks) across turns.`,
+    `  - Vivid Atmospheric & Sensory Setting: Detail the immediate moment with rich environmental and sensory depth (ambient lighting, skin warmth, ragged breathing, heartbeat, vocal nuances, tremors, and tactile contact) while strictly avoiding repetitive self-appearance tropes.`,
+    `- Strict Ban on Self-Appearance Expressions & Physical Tropes (ABSOLUTE PROHIBITION):`,
+    `  - NEVER describe or draw attention to ${selfName}'s own physical appearance or bodily traits (e.g. eye color, pupil dilation, gaze descriptions like 'golden/amber eyes', sharp teeth/fangs/canines, ear twitches, physique, or anatomical quirks).`,
+    `  - Do NOT use clichéd expressions like '*his golden eyes soften*', '*his amber gaze*', '*sharp teeth glinting*', '*his fangs graze*', etc. The user already knows what ${selfName} looks like from their character definition. Describing these repeatedly is artificial and strictly forbidden.`,
+    `  - Focus 100% on immediate actions, interactive dialogue, emotional reactions, and what is actually happening in the scene—NEVER on describing ${selfName}'s own physical features or facial appearance.`,
     `- Format narration/actions in *asterisks* and spoken dialogue in plain text.`,
     `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
     `- Voice & Narration Split (STRICT REQUIREMENT):`,
@@ -570,6 +573,15 @@ export function validateInCharacterOutput(params: {
         new RegExp(`\\bjust\\s+${nameOrYou}\\s+and\\s+(?:him|her|them)\\b`, "i").test(dialogueOnly)) {
       reasons.push("third_person_pronoun_self_reference_in_dialogue");
     }
+  }
+
+  // 4. Ban repetitive self-appearance tropes (e.g. eye color descriptions, sharp teeth/canines/fangs)
+  if (
+    /\b(?:golden|amber|emerald|crimson|ruby|sapphire|yellow|hazel|blue|green|red|violet)\s+(?:eyes?|gaze|orbs?)\b/i.test(text) ||
+    /\b(?:sharp|pointed|gleaming)\s+(?:teeth|fangs?|canines?)\b/i.test(text) ||
+    /\b(?:fangs?|sharp\s+canines?)\s+(?:flash|glint|graze|sink|bare|peeking)\b/i.test(text)
+  ) {
+    reasons.push("repetitive_appearance_trope");
   }
 
   const banned = [
