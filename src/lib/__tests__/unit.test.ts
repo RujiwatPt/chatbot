@@ -216,7 +216,7 @@ test("stripAppearanceTropes eliminates gaze clichés, fangs, and smirks while pr
   }
 });
 
-test("buildSystemPrompt includes visual reference note and final zero-appearance reminder", () => {
+test("buildSystemPrompt includes visual reference note and consistent pattern directives", () => {
   const prompt = buildSystemPrompt({
     character: {
       name: "Silas",
@@ -233,75 +233,44 @@ test("buildSystemPrompt includes visual reference note and final zero-appearance
   });
 
   assert.ok(prompt.includes("Visual Reference Note: Physical details in this definition are static visual facts"));
-  assert.ok(prompt.includes("[FINAL REMINDER — ZERO APPEARANCE COMMENTARY]: Do NOT narrate or describe Silas's eyes, gaze, teeth, or physical body."));
-  assert.ok(prompt.includes("ZERO SELF-APPEARANCE COMMENTARY"));
+  assert.ok(prompt.includes("CONSISTENT RESPONSE PATTERN & FORMAT (STRICT):"));
+  assert.ok(prompt.includes("CREATIVE ACTION & VIVID WORDING (MANDATE):"));
+  assert.ok(prompt.includes("[FINAL REMINDER]: Respond strictly in pattern"));
 });
 
-test("cleanRoleplayTropes eliminates vocal sounds and stock action clichés", () => {
+test("cleanRoleplayTropes preserves creative actions, physical movements, and vocal delivery", () => {
   const cases = [
     {
       input: '*He chuckles softly as he walks over to the desk.* "Here is the file."',
-      expected: '*He walks over to the desk.* "Here is the file."',
-    },
-    {
-      input: '*A low chuckle leaves his lips.* "You always say that."',
-      expected: '"You always say that."',
+      expected: '*He chuckles softly as he walks over to the desk.* "Here is the file."',
     },
     {
       input: '*He tilts his head to the side, studying your reaction.* "Are you sure?"',
-      expected: '*Studying your reaction.* "Are you sure?"',
-    },
-    {
-      input: '*He lets out a low chuckle, leaning against the counter.* "Whatever you say."',
-      expected: '"Whatever you say."',
-    },
-    {
-      input: '*He chuckles softly.* "Of course."',
-      expected: '"Of course."',
+      expected: '*He tilts his head to the side, studying your reaction.* "Are you sure?"',
     },
     {
       input: '*Dante sighs softly, crossing his arms over his chest.* "I didn\'t expect that."',
-      expected: '"I didn\'t expect that."',
+      expected: '*Dante sighs softly, crossing his arms over his chest.* "I didn\'t expect that."',
     },
     {
-      input: '*Shifting his weight from one foot to the other, he looks away.* "Sorry."',
-      expected: '*He looks away.* "Sorry."',
-    },
-    {
-      input: '*His breath hitches as he reaches for the door handle.* "Don\'t go."',
-      expected: '*He reaches for the door handle.* "Don\'t go."',
+      input: '*He leans against the counter, smiling.* "Whatever you say."',
+      expected: '*He leans against the counter, smiling.* "Whatever you say."',
     },
     {
       input: '*He opens the drawer and takes out a silver key.* "Take this."',
       expected: '*He opens the drawer and takes out a silver key.* "Take this."',
     },
     {
-      input: '*With a soft chuckle, he pulls out a chair.* "Sit down."',
-      expected: '*He pulls out a chair.* "Sit down."',
-    },
-    {
-      input: '*With a smirk, he crosses his arms.* "Impressive."',
-      expected: '"Impressive."',
-    },
-    {
-      input: '*He gives a quiet chuckle, setting the teacup down.* "Good morning."',
-      expected: '*Setting the teacup down.* "Good morning."',
-    },
-    {
-      input: '*A soft chuckle rumbles in his chest as he opens the ledger.* "Let\'s see."',
-      expected: '*He opens the ledger.* "Let\'s see."',
-    },
-    {
       input: '*Running a hand through his hair, he turns to you.* "I forgot the password."',
-      expected: '*He turns to you.* "I forgot the password."',
+      expected: '*Running a hand through his hair, he turns to you.* "I forgot the password."',
     },
     {
       input: '*Clearing his throat, he taps the microphone.* "Testing, one two."',
-      expected: '*He taps the microphone.* "Testing, one two."',
+      expected: '*Clearing his throat, he taps the microphone.* "Testing, one two."',
     },
     {
       input: '*He rubs the back of his neck, looking down.* "My mistake."',
-      expected: '*Looking down.* "My mistake."',
+      expected: '*He rubs the back of his neck, looking down.* "My mistake."',
     },
   ];
 
@@ -323,7 +292,7 @@ test("extractUsedActionsAndSounds detects used tics across turns", () => {
   assert.strictEqual(used.includes("head tilting"), false);
 });
 
-test("buildSystemPrompt dynamically injects banned recent sounds and actions", () => {
+test("buildSystemPrompt guides structural variety across turns without negative blacklists", () => {
   const prompt = buildSystemPrompt({
     character: {
       name: "Silas",
@@ -343,11 +312,9 @@ test("buildSystemPrompt dynamically injects banned recent sounds and actions", (
     ],
   });
 
-  assert.ok(prompt.includes("[ACTIONS & SOUNDS USED IN RECENT TURNS — STRICTLY FORBIDDEN NOW]"));
-  assert.ok(prompt.includes("chuckle/chuckling"));
-  assert.ok(prompt.includes("head tilting"));
-  assert.ok(prompt.includes("sigh/sighing"));
-  assert.ok(prompt.includes("leaning"));
+  assert.ok(prompt.includes("Structural Variety Across Turns:"));
+  assert.ok(prompt.includes("Recent turn openings:"));
+  assert.ok(prompt.includes("Vary how you open this response"));
 });
 
 

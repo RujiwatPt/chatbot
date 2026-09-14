@@ -18,7 +18,7 @@ export function cleanRoleplayTropes(text: string): string {
       const eyeVerbs =
         "(?:soften|softens|softening|darken|darkens|darkening|harden|hardens|narrow|narrows|narrowing|flicker|flickers|flickering|gleam|gleams|gleaming|widen|widens|burn|burns|burning|flash|flashes|flashing|locking|locked|bore|bores|boring)";
 
-      // 1. Eye / Gaze tropes
+      // 1. Static Eye / Gaze appearance descriptions
       const r1 = new RegExp(
         `^(?:with\\s+)?(?:his|her|their|my|[A-Z][a-z]+'s)?\\s*(?:${eyeAdjectives}\\s*){1,2}${eyeNouns}\\s+${eyeVerbs}(?:,\\s*|\\s+(?:as|while)\\s+)`,
         "gi",
@@ -40,7 +40,7 @@ export function cleanRoleplayTropes(text: string): string {
       );
       cleaned = cleaned.replace(r4, "");
 
-      // 2. Fangs / teeth tropes
+      // 2. Fangs / teeth appearance tropes
       cleaned = cleaned.replace(
         /(?:,\s*|\b(?:as|with)\s+)?(?:his|her|their|my)?\s*(?:sharp|pointed|gleaming)?\s*(?:teeth|fangs?|canines?)\s+(?:flash|flashes|flashing|glint|glints|glinting|graze|grazes|grazing|sink|sinks|sinking|bare|bares|baring|peeking|catch|catches|catching|brushing|pressing)[^,.*]*/gi,
         "",
@@ -56,146 +56,7 @@ export function cleanRoleplayTropes(text: string): string {
         "",
       );
 
-      const subj = "(?:(?:he|she|they|[A-Z][a-z]+)\\s+)?";
-      const soundAdj = "(?:low|soft|quiet|dry|dark|deep|faint|wry|slight|small|gentle|heavy|shaky|sharp)?";
-      const soundNouns = "(?:chuckle|sigh|groan|growl|murmur|whisper|smirk|grin|snort|grunt|gasp|huff|chuckle-sigh|breath)";
-
-      // 4. "With a [sound/expression]..." prepositional clauses
-      cleaned = cleaned.replace(
-        new RegExp(`^(?:with\\s+)(?:a\\s+)?${soundAdj}\\s*${soundNouns}(?:,\\s*|\\s+(?:as|while|and)\\s+)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`^(?:with\\s+)(?:a\\s+)?${soundAdj}\\s*${soundNouns}\\.?$`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`(?:,\\s*)(?:with\\s+)(?:a\\s+)?${soundAdj}\\s*${soundNouns}[^,.*]*`, "gi"),
-        "",
-      );
-
-      // 5. Vocal sound clichés & verbs: chuckles, groans, sighs, growls, murmurs, breath hitching
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:chuckles?|groans?|sighs?|murmurs?|whispers?|gasps?|growls?|snorts?|grunts?|mutters?|huffs?|smirks?|grins?|chuckling|sighing|groaning|murmuring|whispering|gasping|growling|snorting|grunting|muttering|huffing|smirking|grinning)\\s*(?:softly|quietly|low|dryly|darkly|deeply|gently|faintly|wryly|heavily|shakily|nervously|under\\s+(?:his|her|their)?\\s*breath)?(?:\\s+(?:and|as|while)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:lets?\\s+out|gives?|offers?|releases?|emits?|suppresses?|stifles?|chokes?\\s+back|swallows?)\\s+(?:a\\s+)?${soundAdj}\\s*${soundNouns}(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`^(?:a\\s+)?${soundAdj}\\s*${soundNouns}\\s+(?:escapes?|rumbles?|leaves?|vibrates?)\\s+(?:from|in|against|past)?\\s*(?:his|her|their)?\\s*(?:chest|throat|lips|mouth)?(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`(?:,\\s*)(?:a\\s+)?${soundAdj}\\s*${soundNouns}\\s+(?:escapes?|rumbles?|leaves?|vibrates?)\\s+(?:from|in|against|past)?\\s*(?:his|her|their)?\\s*(?:chest|throat|lips|mouth)?[^,.*]*`, "gi"),
-        "",
-      );
-
-      // Breath hitches / catches / holding breath
-      cleaned = cleaned.replace(
-        new RegExp(`^(?:(?:a\\s+)?breath\\s+(?:hitches?|catches?|trapped)\\s+(?:in\\s+(?:his|her|their)?\\s*throat)?|(?:his|her|their)\\s+breath\\s+hitches?)(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:his|her|their)?\s*breath\s+(?:hitches?|catches?|fans?\s+across\s+[a-z\s]+)[^,.*]*/gi,
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`(?:,\\s*)?${subj}lets?\\s+out\\s+a\\s+breath\\s+(?:he|she|they)\\s+(?:didn't|did\\s+not)\\s+(?:know|realize)\\s+(?:he|she|they)\\s+(?:was|were)\\s+holding[^,.*]*`, "gi"),
-        "",
-      );
-
-      // Standalone vocal endings: e.g. "He chuckles softly." or ", a soft sigh escaping."
-      cleaned = cleaned.replace(
-        new RegExp(`(?:^|,\\s*)?(?:${subj}(?:chuckles?|groans?|sighs?|murmurs?|whispers?|gasps?|growls?|snorts?|grunts?|mutters?|huffs?|smirks?|grins?)\\s*(?:softly|quietly|low|dryly|darkly|deeply|gently|faintly|wryly)?|(?:a\\s+)?${soundAdj}\\s*${soundNouns}\\s+(?:escapes?|rumbles?|leaves?|vibrates?)\\s+(?:from|in|against|past)?\\s*(?:his|her|their)?\\s*(?:chest|throat|lips)?)\\.?$`, "gi"),
-        "",
-      );
-
-      // 6. Stock physical action clichés:
-      // a) Head tilting
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:tilts?|tilting|cocks?|cocking)\\s+(?:his|her|their)?\\s*head\\s*(?:to\\s+the\\s+side|curiously|slightly|inquisitively)?(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:tilting|tilts|cocking|cocks)\s+(?:his|her|their)?\s*head\s*(?:to\s+the\s+side|curiously|slightly|inquisitively)?[^,.*]*/gi,
-        "",
-      );
-
-      // b) Leaning against surfaces / leaning in
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:leans?|leaning)\\s+(?:back|in|closer|forward)?\\s*(?:against\\s+(?:the\\s+)?(?:wall|doorframe|door|counter|desk|table|chair|bar|railing|frame))?(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:leans?|leaning)\\s+(?:back|in|closer|forward)?\\s*(?:against\\s+(?:the\\s+)?(?:wall|doorframe|door|counter|desk|table|chair|bar|railing|frame))\\.?$`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:leaning|leans)\s+(?:back|in|closer|forward)?\s*(?:against\s+(?:the\\s+)?(?:wall|doorframe|door|counter|desk|table|chair|bar|railing|frame))[^,.*]*/gi,
-        "",
-      );
-
-      // c) Shifting weight
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:shifts?|shifting)\\s+(?:his|her|their)?\\s*weight\\s*(?:from\\s+one\\s+foot\\s+to\\s+the\\s+other)?(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:shifting|shifts)\s+(?:his|her|their)?\s*weight[^,.*]*/gi,
-        "",
-      );
-
-      // d) Crossing arms
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:crosses?|crossing|folds?|folding)\\s+(?:his|her|their)?\\s*arms\\s*(?:over\\s+(?:his|her|their)?\\s*chest)?(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:crossing|crosses|folding|folds)\s+(?:his|her|their)?\s*arms[^,.*]*/gi,
-        "",
-      );
-
-      // e) Raising / arching eyebrow
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:raises?|raising|arches?|arching)\\s+(?:an?|his|her|their)?\\s*(?:eyebrow|brow)(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:raising|raises|arching|arches)\s+(?:an?|his|her|their)?\s*(?:eyebrow|brow)[^,.*]*/gi,
-        "",
-      );
-
-      // f) Hand through hair / rubbing neck
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:runs?|running|ran)\\s+(?:a|his|her|their)\\s+hand\\s+through\\s+(?:his|her|their)?\\s*(?:dark|messy|blonde|silver)?\\s*hair(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:runs?|running|ran)\s+(?:a|his|her|their)\\s+hand\\s+through\\s+(?:his|her|their)?\\s*(?:dark|messy|blonde|silver)?\\s*hair[^,.*]*/gi,
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:rubs?|rubbing|rubbed)\\s+(?:the\\s+(?:back|nape)\\s+of\\s+)?(?:his|her|their)\\s*neck(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:rubs?|rubbing|rubbed)\s+(?:the\\s+(?:back|nape)\\s+of\\s+)?(?:his|her|their)\\s*neck[^,.*]*/gi,
-        "",
-      );
-
-      // h) Clearing throat
-      cleaned = cleaned.replace(
-        new RegExp(`^${subj}(?:clears?|clearing)\\s+(?:his|her|their)?\\s*throat\\s*(?:softly|quietly)?(?:\\s+(?:as|while|and)\\s+|,\\s*)`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        /(?:,\s*)?(?:clears?|clearing)\s+(?:his|her|their)\s*throat[^,.*]*/gi,
-        "",
-      );
-
-      // 7. Animal ears / tail tropes
+      // 4. Animal ears / tail tropes
       cleaned = cleaned.replace(
         /(?:^|,\s*)(?:his|her|their|my)?\s*(?:wolf|cat|fox|animal)?\s*(?:ears?\s+(?:twitch|twitches|twitching|pin|pins|flatten|flattens)|tail\s+(?:sways?|swaying|flicks?|flicking|lashes?|lashing))[^,.*]*/gi,
         "",
