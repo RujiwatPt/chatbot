@@ -655,7 +655,7 @@ export async function maybeSummarize(
         system: SUMMARIZER_SYSTEM,
         prompt: userPrompt,
         temperature: 0.2,
-        abortSignal: AbortSignal.timeout(60000),
+        abortSignal: AbortSignal.timeout(20000),
       });
       rawText = text;
       raw = extractJson(text);
@@ -779,8 +779,6 @@ export async function maybeSummarize(
       }
     }
   }
-
-  await refreshSceneState(supabase, chatId, character, targetUserId);
 }
 
 export async function refreshSceneState(
@@ -813,6 +811,7 @@ export async function refreshSceneState(
       model: model(SUMMARIZER_MODEL),
       system: SCENE_STATE_SYSTEM,
       prompt: `Character: ${character.name}\nPersona: ${character.persona}\nRecent turns:\n${tail}`,
+      abortSignal: AbortSignal.timeout(15000),
     });
     const sceneRaw = extractJson(text);
     if (sceneRaw && typeof sceneRaw === "object") {

@@ -31,11 +31,11 @@ export async function streamAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.94,
-    topP: 0.92,
-    frequencyPenalty: 0.55,
-    presencePenalty: 0.55,
-    maxOutputTokens: 500,
+    temperature: 0.85,
+    topP: 0.95,
+    frequencyPenalty: 0.15,
+    presencePenalty: 0.15,
+    maxOutputTokens: 320,
     abortSignal: abortSignal || AbortSignal.timeout(110000),
   });
 
@@ -63,11 +63,11 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.94,
-    topP: 0.92,
-    frequencyPenalty: 0.55,
-    presencePenalty: 0.55,
-    maxOutputTokens: 500,
+    temperature: 0.85,
+    topP: 0.95,
+    frequencyPenalty: 0.15,
+    presencePenalty: 0.15,
+    maxOutputTokens: 320,
     abortSignal: AbortSignal.timeout(110000),
   });
   finalText = first.text.trim();
