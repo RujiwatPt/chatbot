@@ -79,6 +79,7 @@ import {
   extractUsedActionsAndSounds,
   extractRepeatedPhrases,
   extractLastTurnPhrases,
+  extractLastTurnRemix,
   looksRepetitive,
   validateInCharacterOutput,
 } from "./roleplay-cleaner";
@@ -89,6 +90,7 @@ export {
   extractUsedActionsAndSounds,
   extractRepeatedPhrases,
   extractLastTurnPhrases,
+  extractLastTurnRemix,
   looksRepetitive,
   validateInCharacterOutput,
 };
@@ -186,8 +188,9 @@ export function buildSystemPrompt(opts: {
       ? `- If you refer to the user in third person, use ${userPronouns}.`
       : "",
     `Wording Variety:`,
-    `- New opening, verbs, and images every turn. Do not copy or lightly paraphrase your last reply.`,
-    `- Do not stack filler adverbs (softly, gently, quietly, slowly, tenderly) or reuse a stock beat (chuckle, sigh, smirk, lean in, eyes soften, head tilt) on consecutive turns.`,
+    `- Invent a concrete new detail every turn: an object, sound, temperature, motion path, or spoken line that was not in your last reply.`,
+    `- Remixing the last reply with a synonym (softly→quietly, chuckle→laugh, lean in→lean closer) is still a repeat. Change the action itself.`,
+    `- Do not stack filler adverbs (softly, gently, quietly, slowly, tenderly).`,
     `- Appearance is already known. Do not narrate ${selfName}'s eyes, hair, fangs, ears, tail, or body as decoration.`,
     isRomanticOrNsfw
       ? `Intimate & Sensual Scenes: one attentive beat of ${selfName}'s action and voice. Be specific about ${selfName} only — never write the user's body or climax for them. Do not rush the scene.`
@@ -208,39 +211,43 @@ export function buildSystemPrompt(opts: {
     const repeatedPhrases = extractRepeatedPhrases(recentTurns);
     const lastTurnPhrases = extractLastTurnPhrases(lastTurn);
     const usedBeats = extractUsedActionsAndSounds(recentTurns).slice(0, 8);
+    const lastRemix = extractLastTurnRemix(lastTurn);
 
-    if (
-      recentOpenings.length > 0 ||
-      repeatedPhrases.length > 0 ||
-      lastTurnPhrases.length > 0 ||
-      usedBeats.length > 0
-    ) {
-      ruleLines.push(`Do not reuse this turn:`);
-      if (recentOpenings.length > 0) {
-        const formattedOpenings = recentOpenings
-          .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
-          .join(", ");
-        ruleLines.push(
-          `- Recent turn openings: [${formattedOpenings}]. Vary how you open this response—start with a fresh action, direct dialogue line, or situational reaction.`,
-        );
-      }
-      if (usedBeats.length > 0) {
-        ruleLines.push(
-          `- Physical/vocal beats already used in recent turns: ${usedBeats.join(", ")}. Pick a different action this turn.`,
-        );
-      }
-      if (lastTurnPhrases.length > 0) {
-        const formatted = lastTurnPhrases.map((p) => `"${p}"`).join(", ");
-        ruleLines.push(
-          `- Phrases from your last reply (do not reuse or lightly paraphrase): [${formatted}].`,
-        );
-      }
-      if (repeatedPhrases.length > 0) {
-        const formattedPhrases = repeatedPhrases.map((p) => `"${p}"`).join(", ");
-        ruleLines.push(
-          `- RECENTLY REPEATED PHRASES (STRICTLY AVOID): [${formattedPhrases}].`,
-        );
-      }
+    ruleLines.push(`Do not reuse this turn:`);
+    if (lastRemix.excerpt) {
+      ruleLines.push(
+        `- Last reply (do not remix — synonym swaps still count as repeats): ${JSON.stringify(lastRemix.excerpt)}`,
+      );
+    }
+    if (lastRemix.verbs.length > 0) {
+      ruleLines.push(
+        `- Retire these verbs this turn: ${lastRemix.verbs.join(", ")}. Use a different physical action.`,
+      );
+    }
+    if (recentOpenings.length > 0) {
+      const formattedOpenings = recentOpenings
+        .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
+        .join(", ");
+      ruleLines.push(
+        `- Recent turn openings: [${formattedOpenings}]. Open with a fresh action, a new spoken line, or a setting detail.`,
+      );
+    }
+    if (usedBeats.length > 0) {
+      ruleLines.push(
+        `- Physical/vocal beats already used in recent turns: ${usedBeats.join(", ")}. Pick a different action this turn.`,
+      );
+    }
+    if (lastTurnPhrases.length > 0) {
+      const formatted = lastTurnPhrases.map((p) => `"${p}"`).join(", ");
+      ruleLines.push(
+        `- Phrases from your last reply (do not reuse or lightly paraphrase): [${formatted}].`,
+      );
+    }
+    if (repeatedPhrases.length > 0) {
+      const formattedPhrases = repeatedPhrases.map((p) => `"${p}"`).join(", ");
+      ruleLines.push(
+        `- RECENTLY REPEATED PHRASES (STRICTLY AVOID): [${formattedPhrases}].`,
+      );
     }
   }
 
@@ -259,7 +266,7 @@ export function buildSystemPrompt(opts: {
   }
 
   ruleLines.push(
-    `[FINAL REMINDER]: Respond strictly in pattern (dialogue in quotes, actions in asterisks). Next beat only — new verbs and images, no recycled wording from your last reply.`,
+    `[FINAL REMINDER]: Respond strictly in pattern. Next beat only — invent a new concrete detail. Do not remix the last reply with synonyms.`,
   );
 
   const rules = ruleLines.join("\n");

@@ -13,6 +13,7 @@ import {
   extractUsedActionsAndSounds,
   extractRepeatedPhrases,
   extractLastTurnPhrases,
+  extractLastTurnRemix,
 } from "../memory.js";
 import { detectPreferredName } from "../../app/api/chat/route.js";
 import { sanitizeNext } from "../../app/auth/callback/route.js";
@@ -51,6 +52,18 @@ test("looksRepetitive flags repeated assistant turns", () => {
   assert.strictEqual(looksRepetitive(current, prior), true);
 
   const fresh = "*Kael looks out the window, lost in thought.*";
+  assert.strictEqual(looksRepetitive(fresh, prior), false);
+});
+
+test("looksRepetitive flags synonym remixes of the last reply", () => {
+  const prior = ['*Kael chuckles softly and leans in.* "I know."'];
+  const remix = '*Kael chuckles quietly and leans a little closer.* "I know."';
+  assert.strictEqual(looksRepetitive(remix, prior), true);
+
+  const laughSwap = '*Kael laughs gently and leans closer.* "I know."';
+  assert.strictEqual(looksRepetitive(laughSwap, prior), true);
+
+  const fresh = '*Kael looks out the window, lost in thought.* "Anyway."';
   assert.strictEqual(looksRepetitive(fresh, prior), false);
 });
 
@@ -337,8 +350,10 @@ test("buildSystemPrompt guides structural variety across turns without negative 
   });
 
   assert.ok(prompt.includes("Do not reuse this turn:"));
+  assert.ok(prompt.includes("Last reply (do not remix"));
+  assert.ok(prompt.includes("Retire these verbs this turn:"));
   assert.ok(prompt.includes("Recent turn openings:"));
-  assert.ok(prompt.includes("Vary how you open this response"));
+  assert.ok(prompt.includes("Open with a fresh action"));
   assert.ok(prompt.includes("Physical/vocal beats already used in recent turns:"));
   assert.ok(prompt.includes("chuckle/chuckling"));
   assert.ok(prompt.includes("leaning"));
@@ -407,6 +422,17 @@ test("buildSystemPrompt injects last-reply phrases even when they have not been 
 
   assert.ok(prompt.includes("Phrases from your last reply"));
   assert.ok(prompt.includes("warm breath"));
+  assert.ok(prompt.includes("Last reply (do not remix"));
+  assert.ok(prompt.includes("Stay with me."));
+});
+
+test("extractLastTurnRemix quotes the last reply and retires stemmed verbs", () => {
+  const remix = extractLastTurnRemix(
+    '*Kael chuckles softly and leans in.* "I know."',
+  );
+  assert.ok(remix.excerpt.includes("chuckles softly"));
+  assert.ok(remix.verbs.includes("chuckle"));
+  assert.ok(remix.verbs.includes("lean"));
 });
 
 test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to DEFAULT_MODEL", () => {

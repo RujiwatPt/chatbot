@@ -31,10 +31,10 @@ export async function streamAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.85,
-    topP: 0.95,
-    frequencyPenalty: 0.6,
-    presencePenalty: 0.4,
+    temperature: 0.94,
+    topP: 0.92,
+    frequencyPenalty: 0.55,
+    presencePenalty: 0.55,
     maxOutputTokens: 500,
     abortSignal: abortSignal || AbortSignal.timeout(110000),
   });
@@ -63,10 +63,10 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.85,
-    topP: 0.95,
-    frequencyPenalty: 0.6,
-    presencePenalty: 0.4,
+    temperature: 0.94,
+    topP: 0.92,
+    frequencyPenalty: 0.55,
+    presencePenalty: 0.55,
     maxOutputTokens: 500,
     abortSignal: AbortSignal.timeout(110000),
   });
@@ -85,7 +85,9 @@ export async function generateAssistantText(params: {
     const rewritePrompt = [
       `Character name: ${selfName}`,
       `Validation issues: ${validation.reasons.join(", ") || "(none)"}`,
-      repetitive ? "Repetition: detected against recent assistant turns. Change opening, verbs, and images." : null,
+      repetitive
+        ? "Repetition: this is a synonym remix of a recent turn. Invent a new action, object, and spoken line. Do not swap adverbs or verbs (softly→quietly, chuckle→laugh)."
+        : null,
       "",
       "DRAFT RESPONSE:",
       finalText,
@@ -100,8 +102,9 @@ export async function generateAssistantText(params: {
         model: model(routedModel),
         system: `${REWRITE_SYSTEM}\n\n${system}`,
         prompt: rewritePrompt,
-        temperature: 0.7,
-        frequencyPenalty: 0.15,
+        temperature: 0.88,
+        frequencyPenalty: 0.45,
+        presencePenalty: 0.45,
         maxOutputTokens: 500,
         abortSignal: AbortSignal.timeout(90000),
       });

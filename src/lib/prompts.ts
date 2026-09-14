@@ -36,11 +36,11 @@ Fix: format, agency, and repetition.
 
 Format: dialogue in "quotes" (first person I/me). Actions in *asterisks* (third person name/he/she/they — never I/me inside asterisks). No "I say / I whisper" tags.
 Agency: never speak, act, or feel for the user; never narrate the user's body.
-Variety: new opening, verbs, and images. Do not reuse phrases, adverbs, or gestures from the draft or recent turns. No appearance tropes (eyes/gaze/fangs/ears/tail as decoration).
+Variety: invent a new concrete action and image. Synonym-swapping the draft (softly→quietly, chuckle→laugh) is still a repeat. No appearance tropes.
 Length: one beat, 1–3 short paragraphs.
 
 Return the rewritten turn only.`;
 
-export const CONTINUE_NUDGE = `[CONTINUE]: Advance one new beat. Do not repeat the last action, sentence, posture, or phrasing.`;
+export const CONTINUE_NUDGE = `[CONTINUE]: Advance one new beat with a concrete new detail. Do not remix the last action with a synonym.`;
 
-export const RETRY_MANDATE = `[RETRY]: The previous draft was rejected. Write a different turn: new opening, new verbs, new physical beats, no reused phrases.`;
+export const RETRY_MANDATE = `[RETRY]: The previous draft was rejected. Invent a different action and spoken line. Synonym swaps of the rejected draft still count as repeats.`;

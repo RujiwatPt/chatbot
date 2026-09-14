@@ -88,9 +88,125 @@ export function cleanRoleplayTropes(text: string): string {
 
 export const stripAppearanceTropes = cleanRoleplayTropes;
 
+const PHRASE_STOP_WORDS = new Set([
+  "the", "and", "a", "to", "of", "in", "it", "is", "that", "you",
+  "he", "she", "they", "his", "her", "their", "my", "was", "for",
+  "on", "are", "as", "with", "at", "be", "this", "have", "from",
+  "or", "one", "had", "by", "word", "but", "not", "what", "all",
+  "were", "we", "when", "your", "can", "said", "there", "use",
+  "an", "each", "which", "do", "how", "if", "up", "so", "then",
+  "just", "about", "into", "over", "out", "me", "him", "them",
+]);
+
+const STEM_CANON: Record<string, string> = {
+  chuckles: "chuckle",
+  chuckling: "chuckle",
+  laughed: "chuckle",
+  laughing: "chuckle",
+  laugh: "chuckle",
+  giggle: "chuckle",
+  giggles: "chuckle",
+  giggling: "chuckle",
+  smiled: "smile",
+  smiling: "smile",
+  grins: "smile",
+  grinned: "smile",
+  grinning: "smile",
+  grin: "smile",
+  softly: "soft",
+  gently: "soft",
+  quietly: "soft",
+  tenderly: "soft",
+  lightly: "soft",
+  faintly: "soft",
+  slowly: "slow",
+  leans: "lean",
+  leaned: "lean",
+  leaning: "lean",
+  whispers: "whisper",
+  whispered: "whisper",
+  whispering: "whisper",
+  murmur: "whisper",
+  murmurs: "whisper",
+  murmuring: "whisper",
+  mutter: "whisper",
+  mutters: "whisper",
+  muttering: "whisper",
+  sighs: "sigh",
+  sighed: "sigh",
+  sighing: "sigh",
+  steps: "step",
+  stepped: "step",
+  stepping: "step",
+  closer: "close",
+  tickles: "tickle",
+  tickling: "tickle",
+  tickled: "tickle",
+  brushes: "brush",
+  brushing: "brush",
+  brushed: "brush",
+  smirks: "smirk",
+  smirking: "smirk",
+  breath: "breath",
+  breathing: "breath",
+};
+
+export function stemWord(raw: string): string {
+  let w = raw.toLowerCase().replace(/[^a-z']/g, "");
+  if (!w) return "";
+  if (STEM_CANON[w]) return STEM_CANON[w];
+  if (w.endsWith("ing") && w.length > 5) w = w.slice(0, -3);
+  else if (w.endsWith("ed") && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("ly") && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("es") && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("s") && w.length > 4 && !w.endsWith("ss")) w = w.slice(0, -1);
+  return STEM_CANON[w] || w;
+}
+
+function actionContentStems(action: string): string[] {
+  const inner = action.replace(/\*/g, " ");
+  const words = inner
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const rest = words.length > 1 ? words.slice(1) : words;
+  return rest
+    .map(stemWord)
+    .filter((w) => w.length > 2 && !PHRASE_STOP_WORDS.has(w));
+}
+
+function stemJaccard(a: string[], b: string[]): number {
+  if (!a.length || !b.length) return 0;
+  const aSet = new Set(a);
+  const bSet = new Set(b);
+  let inter = 0;
+  for (const x of aSet) {
+    if (bSet.has(x)) inter += 1;
+  }
+  return inter / new Set([...aSet, ...bSet]).size;
+}
+
+function stemTrigrams(stems: string[]): Set<string> {
+  const grams = new Set<string>();
+  for (let i = 0; i <= stems.length - 3; i++) {
+    grams.add(stems.slice(i, i + 3).join(" "));
+  }
+  return grams;
+}
+
+/** Last-turn excerpt plus verbs the model must retire (synonym swaps count). */
+export function extractLastTurnRemix(turn: string): { excerpt: string; verbs: string[] } {
+  const excerpt = (turn || "").trim().replace(/\s+/g, " ").slice(0, 240);
+  const verbs = [
+    ...new Set((turn.match(/\*[^*]+\*/g) || []).flatMap(actionContentStems)),
+  ].slice(0, 8);
+  return { excerpt, verbs };
+}
+
 export function extractUsedActionsAndSounds(turns: string[]): string[] {
   const categories: Array<{ regex: RegExp; name: string }> = [
-    { regex: /\b(?:chuckle[sd]?|chuckling)\b/i, name: "chuckle/chuckling" },
+    { regex: /\b(?:chuckle[sd]?|chuckling|laugh(?:s|ed|ing)?|giggle[sd]?|giggling)\b/i, name: "chuckle/chuckling" },
     { regex: /\b(?:sigh[sd]?|sighing)\b/i, name: "sigh/sighing" },
     { regex: /\b(?:groan[sd]?|groaning)\b/i, name: "groan/groaning" },
     { regex: /\b(?:whisper[sd]?|whispering)\b/i, name: "whisper/whispering" },
@@ -136,9 +252,9 @@ export function looksRepetitive(text: string, priorAssistant: string[]): boolean
 
   const currentWords = normalized.split(" ");
   const currentPrefix = currentWords.slice(0, 5).join(" ");
-  const currentContent = currentWords.filter(
-    (w) => w.length > 3 && !PHRASE_STOP_WORDS.has(w),
-  );
+  const currentActions = text.match(/\*[^*]+\*/g) || [];
+  const currentStems = currentActions.flatMap(actionContentStems);
+  const currentOpen = currentStems[0] || "";
 
   const fillerHits = normalized.match(/\b(?:softly|gently|quietly|slowly|tenderly)\b/g) || [];
   if (fillerHits.length >= 3) return true;
@@ -151,7 +267,11 @@ export function looksRepetitive(text: string, priorAssistant: string[]): boolean
     fourGrams.set(gram, next);
   }
 
-  for (const prev of priorAssistant.slice(-4)) {
+  const recents = priorAssistant.slice(-4);
+
+  for (let i = 0; i < recents.length; i++) {
+    const prev = recents[i];
+    const isLast = i === recents.length - 1;
     const p = prev.toLowerCase().replace(/\s+/g, " ").trim();
     if (!p) continue;
     if (normalized === p) return true;
@@ -161,7 +281,6 @@ export function looksRepetitive(text: string, priorAssistant: string[]): boolean
     const prevPrefix = prevWords.slice(0, 5).join(" ");
     if (currentPrefix.length > 12 && prevPrefix === currentPrefix) return true;
 
-    const currentActions = text.match(/\*[^*]+\*/g) || [];
     const prevActions = prev.match(/\*[^*]+\*/g) || [];
     for (const ca of currentActions) {
       const normCA = ca.toLowerCase().replace(/\s+/g, " ").trim();
@@ -172,11 +291,35 @@ export function looksRepetitive(text: string, priorAssistant: string[]): boolean
       }
     }
 
-    const prevContent = prevWords.filter((w) => w.length > 3 && !PHRASE_STOP_WORDS.has(w));
+    const prevStems = prevActions.flatMap(actionContentStems);
+    const stemOverlap = stemJaccard(currentStems, prevStems);
+    if (currentStems.length >= 2 && prevStems.length >= 2 && stemOverlap >= (isLast ? 0.4 : 0.55)) {
+      return true;
+    }
+
+    if (isLast && currentOpen && prevStems[0] && currentOpen === prevStems[0]) {
+      return true;
+    }
+
+    const curGrams = stemTrigrams(currentStems);
+    const prevGrams = stemTrigrams(prevStems);
+    let sharedGrams = 0;
+    for (const g of curGrams) {
+      if (prevGrams.has(g)) sharedGrams += 1;
+    }
+    if (sharedGrams >= 1 && isLast) return true;
+    if (sharedGrams >= 2) return true;
+
+    const currentContent = currentWords
+      .map(stemWord)
+      .filter((w) => w.length > 3 && !PHRASE_STOP_WORDS.has(w));
+    const prevContent = prevWords
+      .map(stemWord)
+      .filter((w) => w.length > 3 && !PHRASE_STOP_WORDS.has(w));
     const contentSet = new Set(currentContent);
     const overlap = prevContent.filter((w) => contentSet.has(w)).length;
     const smaller = Math.min(currentContent.length, prevContent.length);
-    if (smaller >= 4 && overlap / smaller >= 0.7) return true;
+    if (smaller >= 4 && overlap / smaller >= (isLast ? 0.55 : 0.7)) return true;
 
     const a = new Set(currentWords);
     const b = new Set(prevWords);
@@ -291,16 +434,6 @@ export function validateInCharacterOutput(params: {
 
   return { ok: reasons.length === 0, reasons };
 }
-
-const PHRASE_STOP_WORDS = new Set([
-  "the", "and", "a", "to", "of", "in", "it", "is", "that", "you",
-  "he", "she", "they", "his", "her", "their", "my", "was", "for",
-  "on", "are", "as", "with", "at", "be", "this", "have", "from",
-  "or", "one", "had", "by", "word", "but", "not", "what", "all",
-  "were", "we", "when", "your", "can", "said", "there", "use",
-  "an", "each", "which", "do", "how", "if", "up", "so", "then",
-  "just", "about", "into", "over", "out", "me", "him", "them",
-]);
 
 function ngramsFromTurn(
   turn: string,
