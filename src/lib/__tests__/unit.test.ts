@@ -19,7 +19,6 @@ import { sanitizeNext } from "../../app/auth/callback/route.js";
 import { getDefaultCharacterAvatar } from "../avatar.js";
 import { getCleanPersonaDisplay } from "../persona.js";
 import { sanitizeModel, DEFAULT_MODEL, SUMMARIZER_MODEL } from "../openrouter.js";
-import { isAdminUser } from "../auth-admin.js";
 
 test("isFactRedundant detects identical and similar facts", () => {
   assert.strictEqual(
@@ -419,22 +418,6 @@ test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to D
   assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "sao10k/l3.3-euryale-70b");
   // Arbitrary invalid models fall back to DEFAULT_MODEL:
   assert.strictEqual(sanitizeModel("invalid/random-model"), DEFAULT_MODEL);
-});
-
-test("isAdminUser verifies admin email against ADMIN_EMAILS", () => {
-  const originalEnv = process.env.ADMIN_EMAILS;
-  try {
-    process.env.ADMIN_EMAILS = "admin@example.com, owner@howly.ai ";
-    assert.strictEqual(isAdminUser("admin@example.com"), true);
-    assert.strictEqual(isAdminUser("ADMIN@EXAMPLE.COM"), true);
-    assert.strictEqual(isAdminUser("owner@howly.ai"), true);
-    assert.strictEqual(isAdminUser("user@example.com"), false);
-    assert.strictEqual(isAdminUser(null), false);
-    assert.strictEqual(isAdminUser(undefined), false);
-    assert.strictEqual(isAdminUser(""), false);
-  } finally {
-    process.env.ADMIN_EMAILS = originalEnv;
-  }
 });
 
 

@@ -9,7 +9,6 @@ import { ensureTagsExist } from "@/lib/tags";
 
 import { z } from "zod";
 import { sanitizeModel } from "@/lib/openrouter";
-import { isAdminUser } from "@/lib/auth-admin";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const CharacterSchema = z.object({
@@ -72,11 +71,6 @@ export async function createCharacter(form: FormData) {
 
   const payload = readAndValidateForm(form);
 
-  // Gate public publishing: only administrators can publish publicly without review
-  if (!isAdminUser(user.email)) {
-    payload.is_public = false;
-  }
-
   await ensureTagsExist(supabase, payload.tags);
 
   const { data, error } = await supabase
@@ -117,11 +111,6 @@ export async function updateCharacter(id: string, form: FormData) {
   if (!user) redirect("/login");
 
   const payload = readAndValidateForm(form);
-
-  // Gate public publishing: only administrators can publish publicly without review
-  if (!isAdminUser(user.email)) {
-    payload.is_public = false;
-  }
 
   await ensureTagsExist(supabase, payload.tags);
 
