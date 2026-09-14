@@ -41,6 +41,6 @@ Length: one beat, 1–3 short paragraphs.
 
 Return the rewritten turn only.`;
 
-export const CONTINUE_NUDGE = `[CONTINUE]: Advance one new beat with a concrete new detail. Do not remix the last action with a synonym.`;
+export const CONTINUE_NUDGE = `[CONTINUE]: Advance the scene forward with a new action or dialogue beat.`;
 
-export const RETRY_MANDATE = `[RETRY]: The previous draft was rejected. Invent a different action and spoken line. Synonym swaps of the rejected draft still count as repeats.`;
+export const RETRY_MANDATE = `[RETRY]: Provide a fresh response with a new action and dialogue.`;

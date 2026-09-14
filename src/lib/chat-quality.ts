@@ -35,7 +35,7 @@ export async function streamAssistantText(params: {
     topP: 0.95,
     frequencyPenalty: 0.15,
     presencePenalty: 0.15,
-    maxOutputTokens: 320,
+    maxOutputTokens: 400,
     abortSignal: abortSignal || AbortSignal.timeout(110000),
   });
 

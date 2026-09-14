@@ -354,18 +354,35 @@ export default function ChatClient({
       const serverMsgId = res.headers.get("x-message-id");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages((m) =>
-          m.map((x) =>
-            x.id === assistantId || (serverMsgId && x.id === serverMsgId)
-              ? { ...x, id: serverMsgId || x.id, content: acc }
-              : x,
-          ),
-        );
+      let rafId: number | null = null;
+      const scheduleRender = () => {
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          setMessages((m) =>
+            m.map((x) =>
+              x.id === assistantId || (serverMsgId && x.id === serverMsgId)
+                ? { ...x, id: serverMsgId || x.id, content: acc }
+                : x,
+            ),
+          );
+        });
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          acc += decoder.decode(value, { stream: true });
+          scheduleRender();
+        }
+      } finally {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
       }
+
       const finalFlushed = decoder.decode();
       if (finalFlushed) {
         acc += finalFlushed;
@@ -498,18 +515,35 @@ export default function ChatClient({
       const serverMsgId = res.headers.get("x-message-id");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages((m) =>
-          m.map((x) =>
-            x.id === assistantId || (serverMsgId && x.id === serverMsgId)
-              ? { ...x, id: serverMsgId || x.id, content: acc }
-              : x,
-          ),
-        );
+      let rafId: number | null = null;
+      const scheduleRender = () => {
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          setMessages((m) =>
+            m.map((x) =>
+              x.id === assistantId || (serverMsgId && x.id === serverMsgId)
+                ? { ...x, id: serverMsgId || x.id, content: acc }
+                : x,
+            ),
+          );
+        });
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          acc += decoder.decode(value, { stream: true });
+          scheduleRender();
+        }
+      } finally {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
       }
+
       const finalFlushed = decoder.decode();
       if (finalFlushed) {
         acc += finalFlushed;

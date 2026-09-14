@@ -9,10 +9,6 @@ import {
   estimateTokens,
   MAX_SYSTEM_TOKENS,
   stripAppearanceTropes,
-  cleanRoleplayTropes,
-  extractUsedActionsAndSounds,
-  extractRepeatedPhrases,
-  extractLastTurnPhrases,
   extractLastTurnRemix,
 } from "../memory.js";
 import { detectPreferredName } from "../../app/api/chat/route.js";
@@ -167,7 +163,7 @@ test("buildSystemPrompt conditions intimate directives on character tags", () =>
     summary: null,
   });
 
-  assert.ok(romanticPrompt.includes("Intimate & Sensual Scenes"));
+  assert.ok(romanticPrompt.includes("Intimate & Romantic Scenes"));
   assert.ok(romanticPrompt.includes("Greeting Anchor / Voice Reference"));
   assert.ok(romanticPrompt.includes('*smiles* "Welcome back."\n'));
 
@@ -188,8 +184,8 @@ test("buildSystemPrompt conditions intimate directives on character tags", () =>
     summary: null,
   });
 
-  assert.strictEqual(therapistPrompt.includes("Intimate & Sensual Scenes"), false);
-  assert.ok(therapistPrompt.includes("Interpersonal Connection & Emotional Resonance"));
+  assert.strictEqual(therapistPrompt.includes("Intimate & Romantic Scenes"), false);
+  assert.ok(therapistPrompt.includes("Tone: Stay grounded"));
 });
 
 test("buildSystemPrompt guarantees MAX_SYSTEM_TOKENS cap even with huge inputs", () => {
@@ -252,7 +248,7 @@ test("stripAppearanceTropes eliminates gaze clichés, fangs, and smirks while pr
   }
 });
 
-test("buildSystemPrompt includes visual reference note and consistent pattern directives", () => {
+test("buildSystemPrompt includes clean pattern directives without body or negative word reinforcement", () => {
   const prompt = buildSystemPrompt({
     character: {
       name: "Silas",
@@ -266,164 +262,24 @@ test("buildSystemPrompt includes visual reference note and consistent pattern di
     facts: [],
     sceneState: null,
     summary: null,
-  });
-
-  assert.ok(prompt.includes("Visual Reference Note: Physical details in this definition are static visual facts"));
-  assert.ok(prompt.includes("OUTPUT RULES"));
-  assert.ok(prompt.includes("Wording Variety:"));
-  assert.ok(prompt.includes("[FINAL REMINDER]: Respond strictly in pattern"));
-  assert.ok(prompt.includes("Play only Silas"));
-});
-
-test("cleanRoleplayTropes preserves creative actions, physical movements, and vocal delivery", () => {
-  const cases = [
-    {
-      input: '*He chuckles softly as he walks over to the desk.* "Here is the file."',
-      expected: '*He chuckles softly as he walks over to the desk.* "Here is the file."',
-    },
-    {
-      input: '*He tilts his head to the side, studying your reaction.* "Are you sure?"',
-      expected: '*He tilts his head to the side, studying your reaction.* "Are you sure?"',
-    },
-    {
-      input: '*Dante sighs softly, crossing his arms over his chest.* "I didn\'t expect that."',
-      expected: '*Dante sighs softly, crossing his arms over his chest.* "I didn\'t expect that."',
-    },
-    {
-      input: '*He leans against the counter, smiling.* "Whatever you say."',
-      expected: '*He leans against the counter, smiling.* "Whatever you say."',
-    },
-    {
-      input: '*He opens the drawer and takes out a silver key.* "Take this."',
-      expected: '*He opens the drawer and takes out a silver key.* "Take this."',
-    },
-    {
-      input: '*Running a hand through his hair, he turns to you.* "I forgot the password."',
-      expected: '*Running a hand through his hair, he turns to you.* "I forgot the password."',
-    },
-    {
-      input: '*Clearing his throat, he taps the microphone.* "Testing, one two."',
-      expected: '*Clearing his throat, he taps the microphone.* "Testing, one two."',
-    },
-    {
-      input: '*He rubs the back of his neck, looking down.* "My mistake."',
-      expected: '*He rubs the back of his neck, looking down.* "My mistake."',
-    },
-  ];
-
-  for (const { input, expected } of cases) {
-    assert.strictEqual(cleanRoleplayTropes(input), expected);
-  }
-});
-
-test("extractUsedActionsAndSounds detects used tics across turns", () => {
-  const turns = [
-    '*He chuckles softly and leans against the wall.* "Hello."',
-    '*Shifting his weight, his breath hitches.* "What is it?"',
-  ];
-  const used = extractUsedActionsAndSounds(turns);
-  assert.ok(used.includes("chuckle/chuckling"));
-  assert.ok(used.includes("leaning"));
-  assert.ok(used.includes("shifting weight"));
-  assert.ok(used.includes("breath hitching"));
-  assert.strictEqual(used.includes("head tilting"), false);
-});
-
-test("buildSystemPrompt guides structural variety across turns without negative blacklists", () => {
-  const prompt = buildSystemPrompt({
-    character: {
-      name: "Silas",
-      alias: null,
-      persona: "A brooding companion.",
-      scenario: null,
-      greeting: "Hello.",
-      model: "sao10k/l3.3-euryale-70b",
-      tags: [],
-    },
-    facts: [],
-    sceneState: null,
-    summary: null,
     priorAssistant: [
       '*Silas chuckles softly, tilting his head.* "I see."',
       '*He sighs and leans against the counter.* "Go on."',
     ],
   });
 
-  assert.ok(prompt.includes("Do not reuse this turn:"));
-  assert.ok(prompt.includes("Last reply (do not remix"));
-  assert.ok(prompt.includes("Retire these verbs this turn:"));
-  assert.ok(prompt.includes("Recent turn openings:"));
-  assert.ok(prompt.includes("Open with a fresh action"));
-  assert.ok(prompt.includes("Physical/vocal beats already used in recent turns:"));
-  assert.ok(prompt.includes("chuckle/chuckling"));
-  assert.ok(prompt.includes("leaning"));
-});
-
-test("extractRepeatedPhrases identifies multi-word n-grams repeated across turns", () => {
-  const turns = [
-    '*His warm breath tickles your ear as he leans in close.* "I know."',
-    '*He smiles, his warm breath tickling your ear softly.* "Are you ready?"',
-  ];
-  const repeated = extractRepeatedPhrases(turns);
-  assert.ok(repeated.includes("his warm breath"));
-  assert.ok(repeated.includes("your ear"));
-});
-
-test("buildSystemPrompt explicitly injects RECENTLY REPEATED PHRASES when detected", () => {
-  const prompt = buildSystemPrompt({
-    character: {
-      name: "Silas",
-      alias: null,
-      persona: "A companion.",
-      scenario: null,
-      greeting: "Hello.",
-      model: "sao10k/l3.3-euryale-70b",
-      tags: [],
-    },
-    facts: [],
-    sceneState: null,
-    summary: null,
-    priorAssistant: [
-      '*His warm breath tickles your ear as he leans in.* "Hello."',
-      '*He smiles gently, his warm breath tickling your ear.* "Stay."',
-    ],
-  });
-
-  assert.ok(prompt.includes("RECENTLY REPEATED PHRASES (STRICTLY AVOID):"));
-  assert.ok(prompt.includes("his warm breath"));
-});
-
-test("extractLastTurnPhrases pulls distinctive n-grams from a single reply", () => {
-  const phrases = extractLastTurnPhrases(
-    '*His warm breath tickles your ear as he leans in close.* "I know."',
-  );
-  assert.ok(phrases.some((p) => p.includes("warm breath")));
-  assert.ok(phrases.every((p) => p.split(" ").length >= 3));
-});
-
-test("buildSystemPrompt injects last-reply phrases even when they have not been repeated yet", () => {
-  const prompt = buildSystemPrompt({
-    character: {
-      name: "Silas",
-      alias: null,
-      persona: "A companion.",
-      scenario: null,
-      greeting: "Hello.",
-      model: "sao10k/l3.3-euryale-70b",
-      tags: [],
-    },
-    facts: [],
-    sceneState: null,
-    summary: null,
-    priorAssistant: [
-      '*His warm breath tickles your ear as he leans in close.* "Stay with me."',
-    ],
-  });
-
-  assert.ok(prompt.includes("Phrases from your last reply"));
-  assert.ok(prompt.includes("warm breath"));
-  assert.ok(prompt.includes("Last reply (do not remix"));
-  assert.ok(prompt.includes("Stay with me."));
+  assert.ok(prompt.includes("ROLEPLAY GUIDELINES"));
+  assert.ok(prompt.includes("Play only Silas"));
+  assert.ok(prompt.includes("Never speak, act, decide, or feel for the user."));
+  assert.ok(prompt.includes("Advance the scene forward"));
+  
+  // Verify negative word and body reinforcements are completely removed
+  assert.strictEqual(prompt.includes("never narrate the user's body"), false);
+  assert.strictEqual(prompt.includes("RECENTLY REPEATED PHRASES"), false);
+  assert.strictEqual(prompt.includes("Do not reuse this turn:"), false);
+  assert.strictEqual(prompt.includes("Retire these verbs"), false);
+  assert.strictEqual(prompt.includes("Physical/vocal beats already used"), false);
+  assert.strictEqual(prompt.includes("Phrases from your last reply"), false);
 });
 
 test("extractLastTurnRemix quotes the last reply and retires stemmed verbs", () => {

@@ -20,7 +20,7 @@ export async function startChat(characterId: string, formData?: FormData) {
 
   const { data: character, error: cerr } = await supabase
     .from("characters")
-    .select("id, name, greeting")
+    .select("id, name, greeting, model")
     .eq("id", characterId)
     .maybeSingle();
   if (cerr) throw new Error(cerr.message);
@@ -32,6 +32,7 @@ export async function startChat(characterId: string, formData?: FormData) {
       user_id: user.id,
       character_id: character.id,
       title: character.name,
+      model: character.model || null,
       user_name: userName,
       user_pronouns: userPronouns,
       user_description: userDescription,

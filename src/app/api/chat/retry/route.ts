@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     await supabase.from("memories").delete().eq("id", summaryRow.id);
   }
 
-  const ctx = await loadChatContext(supabase, chatId);
+  const ctx = await loadChatContext(supabase, chatId, user.id);
   if (!ctx) return new Response("not_found", { status: 404 });
 
   const priorAssistant = ctx.recent
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
   let alignedRecent = lastUserIndex >= 0 ? ctx.recent.slice(0, lastUserIndex + 1) : ctx.recent;
 
   const userTurnText = isContinueNudge
-    ? "[Continue: progress story forward without repeating previous turn]"
+    ? "[Continue the scene]"
     : (decryptedUserMsg || "*continue*");
 
   // Guarantee that the prompt contains the user turn being retried and ends with a user message
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
     }
     return {
       role: m.role,
-      content: m.role === "assistant" ? stripAppearanceTropes(m.content) : m.content,
+      content: m.content,
     };
   });
 
@@ -222,12 +222,6 @@ export async function POST(request: Request) {
 
   const assistantMsgId = String(inserted.id);
 
-  // Fetch total message count for exact scene refresh turn cadence
-  const { count: totalMsgCount } = await supabase
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("chat_id", chatId);
-
   after(async () => {
     try {
       if (request.signal.aborted) {
@@ -257,10 +251,27 @@ export async function POST(request: Request) {
           });
         }
 
-        if (!ctx.sceneState || ((totalMsgCount ?? 0) + 1) % 5 === 0) {
-          await refreshSceneState(supabase, chatId, ctx.character, user.id);
+        // Fetch count in background for cadence check without delaying stream response
+        const { count: totalMsgCount } = await supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("chat_id", chatId);
+
+        const count = totalMsgCount ?? 0;
+        // Stagger background tasks to avoid exceeding Cloudflare Worker CPU/duration limits
+        if (count >= 20 && count % 10 === 0) {
+          try {
+            await maybeSummarize(supabase, chatId, ctx.character, user.id);
+          } catch (sumErr) {
+            console.error("[retry_maybeSummarize_failed]", sumErr);
+          }
+        } else if (count >= 5 && count % 5 === 0) {
+          try {
+            await refreshSceneState(supabase, chatId, ctx.character, user.id);
+          } catch (sceneErr) {
+            console.error("[retry_refreshSceneState_failed]", sceneErr);
+          }
         }
-        await maybeSummarize(supabase, chatId, ctx.character, user.id);
       } else {
         await supabase.from("messages").delete().eq("id", inserted.id);
       }

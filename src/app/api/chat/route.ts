@@ -117,55 +117,58 @@ export async function POST(request: Request) {
 
   const { chatId, message: rawUserMessage } = parsed.data;
 
-  // Verify chat ownership
-  const { data: ownership } = await supabase
-    .from("chats")
-    .select("id")
-    .eq("id", chatId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!ownership) {
-    return new Response("not_found", { status: 404 });
-  }
-
   const userPromptContent = rawUserMessage.trim();
   const isContinueNudge =
     !userPromptContent ||
     userPromptContent === "[Continue]" ||
     userPromptContent === "*continue*";
 
+  // Load chat context while simultaneously verifying chat ownership
+  const ctx = await loadChatContext(supabase, chatId, user.id);
+  if (!ctx) {
+    return new Response("not_found", { status: 404 });
+  }
+
   // Check if user is introducing or updating their preferred name
   const detectedName = detectPreferredName(userPromptContent);
-  if (detectedName) {
+  if (detectedName && detectedName !== ctx.userName) {
     await supabase
       .from("chats")
       .update({ user_name: detectedName })
       .eq("id", chatId);
   }
 
-  // Load chat context
-  const ctx = await loadChatContext(supabase, chatId);
-  if (!ctx) {
-    return new Response("not_found", { status: 404 });
-  }
-
   const effectiveUserName = detectedName || ctx.userName;
 
-  // Persist user prompt (or explicit continue marker) to ensure consistent turn alternating in DB
+  // Persist user prompt and empty assistant placeholder in a single batched database roundtrip
   const userContentToSave = isContinueNudge ? "*continue*" : userPromptContent;
-  const { data: userInserted, error: userInsertErr } = await supabase
+  const encryptedUserContent = await encryptText(userContentToSave, user.id);
+
+  const { data: insertedRows, error: insertErr } = await supabase
     .from("messages")
-    .insert({
-      chat_id: chatId,
-      role: "user",
-      content: await encryptText(userContentToSave, user.id),
-    })
-    .select("id")
-    .single();
-  if (userInsertErr) {
-    return new Response(userInsertErr.message, { status: 500 });
+    .insert([
+      {
+        chat_id: chatId,
+        role: "user",
+        content: encryptedUserContent,
+      },
+      {
+        chat_id: chatId,
+        role: "assistant",
+        content: "",
+      },
+    ])
+    .select("id, role")
+    .order("id", { ascending: true });
+
+  if (insertErr || !insertedRows || insertedRows.length < 2) {
+    console.error("[chat_messages_batch_insert_failed]", insertErr);
+    return new Response("failed_to_initialize_message", { status: 500 });
   }
+
+  const userInserted = insertedRows.find((r) => r.role === "user") ?? insertedRows[0];
+  const assistantInserted = insertedRows.find((r) => r.role === "assistant") ?? insertedRows[1];
+  const assistantMsgId = String(assistantInserted.id);
 
   const priorAssistant = ctx.recent
     .filter((m) => m.role === "assistant")
@@ -190,13 +193,11 @@ export async function POST(request: Request) {
   const messages = [
     ...ctx.recent.map((m) => ({
       role: m.role,
-      content: m.role === "assistant" ? stripAppearanceTropes(m.content) : m.content,
+      content: m.content,
     })),
     {
       role: "user" as const,
-      content: isContinueNudge
-        ? "[Continue: progress story forward without repeating previous turn]"
-        : userPromptContent,
+      content: isContinueNudge ? "[Continue the scene]" : userPromptContent,
     },
   ];
 
@@ -215,47 +216,21 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[chat_generation_error]", err);
-    if (userInserted?.id) {
-      await supabase.from("messages").delete().eq("id", userInserted.id);
-    }
+    await supabase
+      .from("messages")
+      .delete()
+      .in("id", [userInserted.id, assistantInserted.id]);
     return new Response(
       "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
       { status: 503 },
     );
   }
 
-  // Synchronously persist initial assistant message row to obtain durable DB message ID for client feedback affordance
-  const { data: inserted, error: assistantInsertErr } = await supabase
-    .from("messages")
-    .insert({
-      chat_id: chatId,
-      role: "assistant",
-      content: "",
-    })
-    .select("id")
-    .single();
-
-  if (assistantInsertErr || !inserted) {
-    console.error("[assistant_initial_insert_failed]", assistantInsertErr);
-    if (userInserted?.id) {
-      await supabase.from("messages").delete().eq("id", userInserted.id);
-    }
-    return new Response("failed_to_initialize_message", { status: 500 });
-  }
-
-  const assistantMsgId = String(inserted.id);
-
-  // Fetch total message count for exact scene refresh turn cadence
-  const { count: totalMsgCount } = await supabase
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("chat_id", chatId);
-
   after(async () => {
     try {
       if (request.signal.aborted) {
         console.log("[chat_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
-        await supabase.from("messages").delete().eq("id", inserted.id);
+        await supabase.from("messages").delete().eq("id", assistantInserted.id);
         return;
       }
       const finalText = (await streamed.fullTextPromise).trim();
@@ -264,7 +239,7 @@ export async function POST(request: Request) {
         await supabase
           .from("messages")
           .update({ content: await encryptText(cleanedFinalText, user.id) })
-          .eq("id", inserted.id);
+          .eq("id", assistantInserted.id);
 
         const validation = validateInCharacterOutput({
           output: cleanedFinalText,
@@ -280,12 +255,29 @@ export async function POST(request: Request) {
           });
         }
 
-        if (!ctx.sceneState || ((totalMsgCount ?? 0) + 1) % 5 === 0) {
-          await refreshSceneState(supabase, chatId, ctx.character, user.id);
+        // Fetch count in background for cadence check without delaying stream response
+        const { count: totalMsgCount } = await supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("chat_id", chatId);
+
+        const count = totalMsgCount ?? 0;
+        // Stagger background tasks to avoid exceeding Cloudflare Worker CPU/duration limits
+        if (count >= 20 && count % 10 === 0) {
+          try {
+            await maybeSummarize(supabase, chatId, ctx.character, user.id);
+          } catch (sumErr) {
+            console.error("[maybeSummarize_failed]", sumErr);
+          }
+        } else if (count >= 5 && count % 5 === 0) {
+          try {
+            await refreshSceneState(supabase, chatId, ctx.character, user.id);
+          } catch (sceneErr) {
+            console.error("[refreshSceneState_failed]", sceneErr);
+          }
         }
-        await maybeSummarize(supabase, chatId, ctx.character, user.id);
       } else {
-        await supabase.from("messages").delete().eq("id", inserted.id);
+        await supabase.from("messages").delete().eq("id", assistantInserted.id);
       }
       console.log("[chat_generation_complete]", {
         chatId,

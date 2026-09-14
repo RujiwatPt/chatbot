@@ -109,8 +109,7 @@ ${character.scenario ? `Scenario: ${character.scenario}\n` : ""}${
     character.greeting
       ? `Greeting Anchor / Voice Reference (do not repeat this greeting):\n${character.greeting}\n`
       : ""
-  }[Visual Reference Note: Physical details in this definition are static visual facts for the user. Do NOT repeat or re-describe ${selfName}'s physical appearance in your narration.]
-</character_definition>`;
+  }</character_definition>`;
 }
 
 export function buildSystemPrompt(opts: {
@@ -138,10 +137,10 @@ export function buildSystemPrompt(opts: {
 
   if (userName || userPronouns || userDescription) {
     parts.push(
-      `<user_profile>\nThe user you are speaking with${
-        userName ? ` is named ${userName}` : ""
-      }.${
-        userPronouns ? ` Preferred pronouns: ${userPronouns}.` : ""
+      `<user_profile>\n${
+        userName ? `Preferred Name: ${userName}\n` : ""
+      }${
+        userPronouns ? `Pronouns: ${userPronouns}` : ""
       }${
         userDescription ? `\nUser Description / Persona:\n${userDescription}` : ""
       }\n</user_profile>`,
@@ -172,84 +171,20 @@ export function buildSystemPrompt(opts: {
   );
 
   const ruleLines: string[] = [
-    `OUTPUT RULES`,
-    `Format:`,
-    `- Dialogue in "double quotes", first person (I/me/my). No tags like "I say" or "I whisper".`,
-    `- Actions in *asterisks*, third person (${selfName} / he / she / they). Never I/me/my inside asterisks.`,
-    `- Setting in plain text. One beat: 1–3 short paragraphs, ~1–2 action blocks and ~1–2 spoken lines (~80–180 words). No walls of text.`,
-    `- Vary order: dialogue-first, action-first, or setting-first. Do not use the same skeleton every turn.`,
-    `Agency:`,
-    `- Play only ${selfName}. Never speak, act, decide, or feel for the user. Never narrate the user's body, sensations, or thoughts.`,
-    `- Advance one beat from what the user just did or said, then stop.`,
+    `ROLEPLAY GUIDELINES`,
+    `- Format: Dialogue in "double quotes", actions and expressions in *asterisks*. Keep prose vivid and natural.`,
+    `- Agency: Play only ${selfName}. Never speak, act, decide, or feel for the user.`,
+    `- Progression: Advance the scene forward with fresh actions, dialogue, or environmental interactions.`,
     userName
       ? `- Address the user as "you" or ${userName}.`
       : `- Address the user as "you".`,
     userPronouns
       ? `- If you refer to the user in third person, use ${userPronouns}.`
       : "",
-    `Wording Variety:`,
-    `- Invent a concrete new detail every turn: an object, sound, temperature, motion path, or spoken line that was not in your last reply.`,
-    `- Remixing the last reply with a synonym (softly→quietly, chuckle→laugh, lean in→lean closer) is still a repeat. Change the action itself.`,
-    `- Do not stack filler adverbs (softly, gently, quietly, slowly, tenderly).`,
-    `- Appearance is already known. Do not narrate ${selfName}'s eyes, hair, fangs, ears, tail, or body as decoration.`,
     isRomanticOrNsfw
-      ? `Intimate & Sensual Scenes: one attentive beat of ${selfName}'s action and voice. Be specific about ${selfName} only — never write the user's body or climax for them. Do not rush the scene.`
-      : `Interpersonal Connection & Emotional Resonance: stay in ${selfName}'s personality and meet the user's emotional tone. Do not force romance or intimacy.`,
+      ? `- Intimate & Romantic Scenes: One attentive beat of ${selfName}'s action and voice, paced naturally with the user.`
+      : `- Tone: Stay grounded in ${selfName}'s authentic personality and mannerisms.`,
   ].filter(Boolean);
-
-  if (opts.priorAssistant && opts.priorAssistant.length > 0) {
-    const recentTurns = opts.priorAssistant.slice(-4);
-    const lastTurn = recentTurns[recentTurns.length - 1] ?? "";
-    const recentOpenings = recentTurns
-      .map((p) => {
-        const cleaned = p.trim();
-        const sentenceMatch = cleaned.match(/^[^\n.!?]+[.!?]/);
-        return sentenceMatch ? sentenceMatch[0].trim().slice(0, 75) : cleaned.slice(0, 50);
-      })
-      .filter(Boolean);
-
-    const repeatedPhrases = extractRepeatedPhrases(recentTurns);
-    const lastTurnPhrases = extractLastTurnPhrases(lastTurn);
-    const usedBeats = extractUsedActionsAndSounds(recentTurns).slice(0, 8);
-    const lastRemix = extractLastTurnRemix(lastTurn);
-
-    ruleLines.push(`Do not reuse this turn:`);
-    if (lastRemix.excerpt) {
-      ruleLines.push(
-        `- Last reply (do not remix — synonym swaps still count as repeats): ${JSON.stringify(lastRemix.excerpt)}`,
-      );
-    }
-    if (lastRemix.verbs.length > 0) {
-      ruleLines.push(
-        `- Retire these verbs this turn: ${lastRemix.verbs.join(", ")}. Use a different physical action.`,
-      );
-    }
-    if (recentOpenings.length > 0) {
-      const formattedOpenings = recentOpenings
-        .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
-        .join(", ");
-      ruleLines.push(
-        `- Recent turn openings: [${formattedOpenings}]. Open with a fresh action, a new spoken line, or a setting detail.`,
-      );
-    }
-    if (usedBeats.length > 0) {
-      ruleLines.push(
-        `- Physical/vocal beats already used in recent turns: ${usedBeats.join(", ")}. Pick a different action this turn.`,
-      );
-    }
-    if (lastTurnPhrases.length > 0) {
-      const formatted = lastTurnPhrases.map((p) => `"${p}"`).join(", ");
-      ruleLines.push(
-        `- Phrases from your last reply (do not reuse or lightly paraphrase): [${formatted}].`,
-      );
-    }
-    if (repeatedPhrases.length > 0) {
-      const formattedPhrases = repeatedPhrases.map((p) => `"${p}"`).join(", ");
-      ruleLines.push(
-        `- RECENTLY REPEATED PHRASES (STRICTLY AVOID): [${formattedPhrases}].`,
-      );
-    }
-  }
 
   if (feedback && feedback.length > 0) {
     if (feedback.includes("too_verbose")) {
@@ -264,10 +199,6 @@ export function buildSystemPrompt(opts: {
       );
     }
   }
-
-  ruleLines.push(
-    `[FINAL REMINDER]: Respond strictly in pattern. Next beat only — invent a new concrete detail. Do not remix the last reply with synonyms.`,
-  );
 
   const rules = ruleLines.join("\n");
   let finalPrompt = [...parts, rules].join("\n\n");
@@ -329,6 +260,7 @@ export function buildSystemPrompt(opts: {
 export async function loadChatContext(
   supabase: SupabaseClient,
   chatId: string,
+  userId?: string,
 ): Promise<{
   character: Character;
   recent: ChatMessage[];
@@ -341,14 +273,15 @@ export async function loadChatContext(
   userDescription: string | null;
 } | null> {
   // Parallelize initial database context fetches (chats, memories, feedback)
+  const chatQuery = supabase
+    .from("chats")
+    .select(
+      "*, character:characters(name, alias, persona, scenario, greeting, model, tags)",
+    )
+    .eq("id", chatId);
+
   const [chatRes, memoryRes, feedbackRes] = await Promise.all([
-    supabase
-      .from("chats")
-      .select(
-        "*, character:characters(name, alias, persona, scenario, greeting, model, tags)",
-      )
-      .eq("id", chatId)
-      .maybeSingle(),
+    (userId ? chatQuery.eq("user_id", userId) : chatQuery).maybeSingle(),
     supabase
       .from("memories")
       .select("kind, content, id, up_to_message_id")
@@ -376,7 +309,7 @@ export async function loadChatContext(
     character.model = chat.model;
   }
 
-  const userId = chat?.user_id as string | undefined;
+  const effectiveUserId = userId ?? (chat?.user_id as string | undefined);
   const userName = (chat?.user_name as string | null) ?? null;
   const userPronouns = (chat?.user_pronouns as string | null) ?? null;
   const userDescription = (chat?.user_description as string | null) ?? null;
@@ -385,7 +318,7 @@ export async function loadChatContext(
     (memoryRows ?? []).map(async (rawM) => ({
       kind: rawM.kind,
       up_to_message_id: rawM.up_to_message_id,
-      decryptedContent: userId ? await decryptText(rawM.content, userId) : rawM.content,
+      decryptedContent: effectiveUserId ? await decryptText(rawM.content, effectiveUserId) : rawM.content,
     })),
   );
 
@@ -438,7 +371,7 @@ export async function loadChatContext(
   const decryptedMessages = await Promise.all(
     (rawMessages ?? []).map(async (m) => ({
       role: m.role as "user" | "assistant" | "system",
-      content: userId ? await decryptText(m.content, userId) : m.content,
+      content: effectiveUserId ? await decryptText(m.content, effectiveUserId) : m.content,
     })),
   );
 
@@ -646,22 +579,18 @@ export async function maybeSummarize(
 
   let rawText = "";
   let raw: unknown = null;
-  let attempts = 0;
-  while (attempts < 2 && !raw) {
-    attempts += 1;
-    try {
-      const { text } = await generateText({
-        model: model(SUMMARIZER_MODEL),
-        system: SUMMARIZER_SYSTEM,
-        prompt: userPrompt,
-        temperature: 0.2,
-        abortSignal: AbortSignal.timeout(20000),
-      });
-      rawText = text;
-      raw = extractJson(text);
-    } catch {
-      // Retry once on network/parse failure
-    }
+  try {
+    const { text } = await generateText({
+      model: model(SUMMARIZER_MODEL),
+      system: SUMMARIZER_SYSTEM,
+      prompt: userPrompt,
+      temperature: 0.2,
+      abortSignal: AbortSignal.timeout(6000),
+    });
+    rawText = text;
+    raw = extractJson(text);
+  } catch {
+    // Fail silently in background
   }
   if (!raw || typeof raw !== "object") {
     console.warn("[summarizer] failed to parse JSON after 2 attempts", {
@@ -811,7 +740,7 @@ export async function refreshSceneState(
       model: model(SUMMARIZER_MODEL),
       system: SCENE_STATE_SYSTEM,
       prompt: `Character: ${character.name}\nPersona: ${character.persona}\nRecent turns:\n${tail}`,
-      abortSignal: AbortSignal.timeout(15000),
+      abortSignal: AbortSignal.timeout(5000),
     });
     const sceneRaw = extractJson(text);
     if (sceneRaw && typeof sceneRaw === "object") {
