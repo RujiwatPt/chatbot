@@ -12,6 +12,7 @@ import {
 import { streamAssistantText } from "@/lib/chat-quality";
 import { decryptText, encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { CONTINUE_NUDGE, RETRY_MANDATE } from "@/lib/prompts";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -145,11 +146,11 @@ export async function POST(request: Request) {
   });
 
   if (rejectedAssistantContent) {
-    system += `\n\n[RETRY ANTI-REPETITION MANDATE]: The user requested a retry because your previous response was unsatisfactory. You MUST provide an entirely new response with fresh actions, different phrasing, ZERO self-appearance commentary, and ZERO repetitive sound or gesture tics.`;
+    system += `\n\n${RETRY_MANDATE}`;
   }
 
   if (isContinueNudge) {
-    system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
+    system += `\n\n${CONTINUE_NUDGE}`;
   }
 
   // Ensure prompt messages array strictly ends with a user turn for correct LLM conversation alignment

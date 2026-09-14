@@ -12,11 +12,14 @@ import {
   cleanRoleplayTropes,
   extractUsedActionsAndSounds,
   extractRepeatedPhrases,
+  extractLastTurnPhrases,
 } from "../memory.js";
 import { detectPreferredName } from "../../app/api/chat/route.js";
 import { sanitizeNext } from "../../app/auth/callback/route.js";
 import { getDefaultCharacterAvatar } from "../avatar.js";
 import { getCleanPersonaDisplay } from "../persona.js";
+import { sanitizeModel, DEFAULT_MODEL, SUMMARIZER_MODEL } from "../openrouter.js";
+import { isAdminUser } from "../auth-admin.js";
 
 test("isFactRedundant detects identical and similar facts", () => {
   assert.strictEqual(
@@ -66,6 +69,27 @@ test("validateInCharacterOutput checks character voice and formatting", () => {
     sceneState: null,
   });
   assert.strictEqual(oocDisclaimer.ok, false);
+
+  const puppeteer = validateInCharacterOutput({
+    output: '*Kael watches as you gasp and shiver.* "Easy."',
+    selfName: "Kael",
+    sceneState: null,
+  });
+  assert.ok(puppeteer.reasons.includes("user_puppeting"));
+
+  const fillerSpam = validateInCharacterOutput({
+    output: '*Kael steps closer softly.* "I moved quietly, then slowly, then softly again."',
+    selfName: "Kael",
+    sceneState: null,
+  });
+  assert.ok(fillerSpam.reasons.includes("filler_adverb_spam"));
+
+  const notAliasConfusion = validateInCharacterOutput({
+    output: '*Kael sets the cup down.* "You are quiet tonight."',
+    selfName: "Kael",
+    sceneState: null,
+  });
+  assert.strictEqual(notAliasConfusion.reasons.includes("alias_as_user_name"), false);
 });
 
 test("detectPreferredName extracts names accurately and resists false positives", () => {
@@ -233,9 +257,10 @@ test("buildSystemPrompt includes visual reference note and consistent pattern di
   });
 
   assert.ok(prompt.includes("Visual Reference Note: Physical details in this definition are static visual facts"));
-  assert.ok(prompt.includes("CONSISTENT RESPONSE PATTERN & FORMAT (STRICT):"));
-  assert.ok(prompt.includes("CREATIVE ACTION & VIVID WORDING (MANDATE):"));
+  assert.ok(prompt.includes("OUTPUT RULES"));
+  assert.ok(prompt.includes("Wording Variety:"));
   assert.ok(prompt.includes("[FINAL REMINDER]: Respond strictly in pattern"));
+  assert.ok(prompt.includes("Play only Silas"));
 });
 
 test("cleanRoleplayTropes preserves creative actions, physical movements, and vocal delivery", () => {
@@ -312,9 +337,12 @@ test("buildSystemPrompt guides structural variety across turns without negative 
     ],
   });
 
-  assert.ok(prompt.includes("Structural Variety & Anti-Repetition Across Turns:"));
+  assert.ok(prompt.includes("Do not reuse this turn:"));
   assert.ok(prompt.includes("Recent turn openings:"));
   assert.ok(prompt.includes("Vary how you open this response"));
+  assert.ok(prompt.includes("Physical/vocal beats already used in recent turns:"));
+  assert.ok(prompt.includes("chuckle/chuckling"));
+  assert.ok(prompt.includes("leaning"));
 });
 
 test("extractRepeatedPhrases identifies multi-word n-grams repeated across turns", () => {
@@ -349,6 +377,64 @@ test("buildSystemPrompt explicitly injects RECENTLY REPEATED PHRASES when detect
 
   assert.ok(prompt.includes("RECENTLY REPEATED PHRASES (STRICTLY AVOID):"));
   assert.ok(prompt.includes("his warm breath"));
+});
+
+test("extractLastTurnPhrases pulls distinctive n-grams from a single reply", () => {
+  const phrases = extractLastTurnPhrases(
+    '*His warm breath tickles your ear as he leans in close.* "I know."',
+  );
+  assert.ok(phrases.some((p) => p.includes("warm breath")));
+  assert.ok(phrases.every((p) => p.split(" ").length >= 3));
+});
+
+test("buildSystemPrompt injects last-reply phrases even when they have not been repeated yet", () => {
+  const prompt = buildSystemPrompt({
+    character: {
+      name: "Silas",
+      alias: null,
+      persona: "A companion.",
+      scenario: null,
+      greeting: "Hello.",
+      model: "sao10k/l3.3-euryale-70b",
+      tags: [],
+    },
+    facts: [],
+    sceneState: null,
+    summary: null,
+    priorAssistant: [
+      '*His warm breath tickles your ear as he leans in close.* "Stay with me."',
+    ],
+  });
+
+  assert.ok(prompt.includes("Phrases from your last reply"));
+  assert.ok(prompt.includes("warm breath"));
+});
+
+test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to DEFAULT_MODEL", () => {
+  // When allowInternal is true (internal services like summarizer):
+  assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, true), "meta-llama/llama-3.3-70b-instruct");
+  // When allowInternal is false (public user form input):
+  assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, false), DEFAULT_MODEL);
+  // Allowed public models:
+  assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "sao10k/l3.3-euryale-70b");
+  // Arbitrary invalid models fall back to DEFAULT_MODEL:
+  assert.strictEqual(sanitizeModel("invalid/random-model"), DEFAULT_MODEL);
+});
+
+test("isAdminUser verifies admin email against ADMIN_EMAILS", () => {
+  const originalEnv = process.env.ADMIN_EMAILS;
+  try {
+    process.env.ADMIN_EMAILS = "admin@example.com, owner@howly.ai ";
+    assert.strictEqual(isAdminUser("admin@example.com"), true);
+    assert.strictEqual(isAdminUser("ADMIN@EXAMPLE.COM"), true);
+    assert.strictEqual(isAdminUser("owner@howly.ai"), true);
+    assert.strictEqual(isAdminUser("user@example.com"), false);
+    assert.strictEqual(isAdminUser(null), false);
+    assert.strictEqual(isAdminUser(undefined), false);
+    assert.strictEqual(isAdminUser(""), false);
+  } finally {
+    process.env.ADMIN_EMAILS = originalEnv;
+  }
 });
 
 

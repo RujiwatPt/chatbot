@@ -45,7 +45,7 @@ const openrouterFetch: typeof fetch = async (input, init) => {
       if (parsed && typeof parsed === "object") {
         let modified = false;
         if (parsed.repetition_penalty === undefined) {
-          parsed.repetition_penalty = 1.10;
+          parsed.repetition_penalty = 1.15;
           modified = true;
         }
         if (parsed.min_p === undefined) {
@@ -143,22 +143,36 @@ export const MODEL_OPTIONS = [
 
 export const ALLOWED_MODELS = new Set<string>(MODEL_OPTIONS.map((m) => m.id));
 
+export const INTERNAL_MODELS = new Set<string>([
+  "meta-llama/llama-3.3-70b-instruct",
+  SUMMARIZER_MODEL,
+]);
+
+export const ALL_ALLOWED_MODELS = new Set<string>([
+  ...ALLOWED_MODELS,
+  ...INTERNAL_MODELS,
+]);
+
 export function getModelNickname(id: string | null | undefined): string {
   const sanitized = sanitizeModel(id);
   const found = MODEL_OPTIONS.find((m) => m.id === sanitized);
   return found?.name ?? "Sao10K: Euryale 70B";
 }
 
-export function sanitizeModel(id: string | null | undefined): string {
+export function sanitizeModel(
+  id: string | null | undefined,
+  allowInternal = false,
+): string {
   if (id === "venice/uncensored") {
     return "cognitivecomputations/dolphin-mistral-24b-venice-edition";
   }
-  if (id && ALLOWED_MODELS.has(id)) {
+  const allowed = allowInternal ? ALL_ALLOWED_MODELS : ALLOWED_MODELS;
+  if (id && allowed.has(id)) {
     return id;
   }
   return DEFAULT_MODEL;
 }
 
-export function model(id: string | null | undefined) {
-  return openrouter(sanitizeModel(id));
+export function model(id: string | null | undefined, allowInternal = true) {
+  return openrouter(sanitizeModel(id, allowInternal));
 }

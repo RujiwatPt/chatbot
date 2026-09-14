@@ -9,6 +9,7 @@ import { ensureTagsExist } from "@/lib/tags";
 
 import { z } from "zod";
 import { sanitizeModel } from "@/lib/openrouter";
+import { isAdminUser } from "@/lib/auth-admin";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const CharacterSchema = z.object({
@@ -71,6 +72,11 @@ export async function createCharacter(form: FormData) {
 
   const payload = readAndValidateForm(form);
 
+  // Gate public publishing: only administrators can publish publicly without review
+  if (!isAdminUser(user.email)) {
+    payload.is_public = false;
+  }
+
   await ensureTagsExist(supabase, payload.tags);
 
   const { data, error } = await supabase
@@ -105,14 +111,25 @@ export async function createCharacter(form: FormData) {
 
 export async function updateCharacter(id: string, form: FormData) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
   const payload = readAndValidateForm(form);
+
+  // Gate public publishing: only administrators can publish publicly without review
+  if (!isAdminUser(user.email)) {
+    payload.is_public = false;
+  }
 
   await ensureTagsExist(supabase, payload.tags);
 
   const { error } = await supabase
     .from("characters")
     .update(payload)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
 
   // Background bio generation: never blocks form submission
@@ -140,12 +157,19 @@ export async function updateCharacter(id: string, form: FormData) {
 
 export async function deleteCharacter(id: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: char } = await supabase
     .from("characters")
     .select("avatar_url")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
+
+  if (!char) throw new Error("Character not found or unauthorized");
 
   if (char?.avatar_url && char.avatar_url.startsWith("/api/avatars/")) {
     const objectKey = char.avatar_url.replace("/api/avatars/", "");
@@ -164,7 +188,11 @@ export async function deleteCharacter(id: string) {
     }
   }
 
-  const { error } = await supabase.from("characters").delete().eq("id", id);
+  const { error } = await supabase
+    .from("characters")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   revalidatePath("/characters");
   redirect("/characters");

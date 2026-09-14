@@ -24,10 +24,12 @@ export default function CharacterForm({
   action,
   initial,
   submitLabel = "Save",
+  isAdmin = false,
 }: {
   action: (form: FormData) => void | Promise<void>;
   initial?: Character;
   submitLabel?: string;
+  isAdmin?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [alias, setAlias] = useState(initial?.alias ?? "");
@@ -312,20 +314,38 @@ export default function CharacterForm({
         </div>
       </div>
 
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="is_public"
-          defaultChecked={initial?.is_public ?? false}
-          className="mt-0.5"
-        />
-        <span>
-          <span className="font-medium">Make public</span>
-          <span className="muted block text-xs">
-            Other users can discover and chat with this character.
+      {isAdmin ? (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="is_public"
+            defaultChecked={initial?.is_public ?? false}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium">Make public</span>
+            <span className="muted block text-xs">
+              Other users can discover and chat with this character in the public directory.
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      ) : (
+        <div className="flex items-start gap-2 text-sm rounded-lg border border-[var(--line)] p-3 bg-[color:var(--surface-solid)]/50">
+          <input
+            type="checkbox"
+            name="is_public"
+            disabled
+            checked={false}
+            className="mt-0.5 opacity-50 cursor-not-allowed"
+          />
+          <span>
+            <span className="font-medium text-neutral-500 dark:text-neutral-400">Make public</span>
+            <span className="muted block text-xs">
+              Public directory publishing is restricted to administrators. This character will remain private to your account.
+            </span>
+          </span>
+        </div>
+      )}
       <FormSubmitButton label={submitLabel} uploading={uploading} />
     </form>
   );

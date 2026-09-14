@@ -78,6 +78,7 @@ import {
   stripAppearanceTropes,
   extractUsedActionsAndSounds,
   extractRepeatedPhrases,
+  extractLastTurnPhrases,
   looksRepetitive,
   validateInCharacterOutput,
 } from "./roleplay-cleaner";
@@ -87,9 +88,28 @@ export {
   stripAppearanceTropes,
   extractUsedActionsAndSounds,
   extractRepeatedPhrases,
+  extractLastTurnPhrases,
   looksRepetitive,
   validateInCharacterOutput,
 };
+
+function formatCharacterDefinition(
+  selfName: string,
+  character: Character,
+  personaOverride?: string,
+) {
+  const persona = personaOverride ?? character.persona;
+  return `<character_definition>
+Name: ${selfName}
+Persona & Traits:
+${persona}
+${character.scenario ? `Scenario: ${character.scenario}\n` : ""}${
+    character.greeting
+      ? `Greeting Anchor / Voice Reference (do not repeat this greeting):\n${character.greeting}\n`
+      : ""
+  }[Visual Reference Note: Physical details in this definition are static visual facts for the user. Do NOT repeat or re-describe ${selfName}'s physical appearance in your narration.]
+</character_definition>`;
+}
 
 export function buildSystemPrompt(opts: {
   character: Character;
@@ -110,18 +130,9 @@ export function buildSystemPrompt(opts: {
   const parts: string[] = [];
 
   parts.push(
-    `[ROLEPLAY MODE: Active]\nYou are portraying ${selfName} in an ongoing immersive roleplay scenario. Maintain high engagement, emotional resonance, and strict character adherence.`,
+    `You are portraying ${selfName}. Stay in character. Never break into assistant or AI voice.`,
   );
-
-  parts.push(
-    `<character_definition>\nName: ${selfName}\nPersona & Traits:\n${character.persona}\n${
-      character.scenario ? `Scenario: ${character.scenario}\n` : ""
-    }${
-      character.greeting
-        ? `Greeting Anchor / Voice Reference (Tone Reference Only — do NOT re-enact or repeat this specific greeting action in ongoing dialogue):\n${character.greeting}\n`
-        : ""
-    }[Visual Reference Note: Physical details in this definition are static visual facts for the user. Do NOT repeat or re-describe ${selfName}'s physical appearance in your narration.]\n</character_definition>`,
-  );
+  parts.push(formatCharacterDefinition(selfName, character));
 
   if (userName || userPronouns || userDescription) {
     parts.push(
@@ -137,7 +148,7 @@ export function buildSystemPrompt(opts: {
 
   if (sceneState) {
     parts.push(
-      `<scene_state>\nLocation: ${sceneState.location}\nEmotional Tone: ${sceneState.tone}\nRelationship: ${sceneState.relationship}\nCurrent Goal: ${sceneState.goal}\n</scene_state>`,
+      `<scene_state>\nLocation: ${sceneState.location}\nEmotional Tone: ${sceneState.tone}\nRelationship: ${sceneState.relationship}\nCurrent Goal: ${sceneState.goal}\nStay in this location unless the user moves the scene.\n</scene_state>`,
     );
   }
 
@@ -158,43 +169,34 @@ export function buildSystemPrompt(opts: {
     }),
   );
 
-  const directives: string[] = [
-    `CORE ROLEPLAY & USER AGENCY (STRICT):`,
-    `- Stay 100% in character as ${selfName} at all times. Never output AI disclaimers, assistant apologies, or out-of-character phrases.`,
-    `- User Agency & Anti-Autoplay:`,
-    `  - NEVER speak, act, react, think, or make decisions for the user. Never narrate the user's bodily responses, sensations, or inner thoughts.`,
-    `  - Play ONLY ${selfName}. Advance the story one single beat at a time based solely on what the user actually said or did.`,
-    `  - Never rush ahead or process entire scenarios on your own. Always pause and leave room for the user to respond.`,
+  const ruleLines: string[] = [
+    `OUTPUT RULES`,
+    `Format:`,
+    `- Dialogue in "double quotes", first person (I/me/my). No tags like "I say" or "I whisper".`,
+    `- Actions in *asterisks*, third person (${selfName} / he / she / they). Never I/me/my inside asterisks.`,
+    `- Setting in plain text. One beat: 1–3 short paragraphs, ~1–2 action blocks and ~1–2 spoken lines (~80–180 words). No walls of text.`,
+    `- Vary order: dialogue-first, action-first, or setting-first. Do not use the same skeleton every turn.`,
+    `Agency:`,
+    `- Play only ${selfName}. Never speak, act, decide, or feel for the user. Never narrate the user's body, sensations, or thoughts.`,
+    `- Advance one beat from what the user just did or said, then stop.`,
     userName
-      ? `- Address or refer to the user directly as "you"/"your" or by their name (${userName}) in both narration and spoken dialogue.`
-      : `- Address or refer to the user directly as "you"/"your" in both narration and spoken dialogue.`,
+      ? `- Address the user as "you" or ${userName}.`
+      : `- Address the user as "you".`,
     userPronouns
-      ? `- When referring to the user in third-person descriptive narration or thoughts, use their preferred pronouns (${userPronouns}).`
+      ? `- If you refer to the user in third person, use ${userPronouns}.`
       : "",
-    "",
-    `CONSISTENT RESPONSE PATTERN & FORMAT (STRICT):`,
-    `- Spoken Dialogue: MUST ALWAYS be enclosed in double quotation marks ("..."), spoken in natural first-person from ${selfName}'s perspective ("I", "me", "my", "you").`,
-    `  - NEVER write spoken dialogue tags like '"...", I say', '"...", I mutter', or '"...", I whisper'. Let quotes stand cleanly.`,
-    `- Physical Actions & Expressions: MUST ALWAYS be enclosed in *asterisks* (*...*), written in third-person descriptive prose using ${selfName}'s name or third-person pronouns (*He glances over...*). NEVER use first-person ("I", "me") inside asterisks.`,
-    `- Scene & Setting Narration: Plain normal text without quotes or asterisks.`,
-    `- Interactive Turn Pacing: Keep turns engaging, conversational, and punchy (1 to 3 short paragraphs, ~80–200 words). Maintain a natural balance of ~1–2 spoken lines and ~1–2 purposeful action blocks per turn. Never monologue or produce walls of text.`,
-    "",
-    `CREATIVE ACTION & VIVID WORDING (MANDATE):`,
-    `- Inventive Physical Actions: Bring every turn alive with fresh, context-specific actions. Actively interact with objects in the room, furniture, props, and physical space. Express ${selfName}'s personality through dynamic movement, posture, and purposeful behavior rather than passive or generic filler.`,
-    `- Rich & Varied Vocabulary: Vary sentence lengths, openings, and rhythm across turns. Introduce diverse verbs and imaginative phrasing. Avoid falling into formulaic sentence starters or recycling pet phrases.`,
-    `- Replace Appearance Commentary with Action & Environment: Concentrate 100% on what ${selfName} actively DOES, SAYS, and FEELS in the moment. Physical appearance from the character sheet is fixed background context—do not waste turns narrating ${selfName}'s own eye color, facial features, or body traits.`,
+    `Wording Variety:`,
+    `- New opening, verbs, and images every turn. Do not copy or lightly paraphrase your last reply.`,
+    `- Do not stack filler adverbs (softly, gently, quietly, slowly, tenderly) or reuse a stock beat (chuckle, sigh, smirk, lean in, eyes soften, head tilt) on consecutive turns.`,
+    `- Appearance is already known. Do not narrate ${selfName}'s eyes, hair, fangs, ears, tail, or body as decoration.`,
     isRomanticOrNsfw
-      ? `- Intimate & Sensual Scenes (Creative Dynamic & Mutual Passion):
-  - Active Attentiveness: When intimate or sensual scenes unfold, ${selfName} must be deeply attentive, passionate, and responsive to the user's pleasure, comfort, and desires.
-  - Tension & Progression: Build emotional and physical tension naturally toward climax and release through genuine dialogue, shifting rhythm, and authentic responsiveness.
-  - Creative Prose: Detail the atmosphere and physical connection with fresh, evocative language and dynamic touch, avoiding repetitive stock tropes or formulaic sensory clichés.`
-      : `- Interpersonal Connection & Emotional Resonance:
-  - Deeply listen to the user, respond to their emotional state, and support their agency without forcing romance or intimacy unless initiated by the user.
-  - Ground interactions in ${selfName}'s unique personality, dynamic, and relationship with the user.`,
+      ? `Intimate & Sensual Scenes: one attentive beat of ${selfName}'s action and voice. Be specific about ${selfName} only — never write the user's body or climax for them. Do not rush the scene.`
+      : `Interpersonal Connection & Emotional Resonance: stay in ${selfName}'s personality and meet the user's emotional tone. Do not force romance or intimacy.`,
   ].filter(Boolean);
 
   if (opts.priorAssistant && opts.priorAssistant.length > 0) {
     const recentTurns = opts.priorAssistant.slice(-4);
+    const lastTurn = recentTurns[recentTurns.length - 1] ?? "";
     const recentOpenings = recentTurns
       .map((p) => {
         const cleaned = p.trim();
@@ -204,51 +206,67 @@ export function buildSystemPrompt(opts: {
       .filter(Boolean);
 
     const repeatedPhrases = extractRepeatedPhrases(recentTurns);
+    const lastTurnPhrases = extractLastTurnPhrases(lastTurn);
+    const usedBeats = extractUsedActionsAndSounds(recentTurns).slice(0, 8);
 
-    if (recentOpenings.length > 0 || repeatedPhrases.length > 0) {
-      directives.push(`- Structural Variety & Anti-Repetition Across Turns:`);
+    if (
+      recentOpenings.length > 0 ||
+      repeatedPhrases.length > 0 ||
+      lastTurnPhrases.length > 0 ||
+      usedBeats.length > 0
+    ) {
+      ruleLines.push(`Do not reuse this turn:`);
       if (recentOpenings.length > 0) {
         const formattedOpenings = recentOpenings
           .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
           .join(", ");
-        directives.push(
-          `  - Recent turn openings: [${formattedOpenings}]. Vary how you open this response—start with a fresh action, direct dialogue line, or situational reaction.`,
+        ruleLines.push(
+          `- Recent turn openings: [${formattedOpenings}]. Vary how you open this response—start with a fresh action, direct dialogue line, or situational reaction.`,
+        );
+      }
+      if (usedBeats.length > 0) {
+        ruleLines.push(
+          `- Physical/vocal beats already used in recent turns: ${usedBeats.join(", ")}. Pick a different action this turn.`,
+        );
+      }
+      if (lastTurnPhrases.length > 0) {
+        const formatted = lastTurnPhrases.map((p) => `"${p}"`).join(", ");
+        ruleLines.push(
+          `- Phrases from your last reply (do not reuse or lightly paraphrase): [${formatted}].`,
         );
       }
       if (repeatedPhrases.length > 0) {
         const formattedPhrases = repeatedPhrases.map((p) => `"${p}"`).join(", ");
-        directives.push(
-          `  - RECENTLY REPEATED PHRASES (STRICTLY AVOID): You have repeated these exact phrases across recent turns: [${formattedPhrases}]. Do NOT reuse them in this turn. Express the moment using completely new words, actions, and phrasing.`,
+        ruleLines.push(
+          `- RECENTLY REPEATED PHRASES (STRICTLY AVOID): [${formattedPhrases}].`,
         );
       }
     }
   }
 
-  directives.push(
-    `[FINAL REMINDER]: Respond strictly in pattern (dialogue in quotes, actions in asterisks). Focus on what ${selfName} does and says next with creative, fresh actions and vivid dialogue.`,
-  );
-
   if (feedback && feedback.length > 0) {
     if (feedback.includes("too_verbose")) {
-      directives.push(
-        `- USER PREFERENCE: Keep responses concise and punchy (1-3 short paragraphs maximum). Avoid long monologues.`,
-      );
+      ruleLines.push(`User preference: stay under ~120 words. Cut extra description.`);
     }
     if (
       feedback.includes("more_in_character") ||
       feedback.includes("too_generic")
     ) {
-      directives.push(
-        `- USER PREFERENCE: Emphasize distinct character voice, mannerisms, and emotional reactions. Avoid generic or neutral phrasing.`,
+      ruleLines.push(
+        `User preference: stronger ${selfName} voice and specific mannerisms. Avoid generic phrasing.`,
       );
     }
   }
 
-  let finalPrompt = [...parts, directives.join("\n\n")].join("\n\n");
+  ruleLines.push(
+    `[FINAL REMINDER]: Respond strictly in pattern (dialogue in quotes, actions in asterisks). Next beat only — new verbs and images, no recycled wording from your last reply.`,
+  );
+
+  const rules = ruleLines.join("\n");
+  let finalPrompt = [...parts, rules].join("\n\n");
 
   // Multi-stage fallback prompt budgeting to guarantee system prompt never overflows context limits
   if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
-    // Stage 1: Trim facts to 10
     const trimmedFacts = facts.slice(0, 10);
     let trimmedParts = parts.filter((p) => !p.startsWith("<durable_facts>"));
     if (trimmedFacts.length) {
@@ -256,9 +274,8 @@ export function buildSystemPrompt(opts: {
         `<durable_facts>\n${trimmedFacts.map((f) => `- ${f}`).join("\n")}\n</durable_facts>`,
       );
     }
-    finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+    finalPrompt = [...trimmedParts, rules].join("\n\n");
 
-    // Stage 2: Truncate summary to 1200 chars if still over
     if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS && summary) {
       const truncatedSummary = `${summary.slice(0, 1200)}...`;
       trimmedParts = trimmedParts.map((p) =>
@@ -266,38 +283,30 @@ export function buildSystemPrompt(opts: {
           ? `<narrative_summary>\n${truncatedSummary}\n</narrative_summary>`
           : p,
       );
-      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+      finalPrompt = [...trimmedParts, rules].join("\n\n");
     }
 
-    // Stage 3: Trim persona if still over
     if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS && character.persona.length > 800) {
       const trimmedPersona = `${character.persona.slice(0, 800)}...`;
       trimmedParts = trimmedParts.map((p) =>
         p.startsWith("<character_definition>")
-          ? `<character_definition>\nName: ${selfName}\nPersona & Traits:\n${trimmedPersona}\n${
-              character.scenario ? `Scenario: ${character.scenario}\n` : ""
-            }${
-              character.greeting
-                ? `Greeting Anchor / Voice Reference:\n*${character.greeting}*\n`
-                : ""
-            }</character_definition>`
+          ? formatCharacterDefinition(selfName, character, trimmedPersona)
           : p,
       );
-      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+      finalPrompt = [...trimmedParts, rules].join("\n\n");
     }
 
-    // Stage 4: Drop optional sections cleanly before raw line-boundary slice fallback
     if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
       trimmedParts = trimmedParts.filter((p) => !p.startsWith("<narrative_summary>"));
-      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+      finalPrompt = [...trimmedParts, rules].join("\n\n");
     }
     if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
       trimmedParts = trimmedParts.filter((p) => !p.startsWith("<durable_facts>"));
-      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+      finalPrompt = [...trimmedParts, rules].join("\n\n");
     }
     if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
       trimmedParts = trimmedParts.filter((p) => !p.startsWith("<scene_state>"));
-      finalPrompt = [...trimmedParts, directives.join("\n\n")].join("\n\n");
+      finalPrompt = [...trimmedParts, rules].join("\n\n");
     }
     if (estimateTokens(finalPrompt) > MAX_SYSTEM_TOKENS) {
       const maxChars = MAX_SYSTEM_TOKENS * 4;

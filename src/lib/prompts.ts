@@ -1,50 +1,46 @@
-export const SUMMARIZER_SYSTEM = `You compress roleplay conversations into a faithful, concise, running narrative summary, and extract durable facts to remember.
+export const SUMMARIZER_SYSTEM = `You update a running roleplay memory. Output JSON only — no markdown, no code fences, no commentary.
 
-You will receive:
-- Character info (name, persona, scenario)
-- The PREVIOUS summary (may be empty)
-- A block of NEW messages to fold in (these come AFTER the previous summary's coverage)
+You receive character info, the previous summary (maybe empty), and NEW messages after that summary.
 
-Produce JSON with two fields:
-- "summary": One updated narrative summary covering the previous summary PLUS the new messages, in past tense, 4-10 short paragraphs maximum. Maintain narrative continuity: do NOT drop critical overarching story milestones, major promises, romantic/physical progression, or established character dynamics when adding new events. Preserve emotional tone, key choices, named entities, locations, promises, and conflicts.
-- "facts": A list of NEW durable facts established in the new messages that should always be remembered (names, identity traits, user background, relationships, promises, key possessions, major decisions, world rules). Each item must be an object with "category" ("identity" | "promise" | "world" | "other") and "content" (one clear, self-contained sentence). Do not repeat facts already implied by the previous summary or existing facts. Return an empty list if no new durable facts.
-
-Do not invent details. Do not include meta-commentary. Stay faithful to what was actually said.`;
-
-export const SCENE_STATE_SYSTEM = `You maintain a compact roleplay scene state for continuity.
-
-Return JSON only:
+Return:
 {
-  "location": "short phrase",
-  "tone": "short phrase",
-  "relationship": "short phrase",
-  "goal": "short phrase"
+  "summary": "past-tense narrative of previous summary PLUS new messages, 4–8 short paragraphs. Keep names, promises, relationship shifts, location, and unresolved conflicts. Do not invent. Do not quote dialogue at length.",
+  "facts": [{"category":"identity"|"promise"|"world"|"other","content":"one sentence"}]
 }
 
-Rules:
-- Use only information grounded in the provided conversation.
-- Keep each field concise and specific.
-- Do not include markdown, code fences, or extra keys.`;
+Facts: only NEW durable facts not already in the previous summary or existing facts. Max 8. Empty array if none. Do not invent.`;
 
-export const PERSONA_BIO_SYSTEM = `You rewrite a second-person character description into a warm, natural third-person bio for someone browsing characters to chat with.
+export const SCENE_STATE_SYSTEM = `Track the current roleplay scene. Output JSON only — no markdown, no extra keys.
 
-Rules:
-- Use the character's name and consistent third-person pronouns inferred from the description.
-- Keep every trait, mannerism, and detail faithful — do not invent, exaggerate, or omit.
-- When the description refers to the user, refer to them as "you".
-- 2-4 short paragraphs. No headings, no lists, no meta-commentary, and do not quote these instructions.
-- Output only the bio text.`;
+{
+  "location": "3–8 words, grounded in the recent turns",
+  "tone": "3–8 words",
+  "relationship": "3–8 words",
+  "goal": "3–8 words, the immediate next beat — not a plot summary"
+}
 
-export const REWRITE_SYSTEM = `You are an in-character rewrite pass for a roleplay chatbot.
+Use only what the conversation shows. Do not teleport or invent a new setting.`;
 
-Given a draft response and constraints, output ONE revised response that:
-- stays fully in character
-- avoids assistant-like boilerplate
-- completely removes all self-appearance commentary, gaze clichés, and physical tropes, replacing them with concrete actions, environmental interaction, or vocal delivery
-- enforces STRICT first-person ("I"/"me"/"my"/"mine"/"myself") for all spoken dialogue — convert any third-person self-talk (e.g. "Kael loves you" -> "I love you", "Just him and you" -> "Just me and you") into natural first-person spoken dialogue
-- enforces STRICT third-person character name/pronouns (e.g. *Kael smiles*, *he looks up*) for all *action* narration and description statements (NEVER use "I" or "me" inside asterisks)
-- follows naming constraints (character name vs user name)
-- strictly eliminates duplicate wording, repetitive sentence structures, and recycled gestures from recent turns
-- preserves original emotional intent and story continuity
+export const PERSONA_BIO_SYSTEM = `Rewrite a second-person character sheet into a third-person browse bio.
 
-Return plain text only.`;
+- Use the character's name and pronouns inferred from the sheet.
+- Keep traits faithful. Do not invent or omit.
+- Refer to the user as "you" when the sheet does.
+- 2–4 short paragraphs. No headings, lists, or instructions.
+- Output bio text only.`;
+
+export const REWRITE_SYSTEM = `Rewrite ONE in-character roleplay turn.
+
+Keep: character voice, intent, and the next story beat.
+Fix: format, agency, and repetition.
+
+Format: dialogue in "quotes" (first person I/me). Actions in *asterisks* (third person name/he/she/they — never I/me inside asterisks). No "I say / I whisper" tags.
+Agency: never speak, act, or feel for the user; never narrate the user's body.
+Variety: new opening, verbs, and images. Do not reuse phrases, adverbs, or gestures from the draft or recent turns. No appearance tropes (eyes/gaze/fangs/ears/tail as decoration).
+Length: one beat, 1–3 short paragraphs.
+
+Return the rewritten turn only.`;
+
+export const CONTINUE_NUDGE = `[CONTINUE]: Advance one new beat. Do not repeat the last action, sentence, posture, or phrasing.`;
+
+export const RETRY_MANDATE = `[RETRY]: The previous draft was rejected. Write a different turn: new opening, new verbs, new physical beats, no reused phrases.`;

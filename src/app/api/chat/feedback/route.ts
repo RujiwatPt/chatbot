@@ -28,6 +28,17 @@ export async function POST(request: Request) {
 
   if (!chat) return new Response("forbidden", { status: 403 });
 
+  // Verify message belongs to the specified chat and is an assistant response
+  const { data: msg } = await supabase
+    .from("messages")
+    .select("id")
+    .eq("id", messageId)
+    .eq("chat_id", chatId)
+    .eq("role", "assistant")
+    .maybeSingle();
+
+  if (!msg) return new Response("not_found", { status: 404 });
+
   const { error } = await supabase.from("message_feedback").upsert(
     {
       user_id: user.id,

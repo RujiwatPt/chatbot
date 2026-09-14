@@ -48,6 +48,16 @@ export default async function CharacterDetailPage({
   const avatarUrl = getCharacterAvatar(character.name, character.alias, character.avatar_url);
   const avatarFallbackUrl = getDefaultCharacterAvatar(character.name, character.alias);
   const isOwner = character.user_id === user?.id;
+  const displayPersona = getCleanPersonaDisplay(
+    character.persona_display,
+    character.persona,
+  );
+
+  // Strip raw system prompt for non-owners so it is never leaked over the wire in RSC payloads
+  if (!isOwner) {
+    delete (character as { persona?: string }).persona;
+  }
+
   const tags: string[] = Array.isArray(character.tags) ? character.tags : [];
 
   const start = startChat.bind(null, id);
@@ -93,7 +103,7 @@ export default async function CharacterDetailPage({
           )}
 
           <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
-            {getCleanPersonaDisplay(character.persona_display, character.persona)}
+            {displayPersona}
           </p>
 
           {character.scenario && (

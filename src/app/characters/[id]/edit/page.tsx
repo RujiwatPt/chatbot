@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/auth-admin";
 import CharacterForm from "../../CharacterForm";
 import { updateCharacter, deleteCharacter } from "../../actions";
 
@@ -29,6 +30,7 @@ export default async function EditCharacterPage({
     notFound();
   }
 
+  const isAdmin = isAdminUser(user?.email);
   const update = updateCharacter.bind(null, id);
   const remove = deleteCharacter.bind(null, id);
 
@@ -39,7 +41,7 @@ export default async function EditCharacterPage({
       </Link>
       <h1 className="page-title">Edit character</h1>
       <div className="panel p-5 sm:p-6">
-        <CharacterForm action={update} initial={character} submitLabel="Save" />
+        <CharacterForm action={update} initial={character} submitLabel="Save" isAdmin={isAdmin} />
       </div>
       <form action={remove}>
         <DeleteCharacterButton />

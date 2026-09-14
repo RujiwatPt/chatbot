@@ -33,8 +33,8 @@ export async function streamAssistantText(params: {
     messages,
     temperature: 0.85,
     topP: 0.95,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.35,
+    frequencyPenalty: 0.6,
+    presencePenalty: 0.4,
     maxOutputTokens: 500,
     abortSignal: abortSignal || AbortSignal.timeout(110000),
   });
@@ -65,8 +65,8 @@ export async function generateAssistantText(params: {
     messages,
     temperature: 0.85,
     topP: 0.95,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.35,
+    frequencyPenalty: 0.6,
+    presencePenalty: 0.4,
     maxOutputTokens: 500,
     abortSignal: AbortSignal.timeout(110000),
   });
@@ -85,7 +85,7 @@ export async function generateAssistantText(params: {
     const rewritePrompt = [
       `Character name: ${selfName}`,
       `Validation issues: ${validation.reasons.join(", ") || "(none)"}`,
-      repetitive ? "Repetition: detected against recent assistant turns." : null,
+      repetitive ? "Repetition: detected against recent assistant turns. Change opening, verbs, and images." : null,
       "",
       "DRAFT RESPONSE:",
       finalText,

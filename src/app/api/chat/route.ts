@@ -12,6 +12,7 @@ import {
 import { streamAssistantText } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { CONTINUE_NUDGE } from "@/lib/prompts";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
   });
 
   if (isContinueNudge) {
-    system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
+    system += `\n\n${CONTINUE_NUDGE}`;
   }
 
   const messages = [
