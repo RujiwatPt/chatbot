@@ -77,6 +77,7 @@ import {
   cleanRoleplayTropes,
   stripAppearanceTropes,
   extractUsedActionsAndSounds,
+  extractRepeatedPhrases,
   looksRepetitive,
   validateInCharacterOutput,
 } from "./roleplay-cleaner";
@@ -85,6 +86,7 @@ export {
   cleanRoleplayTropes,
   stripAppearanceTropes,
   extractUsedActionsAndSounds,
+  extractRepeatedPhrases,
   looksRepetitive,
   validateInCharacterOutput,
 };
@@ -116,7 +118,7 @@ export function buildSystemPrompt(opts: {
       character.scenario ? `Scenario: ${character.scenario}\n` : ""
     }${
       character.greeting
-        ? `Greeting Anchor / Voice Reference:\n${character.greeting}\n`
+        ? `Greeting Anchor / Voice Reference (Tone Reference Only — do NOT re-enact or repeat this specific greeting action in ongoing dialogue):\n${character.greeting}\n`
         : ""
     }[Visual Reference Note: Physical details in this definition are static visual facts for the user. Do NOT repeat or re-describe ${selfName}'s physical appearance in your narration.]\n</character_definition>`,
   );
@@ -201,14 +203,24 @@ export function buildSystemPrompt(opts: {
       })
       .filter(Boolean);
 
-    if (recentOpenings.length > 0) {
-      const formattedOpenings = recentOpenings
-        .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
-        .join(", ");
-      directives.push(
-        `- Structural Variety Across Turns:`,
-        `  - Recent turn openings: [${formattedOpenings}]. Vary how you open this response—start with a fresh action, direct dialogue line, or situational reaction. Keep wording and conversational beats fresh and evolving.`,
-      );
+    const repeatedPhrases = extractRepeatedPhrases(recentTurns);
+
+    if (recentOpenings.length > 0 || repeatedPhrases.length > 0) {
+      directives.push(`- Structural Variety & Anti-Repetition Across Turns:`);
+      if (recentOpenings.length > 0) {
+        const formattedOpenings = recentOpenings
+          .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
+          .join(", ");
+        directives.push(
+          `  - Recent turn openings: [${formattedOpenings}]. Vary how you open this response—start with a fresh action, direct dialogue line, or situational reaction.`,
+        );
+      }
+      if (repeatedPhrases.length > 0) {
+        const formattedPhrases = repeatedPhrases.map((p) => `"${p}"`).join(", ");
+        directives.push(
+          `  - RECENTLY REPEATED PHRASES (STRICTLY AVOID): You have repeated these exact phrases across recent turns: [${formattedPhrases}]. Do NOT reuse them in this turn. Express the moment using completely new words, actions, and phrasing.`,
+        );
+      }
     }
   }
 

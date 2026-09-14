@@ -246,3 +246,57 @@ export function validateInCharacterOutput(params: {
 
   return { ok: reasons.length === 0, reasons };
 }
+
+export function extractRepeatedPhrases(turns: string[]): string[] {
+  if (!turns || turns.length < 2) return [];
+
+  const stopWords = new Set([
+    "the", "and", "a", "to", "of", "in", "it", "is", "that", "you",
+    "he", "she", "they", "his", "her", "their", "my", "was", "for",
+    "on", "are", "as", "with", "at", "be", "this", "have", "from",
+    "or", "one", "had", "by", "word", "but", "not", "what", "all",
+    "were", "we", "when", "your", "can", "said", "there", "use",
+    "an", "each", "which", "do", "how", "if", "up", "so", "then",
+    "just", "about", "into", "over", "out", "me", "him", "them",
+  ]);
+
+  const turnNgrams = turns.map((turn) => {
+    const cleaned = turn.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+    const words = cleaned.split(" ");
+    const ngrams = new Set<string>();
+    for (let len = 2; len <= 5; len++) {
+      for (let i = 0; i <= words.length - len; i++) {
+        const slice = words.slice(i, i + len);
+        const nonStop = slice.filter((w) => !stopWords.has(w));
+        if (nonStop.length >= 1 && slice.length >= 2) {
+          ngrams.add(slice.join(" "));
+        }
+      }
+    }
+    return ngrams;
+  });
+
+  const counts = new Map<string, number>();
+  for (const set of turnNgrams) {
+    for (const ng of set) {
+      counts.set(ng, (counts.get(ng) || 0) + 1);
+    }
+  }
+
+  const repeated: string[] = [];
+  for (const [ng, count] of counts.entries()) {
+    if (count >= 2) {
+      repeated.push(ng);
+    }
+  }
+
+  repeated.sort((a, b) => b.length - a.length);
+  const filtered: string[] = [];
+  for (const r of repeated) {
+    if (!filtered.some((f) => f.includes(r))) {
+      filtered.push(r);
+    }
+  }
+
+  return filtered.slice(0, 5);
+}

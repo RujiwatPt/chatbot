@@ -38,6 +38,29 @@ const openrouterFetch: typeof fetch = async (input, init) => {
     customInit.headers = headers;
   }
 
+  // Inject anti-repetition parameters for OpenRouter (penalizes prompt & output repetition)
+  if (typeof customInit.body === "string" && (customInit.method === "POST" || !customInit.method)) {
+    try {
+      const parsed = JSON.parse(customInit.body);
+      if (parsed && typeof parsed === "object") {
+        let modified = false;
+        if (parsed.repetition_penalty === undefined) {
+          parsed.repetition_penalty = 1.10;
+          modified = true;
+        }
+        if (parsed.min_p === undefined) {
+          parsed.min_p = 0.08;
+          modified = true;
+        }
+        if (modified) {
+          customInit.body = JSON.stringify(parsed);
+        }
+      }
+    } catch {
+      // Non-JSON body, proceed without modification
+    }
+  }
+
   return await fetch(input, customInit);
 };
 

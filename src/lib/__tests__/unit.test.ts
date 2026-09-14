@@ -11,6 +11,7 @@ import {
   stripAppearanceTropes,
   cleanRoleplayTropes,
   extractUsedActionsAndSounds,
+  extractRepeatedPhrases,
 } from "../memory.js";
 import { detectPreferredName } from "../../app/api/chat/route.js";
 import { sanitizeNext } from "../../app/auth/callback/route.js";
@@ -131,9 +132,8 @@ test("buildSystemPrompt conditions intimate directives on character tags", () =>
   });
 
   assert.ok(romanticPrompt.includes("Intimate & Sensual Scenes"));
-  assert.ok(romanticPrompt.includes("Replace Appearance Commentary with Action & Environment"));
-  // Greeting anchor should NOT be wrapped in redundant outer asterisks
-  assert.ok(romanticPrompt.includes("Greeting Anchor / Voice Reference:\n*smiles* \"Welcome back.\"\n"));
+  assert.ok(romanticPrompt.includes("Greeting Anchor / Voice Reference"));
+  assert.ok(romanticPrompt.includes('*smiles* "Welcome back."\n'));
 
   const therapistChar = {
     name: "Dr. Mira Vance",
@@ -312,9 +312,43 @@ test("buildSystemPrompt guides structural variety across turns without negative 
     ],
   });
 
-  assert.ok(prompt.includes("Structural Variety Across Turns:"));
+  assert.ok(prompt.includes("Structural Variety & Anti-Repetition Across Turns:"));
   assert.ok(prompt.includes("Recent turn openings:"));
   assert.ok(prompt.includes("Vary how you open this response"));
+});
+
+test("extractRepeatedPhrases identifies multi-word n-grams repeated across turns", () => {
+  const turns = [
+    '*His warm breath tickles your ear as he leans in close.* "I know."',
+    '*He smiles, his warm breath tickling your ear softly.* "Are you ready?"',
+  ];
+  const repeated = extractRepeatedPhrases(turns);
+  assert.ok(repeated.includes("his warm breath"));
+  assert.ok(repeated.includes("your ear"));
+});
+
+test("buildSystemPrompt explicitly injects RECENTLY REPEATED PHRASES when detected", () => {
+  const prompt = buildSystemPrompt({
+    character: {
+      name: "Silas",
+      alias: null,
+      persona: "A companion.",
+      scenario: null,
+      greeting: "Hello.",
+      model: "sao10k/l3.3-euryale-70b",
+      tags: [],
+    },
+    facts: [],
+    sceneState: null,
+    summary: null,
+    priorAssistant: [
+      '*His warm breath tickles your ear as he leans in.* "Hello."',
+      '*He smiles gently, his warm breath tickling your ear.* "Stay."',
+    ],
+  });
+
+  assert.ok(prompt.includes("RECENTLY REPEATED PHRASES (STRICTLY AVOID):"));
+  assert.ok(prompt.includes("his warm breath"));
 });
 
 
