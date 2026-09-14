@@ -44,5 +44,6 @@ next-env.d.ts
 skills-lock.json
 .open-next/
 .wrangler/
+.test-dist.*
 
 

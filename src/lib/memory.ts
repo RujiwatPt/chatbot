@@ -16,6 +16,7 @@ export type Character = {
   scenario: string | null;
   greeting: string | null;
   model: string;
+  tags?: string[] | null;
 };
 
 export type SceneState = {
@@ -25,8 +26,8 @@ export type SceneState = {
   goal: string;
 };
 
-// Hard cap on messages fetched before token-budget pruning.
-const POST_SUMMARY_CAP = 30;
+// Cap on messages fetched past the summary marker before token-budget pruning
+const POST_SUMMARY_CAP = 60;
 
 // Max estimated tokens allowed in the verbatim recent message window (~4500 tokens ≈ 18,000 chars)
 export const MAX_RECENT_TOKENS = 4500;
@@ -72,6 +73,88 @@ export function deduplicateFacts(existingFacts: string[], newFacts: string[]): s
   return result;
 }
 
+export function stripAppearanceTropes(text: string): string {
+  if (!text) return text;
+
+  return text
+    .replace(/\*([^*]+)\*/g, (_fullMatch, actionInner: string) => {
+      let cleaned = actionInner;
+
+      const eyeAdjectives =
+        "(?:golden|amber|emerald|crimson|ruby|sapphire|yellow|hazel|blue|green|red|violet|piercing|heavy|intense|narrowed|dark|soft|warm|cold|sharp)";
+      const eyeNouns = "(?:eyes?|gaze|orbs?)";
+      const eyeVerbs =
+        "(?:soften|softens|softening|darken|darkens|darkening|harden|hardens|narrow|narrows|narrowing|flicker|flickers|flickering|gleam|gleams|gleaming|widen|widens|burn|burns|burning|flash|flashes|flashing|locking|locked|bore|bores|boring)";
+
+      // 1. Initial trope clause followed by "as/while he/she/they"
+      const r1 = new RegExp(
+        `^(?:with\\s+)?(?:his|her|their|my)?\\s*(?:${eyeAdjectives}\\s*){1,2}${eyeNouns}\\s+${eyeVerbs}(?:,\\s*|\\s+(?:as|while)\\s+)`,
+        "gi",
+      );
+      cleaned = cleaned.replace(r1, "");
+
+      // 2. Initial gaze/eye clause ending in comma, period, or "and"
+      const r2 = new RegExp(
+        `^(?:his|her|their|my)?\\s*(?:${eyeAdjectives}\\s*){1,2}${eyeNouns}\\s+${eyeVerbs}(?:\\s+with\\s+[a-z]+)?(?:[.,;]|\\s+and\\s+)?`,
+        "gi",
+      );
+      cleaned = cleaned.replace(r2, "");
+
+      // 3. Subordinate eye/gaze descriptors: e.g. ", his piercing blue eyes scanning" -> ", scanning"
+      const r3 = new RegExp(
+        `(?:,\\s*|\\s+with\\s+)(?:his|her|their|my)?\\s*(?:${eyeAdjectives}\\s*){1,2}${eyeNouns}\\s*`,
+        "gi",
+      );
+      cleaned = cleaned.replace(r3, (m) => (m.startsWith(",") ? ", " : " "));
+
+      // 4. Standalone gaze tropes in middle or end
+      const r4 = new RegExp(
+        `(?:,\\s*)?(?:his|her|their|my)?\\s*${eyeNouns}\\s+${eyeVerbs}(?:\\s+with\\s+[a-z]+)?`,
+        "gi",
+      );
+      cleaned = cleaned.replace(r4, "");
+
+      // 5. Fangs / teeth tropes
+      cleaned = cleaned.replace(
+        /(?:,\s*|\b(?:as|with)\s+)?(?:his|her|their|my)?\s*(?:sharp|pointed|gleaming)?\s*(?:teeth|fangs?|canines?)\s+(?:flash|flashes|flashing|glint|glints|glinting|graze|grazes|grazing|sink|sinks|sinking|bare|bares|baring|peeking|catch|catches|catching|brushing|pressing)[^,.*]*/gi,
+        "",
+      );
+
+      // 6. Smirk / grin tropes
+      cleaned = cleaned.replace(
+        /^(?:a\s+)?(?:smirk|grin)\s+(?:plays?|playing|tugs?|tugging|curls?|curling|spreads?|spreading|ghosts?|ghosting|creeps?|creeping)\s+(?:on|across|at)\s+(?:his|her|their)?\s*(?:lips|mouth|face)(?:,\s*|\s+(?:as|while)\s+)?/gi,
+        "",
+      );
+      cleaned = cleaned.replace(
+        /(?:,\s*)(?:a\s+)?(?:smirk|grin)\s+(?:plays?|playing|tugs?|tugging|curls?|curling|spreads?|spreading|ghosts?|ghosting|creeps?|creeping)\s+(?:on|across|at)\s+(?:his|her|their)?\s*(?:lips|mouth|face)[^,.*]*/gi,
+        "",
+      );
+
+      // 7. Animal ears / tail tropes
+      cleaned = cleaned.replace(
+        /(?:^|,\s*)(?:his|her|their|my)?\s*(?:wolf|cat|fox|animal)?\s*(?:ears?\s+(?:twitch|twitches|twitching|pin|pins|flatten|flattens)|tail\s+(?:sways?|swaying|flicks?|flicking|lashes?|lashing))[^,.*]*/gi,
+        "",
+      );
+
+      // Clean punctuation and whitespace
+      cleaned = cleaned
+        .replace(/^[\s,;.-]+|[\s,;.-]+$/g, "")
+        .replace(/\s*,\s*,\s*/g, ", ")
+        .replace(/,\s*and\s*$/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      if (cleaned.length > 0) {
+        cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        if (!/[.!?]$/.test(cleaned)) cleaned += ".";
+        return `*${cleaned}*`;
+      }
+      return "";
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function buildSystemPrompt(opts: {
   character: Character;
   facts: string[];
@@ -99,9 +182,9 @@ export function buildSystemPrompt(opts: {
       character.scenario ? `Scenario: ${character.scenario}\n` : ""
     }${
       character.greeting
-        ? `Greeting Anchor / Voice Reference:\n*${character.greeting}*\n`
+        ? `Greeting Anchor / Voice Reference:\n${character.greeting}\n`
         : ""
-    }</character_definition>`,
+    }[Visual Reference Note: Physical details in this definition are static visual facts for the user. Do NOT repeat or re-describe ${selfName}'s physical appearance in your narration.]\n</character_definition>`,
   );
 
   if (userName || userPronouns || userDescription) {
@@ -132,6 +215,13 @@ export function buildSystemPrompt(opts: {
     parts.push(`<narrative_summary>\n${summary}\n</narrative_summary>`);
   }
 
+  const isRomanticOrNsfw = Boolean(
+    character.tags?.some((t) => {
+      const lower = t.toLowerCase();
+      return lower === "nsfw" || lower === "romance";
+    }),
+  );
+
   const directives: string[] = [
     `RESPONSE CONTRACT:`,
     `- Stay 100% in character as ${selfName} at all times. Never output AI disclaimers or assistant phrases.`,
@@ -142,15 +232,14 @@ export function buildSystemPrompt(opts: {
     `- Concise & Interactive Turn Length (NO RAMBLING):`,
     `  - Keep your turns concise, punchy, and conversational (1 to 3 short paragraphs max, ~80–200 words).`,
     `  - Strictly avoid long monologues, over-explaining, repetitive inner rambling, or walls of text.`,
-    `- Intimate & Sensual Scenes (Atmosphere, Mutual Pleasure & Climax Progression):`,
-    `  - Active Attentiveness to User's Pleasure: When intimate or sexy scenes unfold, ${selfName} must be deeply attentive, passionate, and responsive to the user's pleasure and comfort. Actively encourage the user, respond to their desires, and prioritize mutual enjoyment.`,
-    `  - Climax & Peak Intensity Progression: Actively build physical and emotional tension toward mutual climax and release. When the user indicates rising pleasure or closeness to climax, enthusiastically match their intensity through encouraging whispers, shifting rhythm, breathless praise, and passionate physical responsiveness, guiding the encounter toward a deeply satisfying release and warm afterglow.`,
-    `  - Vivid Atmospheric & Sensory Setting: Detail the immediate moment with rich environmental and sensory depth (ambient lighting, skin warmth, ragged breathing, heartbeat, vocal nuances, tremors, and tactile contact) while strictly avoiding repetitive self-appearance tropes.`,
-    `- Strict Ban on Self-Appearance Expressions & Physical Tropes (ABSOLUTE PROHIBITION):`,
-    `  - ZERO APPEARANCE COMMENTARY: NEVER describe or mention ${selfName}'s own physical traits (eye color, pupil changes, gaze adjectives, teeth, fangs, canines, ear twitches, hair, claws, muscles, build, or height). The user already knows how ${selfName} looks from the character definition. Re-describing them is redundant and forbidden.`,
-    `  - FORBIDDEN GAZE & ANATOMY CLICHÉS: Never write tropes like '*his golden eyes soften*', '*his amber gaze*', '*sharp teeth/fangs graze*', '*his eyes darken with desire*', '*a low growl rumbles in his chest*', '*his ears pin back*', etc.`,
-    `  - NO REPETITIVE WORDING OR RECIDIVISM: Do not reuse stock verbs, gestures, or sentence structures from recent turns. Every turn must use fresh vocabulary, novel dialogue, and varied physical positioning.`,
-    `  - Focus 100% on interactive dialogue, immediate plot actions, vocal delivery, and emotional substance—NEVER on self-appearance commentary or body re-descriptions.`,
+    isRomanticOrNsfw
+      ? `- Intimate & Sensual Scenes (Atmosphere, Mutual Pleasure & Climax Progression):
+  - Active Attentiveness to User's Pleasure: When intimate or sensual scenes unfold, ${selfName} must be deeply attentive, passionate, and responsive to the user's pleasure and comfort. Actively encourage the user, respond to their desires, and prioritize mutual enjoyment.
+  - Climax & Peak Intensity Progression: Actively build physical and emotional tension toward mutual climax and release. When the user indicates rising pleasure or closeness to climax, enthusiastically match their intensity through encouraging whispers, shifting rhythm, breathless praise, and passionate physical responsiveness, guiding the encounter toward a deeply satisfying release and warm afterglow.
+  - Vivid Atmospheric & Sensory Setting: Detail the immediate moment with rich environmental and sensory depth (ambient lighting, skin warmth, ragged breathing, heartbeat, vocal nuances, tremors, and tactile contact) while strictly avoiding repetitive self-appearance tropes.`
+      : `- Interpersonal Connection & Emotional Resonance:
+  - Deeply listen to the user, respond to their emotional state, and support their agency without forcing romance or intimacy unless explicitly initiated by the user.
+  - Ground the dialogue in ${selfName}'s unique personality, professional boundaries, or companion dynamic.`,
     `- Format narration/actions in *asterisks* and spoken dialogue in plain text.`,
     `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
     `- Voice & Narration Split (STRICT REQUIREMENT):`,
@@ -180,27 +269,42 @@ export function buildSystemPrompt(opts: {
     userPronouns
       ? `- User Pronouns Rule: When referring to the user in third-person descriptive narration or reflective thoughts, strictly use their preferred pronouns (${userPronouns}). Never misgender the user.`
       : "",
+    `- Replace Appearance Commentary with Action & Environment (STRICT MANDATE):`,
+    `  - ZERO SELF-APPEARANCE COMMENTARY: The user already knows what ${selfName} looks like from the character definition. Under no circumstances should you describe, mention, or draw attention to ${selfName}'s own physical features, eyes, gaze changes, teeth, or bodily traits. Treat physical appearance as completely fixed background.`,
+    `  - MANDATORY SUBSTITUTE: Fill every action block (*action*) exclusively with concrete physical actions, environment interaction, and vocal tone:`,
+    `    * Environment & objects: interacting with room props, setting down items, leaning against surfaces, looking out windows.`,
+    `    * Spatial distance & posture: stepping back, taking a seat, turning around, offering an open hand, shifting weight.`,
+    `    * Vocal mannerisms & delivery: quiet whispers, chuckles, pauses between words, shifting cadence, steadying voice.`,
+    `    * Interpersonal touch: reaching out, brushing past, gentle contact, responsive touch.`,
+    `  - Focus 100% on what ${selfName} DOES, SAYS, or FEELS—never describe what ${selfName} looks like.`,
   ].filter(Boolean);
 
   if (opts.priorAssistant && opts.priorAssistant.length > 0) {
     const recentTurns = opts.priorAssistant.slice(-4);
     const recentOpenings = recentTurns
       .map((p) => {
-        const trimmed = p.trim();
-        const sentenceMatch = trimmed.match(/^[^\n.!?]+[.!?]/);
-        return sentenceMatch ? sentenceMatch[0].trim().slice(0, 75) : trimmed.slice(0, 50);
+        const cleaned = stripAppearanceTropes(p).trim();
+        const sentenceMatch = cleaned.match(/^[^\n.!?]+[.!?]/);
+        return sentenceMatch ? sentenceMatch[0].trim().slice(0, 75) : cleaned.slice(0, 50);
       })
       .filter(Boolean);
 
     if (recentOpenings.length > 0) {
+      const formattedOpenings = recentOpenings
+        .map((s) => JSON.stringify(`${s.replace(/"/g, "'")}...`))
+        .join(", ");
       directives.push(
         `- ANTI-REPETITION & VOCABULARY DIVERSITY MANDATE (CRITICAL):`,
-        `  - FORBIDDEN RECENT OPENINGS: Do NOT begin your response with any of these recent sentence openings or gestures: [${recentOpenings.map((s) => `"${s}..."`).join(", ")}]. You MUST open with an entirely distinct action, spoken dialogue line, or reaction!`,
-        `  - NO RECYCLED VERBS & GESTURES: Do NOT repeat the physical actions, vocalizations, or gestures you used in your recent turns (e.g. if you recently stepped closer, murmured, sighed, smirked, or tilted your head, choose COMPLETELY DIFFERENT actions and verbs now).`,
+        `  - FORBIDDEN RECENT OPENINGS: Do NOT begin your response with any of these recent sentence openings or gestures: [${formattedOpenings}]. You MUST open with an entirely distinct action, spoken dialogue line, or reaction!`,
+        `  - NO RECYCLED VERBS & GESTURES: Do NOT repeat the physical actions, vocalizations, or gestures you used in your recent turns. Choose completely distinct actions, alternate positioning, and new conversational beats.`,
         `  - NO DUPLICATE WORDING: Avoid reusing the same adjectives, metaphors, or pet phrases across turns. Introduce fresh phrasing and new conversational beats.`,
       );
     }
   }
+
+  directives.push(
+    `[FINAL REMINDER — ZERO APPEARANCE COMMENTARY]: Do NOT narrate or describe ${selfName}'s eyes, gaze, teeth, or physical body. Progress the scene with dialogue and physical environment actions only.`,
+  );
 
   if (feedback && feedback.length > 0) {
     if (feedback.includes("too_verbose")) {
@@ -303,7 +407,7 @@ export async function loadChatContext(
     supabase
       .from("chats")
       .select(
-        "*, character:characters(name, alias, persona, scenario, greeting, model)",
+        "*, character:characters(name, alias, persona, scenario, greeting, model, tags)",
       )
       .eq("id", chatId)
       .maybeSingle(),
@@ -431,23 +535,16 @@ export async function loadChatContext(
     }
   }
 
-  // Prioritize durable fact categories and deduplicate/cap to top 30 to preserve context budget
+  // Deduplicate durable facts
   const uniqueFacts = Array.from(new Set(facts));
-  const rank = (fact: string) => {
-    if (fact.startsWith("[identity]")) return 0;
-    if (fact.startsWith("[promise]")) return 1;
-    if (fact.startsWith("[world]")) return 2;
-    return 3;
-  };
-  uniqueFacts.sort((a, b) => rank(a) - rank(b));
-  const cappedFacts = uniqueFacts.slice(0, 30);
 
-  // Derive and enrich user description from identity facts
-  let effectiveUserDesc = userDescription;
-  const identityFacts = cappedFacts
+  // Extract identity facts directly to enrich user description
+  const identityFacts = uniqueFacts
     .filter((f) => f.startsWith("[identity]"))
     .map((f) => f.replace(/^\[identity\]\s*/, ""));
 
+  // Derive and enrich user description from identity facts
+  let effectiveUserDesc = userDescription;
   if (identityFacts.length) {
     if (!effectiveUserDesc) {
       effectiveUserDesc = identityFacts.join(". ");
@@ -461,8 +558,15 @@ export async function loadChatContext(
     }
   }
 
-  // Drop identity facts from facts list when merged to user profile to prevent double-injection
-  const finalFacts = cappedFacts.filter((f) => !f.startsWith("[identity]"));
+  // Prioritize and cap non-identity durable facts to top 30 to preserve context budget
+  const nonIdentityFacts = uniqueFacts.filter((f) => !f.startsWith("[identity]"));
+  const rank = (fact: string) => {
+    if (fact.startsWith("[promise]")) return 0;
+    if (fact.startsWith("[world]")) return 1;
+    return 2;
+  };
+  nonIdentityFacts.sort((a, b) => rank(a) - rank(b));
+  const finalFacts = nonIdentityFacts.slice(0, 30);
 
   return {
     character,

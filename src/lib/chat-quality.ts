@@ -22,20 +22,21 @@ export async function streamAssistantText(params: {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   priorAssistant: string[];
   userName?: string | null;
+  abortSignal?: AbortSignal;
 }) {
-  const { character, system, messages } = params;
+  const { character, system, messages, abortSignal } = params;
   const routedModel = pickModelId(character.model);
 
   const result = streamText({
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.94,
+    temperature: 0.85,
     topP: 0.95,
-    frequencyPenalty: 0.55,
-    presencePenalty: 0.6,
+    frequencyPenalty: 0.45,
+    presencePenalty: 0.35,
     maxOutputTokens: 500,
-    abortSignal: AbortSignal.timeout(110000),
+    abortSignal: abortSignal || AbortSignal.timeout(110000),
   });
 
   return {
@@ -62,10 +63,10 @@ export async function generateAssistantText(params: {
     model: model(routedModel),
     system,
     messages,
-    temperature: 0.94,
+    temperature: 0.85,
     topP: 0.95,
-    frequencyPenalty: 0.55,
-    presencePenalty: 0.6,
+    frequencyPenalty: 0.45,
+    presencePenalty: 0.35,
     maxOutputTokens: 500,
     abortSignal: AbortSignal.timeout(110000),
   });

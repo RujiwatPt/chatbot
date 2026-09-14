@@ -6,6 +6,8 @@ import {
   loadChatContext,
   maybeSummarize,
   refreshSceneState,
+  stripAppearanceTropes,
+  validateInCharacterOutput,
 } from "@/lib/memory";
 import { streamAssistantText } from "@/lib/chat-quality";
 import { encryptText } from "@/lib/encryption";
@@ -22,25 +24,56 @@ const Body = z.object({
 // Per-user rate limit: how many user messages allowed in the trailing minute.
 const RATE_LIMIT_PER_MINUTE = 20;
 
-const NAME_REQUEST_PATTERNS = [
-  /\bmy name is\s+([A-Za-z0-9_\-']{1,30})\b/i,
-  /\bcall me\s+([A-Za-z0-9_\-']{1,30})\b/i,
-  /\brefer to me as\s+([A-Za-z0-9_\-']{1,30})\b/i,
-  /\bi go by\s+([A-Za-z0-9_\-']{1,30})\b/i,
-  /\byou can call me\s+([A-Za-z0-9_\-']{1,30})\b/i,
-];
+const NAME_INTRO_PATTERN =
+  /(?:^|[.!?]\s*|\b(?:hi|hello|hey|greetings),?\s*)(?:my name is|i am called|i go by|you can call me|please call me)\s+([A-Za-z0-9_\-']{2,30})\b/i;
+
+const CALL_ME_PATTERN =
+  /\bcall me\s+([A-Za-z0-9_\-']{2,30})\b/i;
+
+const DISALLOWED_NAMES = new Set([
+  "a", "an", "the", "so", "just", "really", "here", "there", "now", "later",
+  "when", "if", "after", "before", "while", "tonight", "tomorrow", "back", "up",
+  "down", "on", "at", "by", "in", "again", "maybe", "please", "sir", "ma'am",
+  "babe", "baby", "honey", "darling", "sweetheart", "sweetie", "friend", "buddy",
+  "crazy", "stupid", "dumb", "idiot", "fool", "names", "that", "it", "something",
+  "anything", "nothing", "someone", "anyone", "everyone", "nobody"
+]);
 
 export function detectPreferredName(text: string): string | null {
-  for (const pat of NAME_REQUEST_PATTERNS) {
-    const m = text.match(pat);
-    if (m?.[1]) {
-      const candidate = m[1].trim();
-      const lower = candidate.toLowerCase();
-      const reserved = ["a", "an", "the", "so", "just", "really", "here", "there", "now", "later"];
-      if (reserved.includes(lower)) continue;
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  // Reject negative sentences ("don't call me", "never call me", etc.)
+  if (/\b(?:don't|do\s+not|never|stop|quit|not)\s+call\s+me\b/i.test(trimmed)) {
+    return null;
+  }
+
+  // 1. Try explicit introductions first ("my name is X", "you can call me X")
+  const introMatch = trimmed.match(NAME_INTRO_PATTERN);
+  if (introMatch?.[1]) {
+    const candidate = introMatch[1].trim();
+    if (!DISALLOWED_NAMES.has(candidate.toLowerCase())) {
       return candidate;
     }
   }
+
+  // 2. Try "call me X" with strict boundary and non-preposition check
+  const callMatch = trimmed.match(CALL_ME_PATTERN);
+  if (callMatch?.[1]) {
+    const candidate = callMatch[1].trim();
+    const lower = candidate.toLowerCase();
+    if (DISALLOWED_NAMES.has(lower)) return null;
+
+    // Check next word after candidate: if followed by preposition/conjunction, it's not a name
+    const afterMatch = trimmed.slice(trimmed.indexOf(candidate) + candidate.length).trim();
+    const firstNextWord = afterMatch.split(/\s+/)[0]?.toLowerCase().replace(/[^\w]/g, "");
+    if (firstNextWord && ["when", "if", "later", "tonight", "tomorrow", "after", "before", "on", "at"].includes(firstNextWord)) {
+      return null;
+    }
+
+    return candidate;
+  }
+
   return null;
 }
 
@@ -118,16 +151,15 @@ export async function POST(request: Request) {
 
   const effectiveUserName = detectedName || ctx.userName;
 
-  // Persist user prompt if not a continuation nudge
-  if (!isContinueNudge) {
-    const { error: userInsertErr } = await supabase.from("messages").insert({
-      chat_id: chatId,
-      role: "user",
-      content: await encryptText(userPromptContent, user.id),
-    });
-    if (userInsertErr) {
-      return new Response(userInsertErr.message, { status: 500 });
-    }
+  // Persist user prompt (or explicit continue marker) to ensure consistent turn alternating in DB
+  const userContentToSave = isContinueNudge ? "*continue*" : userPromptContent;
+  const { error: userInsertErr } = await supabase.from("messages").insert({
+    chat_id: chatId,
+    role: "user",
+    content: await encryptText(userContentToSave, user.id),
+  });
+  if (userInsertErr) {
+    return new Response(userInsertErr.message, { status: 500 });
   }
 
   const priorAssistant = ctx.recent
@@ -151,7 +183,10 @@ export async function POST(request: Request) {
   }
 
   const messages = [
-    ...ctx.recent.map((m) => ({ role: m.role, content: m.content })),
+    ...ctx.recent.map((m) => ({
+      role: m.role,
+      content: m.role === "assistant" ? stripAppearanceTropes(m.content) : m.content,
+    })),
     {
       role: "user" as const,
       content: isContinueNudge
@@ -171,6 +206,7 @@ export async function POST(request: Request) {
         .filter((m) => m.role === "assistant")
         .map((m) => m.content),
       userName: effectiveUserName,
+      abortSignal: request.signal,
     });
   } catch (err) {
     console.error("[chat_generation_error]", err);
@@ -206,12 +242,31 @@ export async function POST(request: Request) {
 
   after(async () => {
     try {
+      if (request.signal.aborted) {
+        console.log("[chat_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
+        return;
+      }
       const finalText = (await streamed.fullTextPromise).trim();
       if (finalText) {
+        const cleanedFinalText = stripAppearanceTropes(finalText);
         await supabase
           .from("messages")
-          .update({ content: await encryptText(finalText, user.id) })
+          .update({ content: await encryptText(cleanedFinalText, user.id) })
           .eq("id", inserted.id);
+
+        const validation = validateInCharacterOutput({
+          output: cleanedFinalText,
+          selfName: ctx.character.alias?.trim() || ctx.character.name,
+          sceneState: ctx.sceneState,
+          userName: effectiveUserName,
+        });
+        if (!validation.ok) {
+          console.warn("[character_drift_detected]", {
+            chatId,
+            messageId: assistantMsgId,
+            reasons: validation.reasons,
+          });
+        }
 
         if (!ctx.sceneState || ((totalMsgCount ?? 0) + 1) % 5 === 0) {
           await refreshSceneState(supabase, chatId, ctx.character, user.id);

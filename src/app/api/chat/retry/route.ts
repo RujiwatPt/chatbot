@@ -1,13 +1,19 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildSystemPrompt,
   loadChatContext,
   maybeSummarize,
+  refreshSceneState,
+  stripAppearanceTropes,
+  validateInCharacterOutput,
 } from "@/lib/memory";
-import { generateAssistantText } from "@/lib/chat-quality";
+import { streamAssistantText } from "@/lib/chat-quality";
 import { decryptText, encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+export const runtime = "nodejs";
 export const maxDuration = 120;
 
 const Body = z.object({
@@ -115,6 +121,10 @@ export async function POST(request: Request) {
     priorAssistant,
   });
 
+  if (rejectedAssistantContent) {
+    system += `\n\n[RETRY ANTI-REPETITION MANDATE]: The user requested a retry because your previous response was unsatisfactory. You MUST provide an entirely new response with fresh actions, different phrasing, and ZERO self-appearance commentary.`;
+  }
+
   if (isContinueNudge) {
     system += `\n\n[STORY PROGRESSION NUDGE]: The user is asking you to continue the scene forward. Progress the narrative, actions, and character interaction forward naturally. Do NOT repeat previous actions, sentences, or postures. Introduce new actions, dialogue, physical movement, or emotional developments.`;
   }
@@ -133,49 +143,104 @@ export async function POST(request: Request) {
         content: "[Continue: progress story forward without repeating previous turn]",
       };
     }
-    return { role: m.role, content: m.content };
+    return {
+      role: m.role,
+      content: m.role === "assistant" ? stripAppearanceTropes(m.content) : m.content,
+    };
   });
 
-  const generated = await generateAssistantText({
-    character: ctx.character,
-    sceneState: ctx.sceneState,
-    system,
-    messages,
-    priorAssistant,
-    userName: ctx.userName,
-  });
-
-  const finalText = generated.text.trim();
-  if (!finalText) {
+  let streamed;
+  try {
+    streamed = await streamAssistantText({
+      character: ctx.character,
+      sceneState: ctx.sceneState,
+      system,
+      messages,
+      priorAssistant,
+      userName: ctx.userName,
+      abortSignal: request.signal,
+    });
+  } catch (err) {
+    console.error("[retry_generation_error]", err);
     return new Response(
       "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
       { status: 503 },
     );
   }
 
-  const { data: inserted, error } = await supabase
+  // Synchronously persist initial assistant message row to obtain durable DB message ID
+  const { data: inserted, error: assistantInsertErr } = await supabase
     .from("messages")
     .insert({
       chat_id: chatId,
       role: "assistant",
-      content: await encryptText(finalText, user.id),
+      content: "",
     })
-    .select("id, role, content")
+    .select("id")
     .single();
-  if (error) return new Response(error.message, { status: 500 });
 
-  try {
-    await maybeSummarize(supabase, chatId, ctx.character, user.id);
-  } catch {
-    // best effort
+  if (assistantInsertErr || !inserted) {
+    console.error("[retry_assistant_initial_insert_failed]", assistantInsertErr);
+    return new Response("failed_to_initialize_message", { status: 500 });
   }
 
-  return Response.json({
-    ok: true,
-    message: {
-      id: String(inserted.id),
-      role: inserted.role,
-      content: finalText,
+  const assistantMsgId = String(inserted.id);
+
+  // Fetch total message count for exact scene refresh turn cadence
+  const { count: totalMsgCount } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("chat_id", chatId);
+
+  after(async () => {
+    try {
+      if (request.signal.aborted) {
+        console.log("[retry_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
+        return;
+      }
+      const finalText = (await streamed.fullTextPromise).trim();
+      if (finalText) {
+        const cleanedFinalText = stripAppearanceTropes(finalText);
+        await supabase
+          .from("messages")
+          .update({ content: await encryptText(cleanedFinalText, user.id) })
+          .eq("id", inserted.id);
+
+        const validation = validateInCharacterOutput({
+          output: cleanedFinalText,
+          selfName: ctx.character.alias?.trim() || ctx.character.name,
+          sceneState: ctx.sceneState,
+          userName: ctx.userName,
+        });
+        if (!validation.ok) {
+          console.warn("[retry_character_drift_detected]", {
+            chatId,
+            messageId: assistantMsgId,
+            reasons: validation.reasons,
+          });
+        }
+
+        if (!ctx.sceneState || ((totalMsgCount ?? 0) + 1) % 5 === 0) {
+          await refreshSceneState(supabase, chatId, ctx.character, user.id);
+        }
+        await maybeSummarize(supabase, chatId, ctx.character, user.id);
+      } else {
+        await supabase.from("messages").delete().eq("id", inserted.id);
+      }
+      console.log("[retry_generation_complete]", {
+        chatId,
+        messageId: assistantMsgId,
+        model: streamed.modelId,
+        length: finalText.length,
+      });
+    } catch (err) {
+      console.error("[after_retry_stream_save_error]", err);
+    }
+  });
+
+  return streamed.toTextStreamResponse({
+    headers: {
+      "x-message-id": assistantMsgId,
     },
   });
 }

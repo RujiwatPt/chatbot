@@ -12,8 +12,8 @@ type Msg = { id: string; role: "user" | "assistant"; content: string };
 
 function renderRoleplayText(text: string, isUser = false) {
   if (!text) return null;
-  // Notion-style rich text parser: matches **bold** and *action narration*
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  // Notion-style rich text parser: matches **bold**, *action narration*, or trailing unclosed *action during streaming
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\*[^*]+$)/g);
   return parts.map((part, idx) => {
     if (!part) return null;
 
@@ -27,9 +27,26 @@ function renderRoleplayText(text: string, isUser = false) {
       );
     }
 
-    // Handle *italic action narration* (strips * delimiter in rendering)
+    // Handle closed *italic action narration* (strips * delimiter in rendering)
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
       const innerContent = part.slice(1, -1);
+      return (
+        <span
+          key={idx}
+          className={
+            isUser
+              ? "user-roleplay-italic italic font-serif leading-relaxed"
+              : "italic text-muted font-serif leading-relaxed opacity-95"
+          }
+        >
+          {innerContent}
+        </span>
+      );
+    }
+
+    // Handle streaming unclosed trailing *italic action block
+    if (part.startsWith("*") && !part.endsWith("*") && part.length > 1) {
+      const innerContent = part.slice(1);
       return (
         <span
           key={idx}
@@ -120,13 +137,9 @@ export default function ChatClient({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionState, setActionState] = useState<"none" | "sending" | "retrying" | "undoing">("none");
-  const [activeModelId, setActiveModelId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("howly-selected-model");
-      if (saved) return saved;
-    }
-    return initialModelId || "sao10k/l3.3-euryale-70b";
-  });
+  const [activeModelId, setActiveModelId] = useState<string>(
+    initialModelId || "sao10k/l3.3-euryale-70b",
+  );
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [headerHidden, setHeaderHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -231,13 +244,17 @@ export default function ChatClient({
     const el = scrollRef.current;
     if (!el) return;
     if (!userScrolledUpRef.current) {
-      el.scrollTo({
-        top: el.scrollHeight,
-        behavior: didInitialScrollRef.current ? "smooth" : "auto",
-      });
+      if (busy) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTo({
+          top: el.scrollHeight,
+          behavior: didInitialScrollRef.current ? "smooth" : "auto",
+        });
+      }
       didInitialScrollRef.current = true;
     }
-  }, [messages]);
+  }, [messages, busy]);
 
   useEffect(() => {
     if (cooldownUntil <= Date.now()) return;
@@ -421,51 +438,108 @@ export default function ChatClient({
   }
 
   async function retryLast() {
-    if (busy || inFlightRef.current) return;
+    if (busy || inFlightRef.current || Date.now() < cooldownUntil) return;
 
-    // Find latest user prompt to re-send
-    const lastUserMsg = [...messages]
+    // Find the latest assistant message to replace
+    const lastAssistantIdx = [...messages]
+      .map((m, i) => ({ m, i }))
       .reverse()
-      .find((m) => m.role === "user");
+      .find((x) => x.m.role === "assistant")?.i;
 
-    if (!lastUserMsg) return;
+    if (lastAssistantIdx === undefined) return;
 
-    const retryPromptText =
-      lastUserMsg.content === "*continue*" || lastUserMsg.content === "[Continue]"
-        ? "*continue*"
-        : lastUserMsg.content;
+    const prevAssistantMsg = messages[lastAssistantIdx];
+    const assistantId = `a-${Date.now()}`;
 
+    inFlightRef.current = true;
     setBusy(true);
     setActionState("retrying");
     setError(null);
 
+    // Replace the unwanted assistant bubble with an empty streaming placeholder
+    setMessages((prev) => [
+      ...prev.slice(0, lastAssistantIdx),
+      { id: assistantId, role: "assistant", content: "" },
+    ]);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let acc = "";
+
     try {
-      // 1. Undo the previous turn in DB
-      const res = await fetch("/api/chat/undo", {
+      const res = await fetch("/api/chat/retry", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ chatId }),
+        signal: controller.signal,
       });
 
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         const errText = await res.text().catch(() => "");
-        throw new Error(errText || "Failed to reset turn for retry.");
+        throw new Error(
+          errText ||
+            "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
+        );
       }
 
-      // 2. Remove the undone turn from client state
-      setMessages((prev) => {
-        const lastUserIndex = [...prev]
-          .map((m, i) => ({ m, i }))
-          .reverse()
-          .find((x) => x.m.role === "user")?.i;
-        if (lastUserIndex === undefined) return prev;
-        return prev.slice(0, lastUserIndex);
-      });
-
-      // 3. Re-send the prompt via the robust real-time streaming pipeline
-      await send(undefined, retryPromptText);
+      const serverMsgId = res.headers.get("x-message-id");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setMessages((m) =>
+          m.map((x) =>
+            x.id === assistantId || (serverMsgId && x.id === serverMsgId)
+              ? { ...x, id: serverMsgId || x.id, content: acc }
+              : x,
+          ),
+        );
+      }
+      const finalFlushed = decoder.decode();
+      if (finalFlushed) {
+        acc += finalFlushed;
+      }
+      setMessages((m) =>
+        m.map((x) =>
+          x.id === assistantId || (serverMsgId && x.id === serverMsgId)
+            ? { ...x, id: serverMsgId || x.id, content: acc }
+            : x,
+        ),
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Retry failed");
+      const aborted = err instanceof DOMException && err.name === "AbortError";
+      if (aborted) {
+        setMessages((m) =>
+          m.map((x) =>
+            x.id === assistantId
+              ? {
+                  ...x,
+                  content: acc ? `${acc}\n\n[…stopped]` : "[stopped before reply]",
+                }
+              : x,
+          ),
+        );
+      } else {
+        const rawMsg = err instanceof Error ? err.message : "";
+        const userFacingMessage =
+          rawMsg.includes("high load") ||
+          rawMsg.includes("503") ||
+          rawMsg.includes("500") ||
+          rawMsg.includes("429")
+            ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
+            : rawMsg || "Retry failed. Please try again.";
+        setError(userFacingMessage);
+        setMessages((m) =>
+          m.map((x) => (x.id === assistantId ? (acc ? x : prevAssistantMsg) : x)),
+        );
+      }
+    } finally {
+      abortRef.current = null;
+      setCooldownUntil(Date.now() + COOLDOWN_MS);
+      setNow(Date.now());
+      inFlightRef.current = false;
       setBusy(false);
       setActionState("none");
     }
