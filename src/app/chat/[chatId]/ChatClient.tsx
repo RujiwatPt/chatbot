@@ -5,6 +5,7 @@ import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
 import { MODEL_OPTIONS, getModelNickname } from "@/lib/openrouter";
+import { cleanRoleplayTropes } from "@/lib/roleplay-cleaner";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
 
@@ -307,7 +308,6 @@ export default function ChatClient({
   const cooldownMsLeft = Math.max(0, cooldownUntil - now);
   const onCooldown = cooldownMsLeft > 0;
   const canSend = !onCooldown && !busy;
-  const hasAssistantMessage = messages.some((message) => message.role === "assistant" && message.content);
   const hasUserMessage = messages.some((message) => message.role === "user");
 
   async function send(e?: React.FormEvent, customText?: string) {
@@ -370,10 +370,11 @@ export default function ChatClient({
       if (finalFlushed) {
         acc += finalFlushed;
       }
+      const cleanedAcc = cleanRoleplayTropes(acc);
       setMessages((m) =>
         m.map((x) =>
           x.id === assistantId || (serverMsgId && x.id === serverMsgId)
-            ? { ...x, id: serverMsgId || x.id, content: acc }
+            ? { ...x, id: serverMsgId || x.id, content: cleanedAcc }
             : x,
         ),
       );
@@ -404,7 +405,7 @@ export default function ChatClient({
             : rawMsg ||
               "The model is experiencing some high load, try changing model or wait for a moment before trying again.";
         setError(userFacingMessage);
-        setMessages((m) => m.filter((x) => x.id !== assistantId));
+        setMessages((m) => m.filter((x) => x.id !== assistantId && x.id !== userMsg.id));
         setInput((prev) => prev || text);
       }
     } finally {
@@ -440,15 +441,16 @@ export default function ChatClient({
   async function retryLast() {
     if (busy || inFlightRef.current) return;
 
-    // Find the latest assistant message to replace
-    const lastAssistantIdx = [...messages]
-      .map((m, i) => ({ m, i }))
-      .reverse()
-      .find((x) => x.m.role === "assistant")?.i;
+    // Must have at least one user message to retry a turn
+    const hasUser = messages.some((m) => m.role === "user");
+    if (!hasUser) return;
 
-    if (lastAssistantIdx === undefined) return;
+    const lastIdx = messages.length - 1;
+    if (lastIdx < 0) return;
 
-    const prevAssistantMsg = messages[lastAssistantIdx];
+    const lastMsg = messages[lastIdx];
+    const isLastAssistant = lastMsg.role === "assistant";
+    const prevAssistantMsg = isLastAssistant ? lastMsg : null;
     const assistantId = `a-${Date.now()}`;
 
     inFlightRef.current = true;
@@ -456,11 +458,19 @@ export default function ChatClient({
     setActionState("retrying");
     setError(null);
 
-    // Replace the unwanted assistant bubble with an empty streaming placeholder
-    setMessages((prev) => [
-      ...prev.slice(0, lastAssistantIdx),
-      { id: assistantId, role: "assistant", content: "" },
-    ]);
+    // If the last message was an assistant message, replace it;
+    // if the last message was a user message (e.g. previous attempt errored or was interrupted), append the placeholder
+    if (isLastAssistant) {
+      setMessages((prev) => [
+        ...prev.slice(0, lastIdx),
+        { id: assistantId, role: "assistant", content: "" },
+      ]);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { id: assistantId, role: "assistant", content: "" },
+      ]);
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -504,10 +514,11 @@ export default function ChatClient({
       if (finalFlushed) {
         acc += finalFlushed;
       }
+      const cleanedAcc = cleanRoleplayTropes(acc);
       setMessages((m) =>
         m.map((x) =>
           x.id === assistantId || (serverMsgId && x.id === serverMsgId)
-            ? { ...x, id: serverMsgId || x.id, content: acc }
+            ? { ...x, id: serverMsgId || x.id, content: cleanedAcc }
             : x,
         ),
       );
@@ -534,9 +545,13 @@ export default function ChatClient({
             ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
             : rawMsg || "Retry failed. Please try again.";
         setError(userFacingMessage);
-        setMessages((m) =>
-          m.map((x) => (x.id === assistantId ? (acc ? x : prevAssistantMsg) : x)),
-        );
+        if (isLastAssistant && prevAssistantMsg) {
+          setMessages((m) =>
+            m.map((x) => (x.id === assistantId ? (acc ? x : prevAssistantMsg) : x)),
+          );
+        } else {
+          setMessages((m) => m.filter((x) => x.id !== assistantId));
+        }
       }
     } finally {
       abortRef.current = null;
@@ -856,7 +871,7 @@ export default function ChatClient({
             type="button"
             className="chat-icon-button"
             onClick={retryLast}
-            disabled={busy || !hasAssistantMessage}
+            disabled={busy || !hasUserMessage}
             aria-label={actionState === "retrying" ? "Retrying last response" : "Retry last response"}
             title="Retry last response"
             data-tooltip="Retry"

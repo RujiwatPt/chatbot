@@ -48,17 +48,15 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!latestUser) return new Response("nothing_to_undo", { status: 400 });
 
-  const { data: latestAssistant } = await supabase
+  const { data: latestAssistants } = await supabase
     .from("messages")
     .select("id")
     .eq("chat_id", chatId)
     .eq("role", "assistant")
-    .gt("id", latestUser.id)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .gt("id", latestUser.id);
 
-  const toDelete = [latestUser.id, latestAssistant?.id].filter(Boolean) as number[];
+  const assistantIds = (latestAssistants ?? []).map((a) => a.id);
+  const toDelete = [latestUser.id, ...assistantIds];
   const { error } = await supabase.from("messages").delete().in("id", toDelete);
   if (error) return new Response(error.message, { status: 500 });
 

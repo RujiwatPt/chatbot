@@ -79,24 +79,26 @@ export async function POST(request: Request) {
     decryptedUserMsg === "[Continue]" ||
     decryptedUserMsg === "*continue*";
 
-  const { data: latestAssistant } = await supabase
+  const { data: latestAssistants } = await supabase
     .from("messages")
     .select("id, content")
     .eq("chat_id", chatId)
     .eq("role", "assistant")
     .gt("id", latestUser.id)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("id", { ascending: false });
 
   let rejectedAssistantContent: string | null = clientRejectedContent || null;
-  if (latestAssistant) {
-    const decrypted = await decryptText(latestAssistant.content, user.id);
+  if (latestAssistants && latestAssistants.length > 0) {
+    const mostRecent = latestAssistants[0];
+    const decrypted = await decryptText(mostRecent.content, user.id);
     if (decrypted) rejectedAssistantContent = decrypted;
+
+    const idsToDelete = latestAssistants.map((a) => a.id);
+    const minDeletedId = Math.min(...idsToDelete);
     const { error: delErr } = await supabase
       .from("messages")
       .delete()
-      .eq("id", latestAssistant.id);
+      .in("id", idsToDelete);
     if (delErr) return new Response(delErr.message, { status: 500 });
 
     // Clean up any memory rows derived from the rejected assistant message
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
       .from("memories")
       .delete()
       .eq("chat_id", chatId)
-      .gte("up_to_message_id", latestAssistant.id);
+      .gte("up_to_message_id", minDeletedId);
   }
 
   // If active summary contains retried turn IDs, purge it to prevent empty recent context
@@ -229,6 +231,7 @@ export async function POST(request: Request) {
     try {
       if (request.signal.aborted) {
         console.log("[retry_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
+        await supabase.from("messages").delete().eq("id", inserted.id);
         return;
       }
       const finalText = (await streamed.fullTextPromise).trim();

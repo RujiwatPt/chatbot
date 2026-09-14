@@ -275,6 +275,34 @@ test("cleanRoleplayTropes eliminates vocal sounds and stock action clichés", ()
       input: '*He opens the drawer and takes out a silver key.* "Take this."',
       expected: '*He opens the drawer and takes out a silver key.* "Take this."',
     },
+    {
+      input: '*With a soft chuckle, he pulls out a chair.* "Sit down."',
+      expected: '*He pulls out a chair.* "Sit down."',
+    },
+    {
+      input: '*With a smirk, he crosses his arms.* "Impressive."',
+      expected: '"Impressive."',
+    },
+    {
+      input: '*He gives a quiet chuckle, setting the teacup down.* "Good morning."',
+      expected: '*Setting the teacup down.* "Good morning."',
+    },
+    {
+      input: '*A soft chuckle rumbles in his chest as he opens the ledger.* "Let\'s see."',
+      expected: '*He opens the ledger.* "Let\'s see."',
+    },
+    {
+      input: '*Running a hand through his hair, he turns to you.* "I forgot the password."',
+      expected: '*He turns to you.* "I forgot the password."',
+    },
+    {
+      input: '*Clearing his throat, he taps the microphone.* "Testing, one two."',
+      expected: '*He taps the microphone.* "Testing, one two."',
+    },
+    {
+      input: '*He rubs the back of his neck, looking down.* "My mistake."',
+      expected: '*Looking down.* "My mistake."',
+    },
   ];
 
   for (const { input, expected } of cases) {

@@ -153,11 +153,15 @@ export async function POST(request: Request) {
 
   // Persist user prompt (or explicit continue marker) to ensure consistent turn alternating in DB
   const userContentToSave = isContinueNudge ? "*continue*" : userPromptContent;
-  const { error: userInsertErr } = await supabase.from("messages").insert({
-    chat_id: chatId,
-    role: "user",
-    content: await encryptText(userContentToSave, user.id),
-  });
+  const { data: userInserted, error: userInsertErr } = await supabase
+    .from("messages")
+    .insert({
+      chat_id: chatId,
+      role: "user",
+      content: await encryptText(userContentToSave, user.id),
+    })
+    .select("id")
+    .single();
   if (userInsertErr) {
     return new Response(userInsertErr.message, { status: 500 });
   }
@@ -210,6 +214,9 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[chat_generation_error]", err);
+    if (userInserted?.id) {
+      await supabase.from("messages").delete().eq("id", userInserted.id);
+    }
     return new Response(
       "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
       { status: 503 },
@@ -229,6 +236,9 @@ export async function POST(request: Request) {
 
   if (assistantInsertErr || !inserted) {
     console.error("[assistant_initial_insert_failed]", assistantInsertErr);
+    if (userInserted?.id) {
+      await supabase.from("messages").delete().eq("id", userInserted.id);
+    }
     return new Response("failed_to_initialize_message", { status: 500 });
   }
 
@@ -244,6 +254,7 @@ export async function POST(request: Request) {
     try {
       if (request.signal.aborted) {
         console.log("[chat_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
+        await supabase.from("messages").delete().eq("id", inserted.id);
         return;
       }
       const finalText = (await streamed.fullTextPromise).trim();
