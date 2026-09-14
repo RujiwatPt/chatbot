@@ -147,9 +147,10 @@ export function buildSystemPrompt(opts: {
     `  - Climax & Peak Intensity Progression: Actively build physical and emotional tension toward mutual climax and release. When the user indicates rising pleasure or closeness to climax, enthusiastically match their intensity through encouraging whispers, shifting rhythm, breathless praise, and passionate physical responsiveness, guiding the encounter toward a deeply satisfying release and warm afterglow.`,
     `  - Vivid Atmospheric & Sensory Setting: Detail the immediate moment with rich environmental and sensory depth (ambient lighting, skin warmth, ragged breathing, heartbeat, vocal nuances, tremors, and tactile contact) while strictly avoiding repetitive self-appearance tropes.`,
     `- Strict Ban on Self-Appearance Expressions & Physical Tropes (ABSOLUTE PROHIBITION):`,
-    `  - NEVER describe or draw attention to ${selfName}'s own physical appearance or bodily traits (e.g. eye color, pupil dilation, gaze descriptions like 'golden/amber eyes', sharp teeth/fangs/canines, ear twitches, physique, or anatomical quirks).`,
-    `  - Do NOT use clichéd expressions like '*his golden eyes soften*', '*his amber gaze*', '*sharp teeth glinting*', '*his fangs graze*', etc. The user already knows what ${selfName} looks like from their character definition. Describing these repeatedly is artificial and strictly forbidden.`,
-    `  - Focus 100% on immediate actions, interactive dialogue, emotional reactions, and what is actually happening in the scene—NEVER on describing ${selfName}'s own physical features or facial appearance.`,
+    `  - ZERO APPEARANCE COMMENTARY: NEVER describe or mention ${selfName}'s own physical traits (eye color, pupil changes, gaze adjectives, teeth, fangs, canines, ear twitches, hair, claws, muscles, build, or height). The user already knows how ${selfName} looks from the character definition. Re-describing them is redundant and forbidden.`,
+    `  - FORBIDDEN GAZE & ANATOMY CLICHÉS: Never write tropes like '*his golden eyes soften*', '*his amber gaze*', '*sharp teeth/fangs graze*', '*his eyes darken with desire*', '*a low growl rumbles in his chest*', '*his ears pin back*', etc.`,
+    `  - NO REPETITIVE WORDING OR RECIDIVISM: Do not reuse stock verbs, gestures, or sentence structures from recent turns. Every turn must use fresh vocabulary, novel dialogue, and varied physical positioning.`,
+    `  - Focus 100% on interactive dialogue, immediate plot actions, vocal delivery, and emotional substance—NEVER on self-appearance commentary or body re-descriptions.`,
     `- Format narration/actions in *asterisks* and spoken dialogue in plain text.`,
     `- Never break the fourth wall unless explicitly asked out-of-character by the user.`,
     `- Voice & Narration Split (STRICT REQUIREMENT):`,
@@ -182,13 +183,21 @@ export function buildSystemPrompt(opts: {
   ].filter(Boolean);
 
   if (opts.priorAssistant && opts.priorAssistant.length > 0) {
-    const recentPhrases = opts.priorAssistant
-      .slice(-4)
-      .map((p) => p.trim().slice(0, 45))
+    const recentTurns = opts.priorAssistant.slice(-4);
+    const recentOpenings = recentTurns
+      .map((p) => {
+        const trimmed = p.trim();
+        const sentenceMatch = trimmed.match(/^[^\n.!?]+[.!?]/);
+        return sentenceMatch ? sentenceMatch[0].trim().slice(0, 75) : trimmed.slice(0, 50);
+      })
       .filter(Boolean);
-    if (recentPhrases.length > 0) {
+
+    if (recentOpenings.length > 0) {
       directives.push(
-        `- ANTI-REPETITION MANDATE (CRITICAL): Do NOT reuse or repeat any of these recent opening phrases/structures from your previous turns: [${recentPhrases.map((s) => `"${s}..."`).join(", ")}]. You MUST open your response with a completely different sentence structure, vocalization, or physical action!`,
+        `- ANTI-REPETITION & VOCABULARY DIVERSITY MANDATE (CRITICAL):`,
+        `  - FORBIDDEN RECENT OPENINGS: Do NOT begin your response with any of these recent sentence openings or gestures: [${recentOpenings.map((s) => `"${s}..."`).join(", ")}]. You MUST open with an entirely distinct action, spoken dialogue line, or reaction!`,
+        `  - NO RECYCLED VERBS & GESTURES: Do NOT repeat the physical actions, vocalizations, or gestures you used in your recent turns (e.g. if you recently stepped closer, murmured, sighed, smirked, or tilted your head, choose COMPLETELY DIFFERENT actions and verbs now).`,
+        `  - NO DUPLICATE WORDING: Avoid reusing the same adjectives, metaphors, or pet phrases across turns. Introduce fresh phrasing and new conversational beats.`,
       );
     }
   }
@@ -575,11 +584,13 @@ export function validateInCharacterOutput(params: {
     }
   }
 
-  // 4. Ban repetitive self-appearance tropes (e.g. eye color descriptions, sharp teeth/canines/fangs)
+  // 4. Ban repetitive self-appearance tropes, gaze clichés, and redundant physical descriptors
   if (
-    /\b(?:golden|amber|emerald|crimson|ruby|sapphire|yellow|hazel|blue|green|red|violet)\s+(?:eyes?|gaze|orbs?)\b/i.test(text) ||
+    /\b(?:golden|amber|emerald|crimson|ruby|sapphire|yellow|hazel|blue|green|red|violet|piercing|heavy|intense)\s+(?:eyes?|gaze|orbs?)\b/i.test(text) ||
+    /\b(?:his|her|their)\s+(?:eyes?|gaze)\s+(?:soften|softens|darken|darkens|harden|hardens|narrow|narrows|flicker|flickers|gleam|gleams|widen|widens|burn|burns)\b/i.test(text) ||
     /\b(?:sharp|pointed|gleaming)\s+(?:teeth|fangs?|canines?)\b/i.test(text) ||
-    /\b(?:fangs?|sharp\s+canines?)\s+(?:flash|glint|graze|sink|bare|peeking)\b/i.test(text)
+    /\b(?:fangs?|sharp\s+canines?)\s+(?:flash|glint|graze|sink|bare|peeking|catch)\b/i.test(text) ||
+    /\b(?:ears?\s+(?:twitch|twitches|pin|pins|flatten|flattens)|tail\s+(?:sways?|flicks?|lashes?))\b/i.test(text)
   ) {
     reasons.push("repetitive_appearance_trope");
   }

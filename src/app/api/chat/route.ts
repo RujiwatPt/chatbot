@@ -130,6 +130,10 @@ export async function POST(request: Request) {
     }
   }
 
+  const priorAssistant = ctx.recent
+    .filter((m) => m.role === "assistant")
+    .map((m) => m.content);
+
   let system = buildSystemPrompt({
     character: ctx.character,
     facts: ctx.facts,
@@ -139,6 +143,7 @@ export async function POST(request: Request) {
     userName: effectiveUserName,
     userPronouns: ctx.userPronouns,
     userDescription: ctx.userDescription,
+    priorAssistant,
   });
 
   if (isContinueNudge) {

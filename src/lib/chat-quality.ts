@@ -32,8 +32,8 @@ export async function streamAssistantText(params: {
     messages,
     temperature: 0.94,
     topP: 0.95,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.55,
+    frequencyPenalty: 0.55,
+    presencePenalty: 0.6,
     maxOutputTokens: 500,
     abortSignal: AbortSignal.timeout(110000),
   });
@@ -64,8 +64,8 @@ export async function generateAssistantText(params: {
     messages,
     temperature: 0.94,
     topP: 0.95,
-    frequencyPenalty: 0.45,
-    presencePenalty: 0.55,
+    frequencyPenalty: 0.55,
+    presencePenalty: 0.6,
     maxOutputTokens: 500,
     abortSignal: AbortSignal.timeout(110000),
   });
