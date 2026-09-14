@@ -438,7 +438,7 @@ export default function ChatClient({
   }
 
   async function retryLast() {
-    if (busy || inFlightRef.current || Date.now() < cooldownUntil) return;
+    if (busy || inFlightRef.current) return;
 
     // Find the latest assistant message to replace
     const lastAssistantIdx = [...messages]
@@ -470,7 +470,10 @@ export default function ChatClient({
       const res = await fetch("/api/chat/retry", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chatId }),
+        body: JSON.stringify({
+          chatId,
+          rejectedContent: prevAssistantMsg?.content || "",
+        }),
         signal: controller.signal,
       });
 

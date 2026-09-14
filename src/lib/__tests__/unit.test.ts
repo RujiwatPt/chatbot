@@ -9,6 +9,8 @@ import {
   estimateTokens,
   MAX_SYSTEM_TOKENS,
   stripAppearanceTropes,
+  cleanRoleplayTropes,
+  extractUsedActionsAndSounds,
 } from "../memory.js";
 import { detectPreferredName } from "../../app/api/chat/route.js";
 import { sanitizeNext } from "../../app/auth/callback/route.js";
@@ -233,6 +235,91 @@ test("buildSystemPrompt includes visual reference note and final zero-appearance
   assert.ok(prompt.includes("Visual Reference Note: Physical details in this definition are static visual facts"));
   assert.ok(prompt.includes("[FINAL REMINDER — ZERO APPEARANCE COMMENTARY]: Do NOT narrate or describe Silas's eyes, gaze, teeth, or physical body."));
   assert.ok(prompt.includes("ZERO SELF-APPEARANCE COMMENTARY"));
+});
+
+test("cleanRoleplayTropes eliminates vocal sounds and stock action clichés", () => {
+  const cases = [
+    {
+      input: '*He chuckles softly as he walks over to the desk.* "Here is the file."',
+      expected: '*He walks over to the desk.* "Here is the file."',
+    },
+    {
+      input: '*A low chuckle leaves his lips.* "You always say that."',
+      expected: '"You always say that."',
+    },
+    {
+      input: '*He tilts his head to the side, studying your reaction.* "Are you sure?"',
+      expected: '*Studying your reaction.* "Are you sure?"',
+    },
+    {
+      input: '*He lets out a low chuckle, leaning against the counter.* "Whatever you say."',
+      expected: '"Whatever you say."',
+    },
+    {
+      input: '*He chuckles softly.* "Of course."',
+      expected: '"Of course."',
+    },
+    {
+      input: '*Dante sighs softly, crossing his arms over his chest.* "I didn\'t expect that."',
+      expected: '"I didn\'t expect that."',
+    },
+    {
+      input: '*Shifting his weight from one foot to the other, he looks away.* "Sorry."',
+      expected: '*He looks away.* "Sorry."',
+    },
+    {
+      input: '*His breath hitches as he reaches for the door handle.* "Don\'t go."',
+      expected: '*He reaches for the door handle.* "Don\'t go."',
+    },
+    {
+      input: '*He opens the drawer and takes out a silver key.* "Take this."',
+      expected: '*He opens the drawer and takes out a silver key.* "Take this."',
+    },
+  ];
+
+  for (const { input, expected } of cases) {
+    assert.strictEqual(cleanRoleplayTropes(input), expected);
+  }
+});
+
+test("extractUsedActionsAndSounds detects used tics across turns", () => {
+  const turns = [
+    '*He chuckles softly and leans against the wall.* "Hello."',
+    '*Shifting his weight, his breath hitches.* "What is it?"',
+  ];
+  const used = extractUsedActionsAndSounds(turns);
+  assert.ok(used.includes("chuckle/chuckling"));
+  assert.ok(used.includes("leaning"));
+  assert.ok(used.includes("shifting weight"));
+  assert.ok(used.includes("breath hitching"));
+  assert.strictEqual(used.includes("head tilting"), false);
+});
+
+test("buildSystemPrompt dynamically injects banned recent sounds and actions", () => {
+  const prompt = buildSystemPrompt({
+    character: {
+      name: "Silas",
+      alias: null,
+      persona: "A brooding companion.",
+      scenario: null,
+      greeting: "Hello.",
+      model: "sao10k/l3.3-euryale-70b",
+      tags: [],
+    },
+    facts: [],
+    sceneState: null,
+    summary: null,
+    priorAssistant: [
+      '*Silas chuckles softly, tilting his head.* "I see."',
+      '*He sighs and leans against the counter.* "Go on."',
+    ],
+  });
+
+  assert.ok(prompt.includes("[ACTIONS & SOUNDS USED IN RECENT TURNS — STRICTLY FORBIDDEN NOW]"));
+  assert.ok(prompt.includes("chuckle/chuckling"));
+  assert.ok(prompt.includes("head tilting"));
+  assert.ok(prompt.includes("sigh/sighing"));
+  assert.ok(prompt.includes("leaning"));
 });
 
 

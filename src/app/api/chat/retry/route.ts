@@ -18,6 +18,7 @@ export const maxDuration = 120;
 
 const Body = z.object({
   chatId: z.string().uuid(),
+  rejectedContent: z.string().max(8000).optional(),
 });
 
 export async function POST(request: Request) {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new Response("bad_request", { status: 400 });
-  const { chatId } = parsed.data;
+  const { chatId, rejectedContent: clientRejectedContent } = parsed.data;
 
   // Verify chat ownership
   const { data: ownership } = await supabase
@@ -88,14 +89,34 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  let rejectedAssistantContent: string | null = null;
+  let rejectedAssistantContent: string | null = clientRejectedContent || null;
   if (latestAssistant) {
-    rejectedAssistantContent = await decryptText(latestAssistant.content, user.id);
+    const decrypted = await decryptText(latestAssistant.content, user.id);
+    if (decrypted) rejectedAssistantContent = decrypted;
     const { error: delErr } = await supabase
       .from("messages")
       .delete()
       .eq("id", latestAssistant.id);
     if (delErr) return new Response(delErr.message, { status: 500 });
+
+    // Clean up any memory rows derived from the rejected assistant message
+    await supabase
+      .from("memories")
+      .delete()
+      .eq("chat_id", chatId)
+      .gte("up_to_message_id", latestAssistant.id);
+  }
+
+  // If active summary contains retried turn IDs, purge it to prevent empty recent context
+  const { data: summaryRow } = await supabase
+    .from("memories")
+    .select("id, up_to_message_id")
+    .eq("chat_id", chatId)
+    .eq("kind", "summary")
+    .maybeSingle();
+
+  if (summaryRow && (summaryRow.up_to_message_id ?? 0) >= latestUser.id) {
+    await supabase.from("memories").delete().eq("id", summaryRow.id);
   }
 
   const ctx = await loadChatContext(supabase, chatId);
@@ -122,7 +143,7 @@ export async function POST(request: Request) {
   });
 
   if (rejectedAssistantContent) {
-    system += `\n\n[RETRY ANTI-REPETITION MANDATE]: The user requested a retry because your previous response was unsatisfactory. You MUST provide an entirely new response with fresh actions, different phrasing, and ZERO self-appearance commentary.`;
+    system += `\n\n[RETRY ANTI-REPETITION MANDATE]: The user requested a retry because your previous response was unsatisfactory. You MUST provide an entirely new response with fresh actions, different phrasing, ZERO self-appearance commentary, and ZERO repetitive sound or gesture tics.`;
   }
 
   if (isContinueNudge) {
@@ -134,13 +155,25 @@ export async function POST(request: Request) {
     (lastIdx, m, idx) => (m.role === "user" ? idx : lastIdx),
     -1,
   );
-  const alignedRecent = lastUserIndex >= 0 ? ctx.recent.slice(0, lastUserIndex + 1) : ctx.recent;
+  let alignedRecent = lastUserIndex >= 0 ? ctx.recent.slice(0, lastUserIndex + 1) : ctx.recent;
+
+  const userTurnText = isContinueNudge
+    ? "[Continue: progress story forward without repeating previous turn]"
+    : (decryptedUserMsg || "*continue*");
+
+  // Guarantee that the prompt contains the user turn being retried and ends with a user message
+  if (alignedRecent.length === 0 || alignedRecent[alignedRecent.length - 1].role !== "user") {
+    alignedRecent = [
+      ...alignedRecent.filter((m) => m.role === "user" || m.role === "assistant"),
+      { role: "user", content: userTurnText },
+    ];
+  }
 
   const messages = alignedRecent.map((m, idx) => {
-    if (idx === alignedRecent.length - 1 && m.role === "user" && isContinueNudge) {
+    if (idx === alignedRecent.length - 1 && m.role === "user") {
       return {
         role: m.role,
-        content: "[Continue: progress story forward without repeating previous turn]",
+        content: userTurnText,
       };
     }
     return {
