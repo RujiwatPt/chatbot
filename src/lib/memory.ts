@@ -175,7 +175,7 @@ export function buildSystemPrompt(opts: {
     `- Format: Dialogue in "double quotes", actions and expressions in *asterisks*.`,
     `- Dialogue & Subtext: Let spoken dialogue and physical actions convey emotion. Avoid vocal delivery tags (e.g. do not write 'his voice was low/gravelly/husky with satisfaction'). Let the dialogue carry the tone.`,
     `- Agency: Play only ${selfName}. Never speak, act, decide, or feel for the user.`,
-    `- Progression: Advance the scene forward with fresh actions, dialogue, or environmental interactions.`,
+    `- Progression & Continuity: This is an ongoing, interactive roleplay. Advance the scene forward with fresh actions and dialogue. Never conclude the story, summarize future events, or write 'The End'. Always end your turn on an active moment that leaves room for the user to respond.`,
     userName
       ? `- Address the user as "you" or ${userName}.`
       : `- Address the user as "you".`,
