@@ -179,7 +179,6 @@ export async function POST(request: Request) {
     facts: ctx.facts,
     sceneState: ctx.sceneState,
     summary: ctx.summary,
-    feedback: ctx.feedback,
     userName: effectiveUserName,
     userPronouns: ctx.userPronouns,
     userDescription: ctx.userDescription,

@@ -117,13 +117,12 @@ export function buildSystemPrompt(opts: {
   facts: string[];
   sceneState: SceneState | null;
   summary: string | null;
-  feedback?: string[];
   userName?: string | null;
   userPronouns?: string | null;
   userDescription?: string | null;
   priorAssistant?: string[];
 }) {
-  const { character, facts, sceneState, summary, feedback } = opts;
+  const { character, facts, sceneState, summary } = opts;
   const selfName = character.alias?.trim() || character.name;
   const userName = opts.userName?.trim() || "";
   const userPronouns = opts.userPronouns?.trim() || "";
@@ -186,20 +185,6 @@ export function buildSystemPrompt(opts: {
       ? `- Intimate & Romantic Scenes: One attentive beat of ${selfName}'s action and voice, paced naturally with the user.`
       : `- Tone: Stay grounded in ${selfName}'s authentic personality and mannerisms.`,
   ].filter(Boolean);
-
-  if (feedback && feedback.length > 0) {
-    if (feedback.includes("too_verbose")) {
-      ruleLines.push(`User preference: stay under ~120 words. Cut extra description.`);
-    }
-    if (
-      feedback.includes("more_in_character") ||
-      feedback.includes("too_generic")
-    ) {
-      ruleLines.push(
-        `User preference: stronger ${selfName} voice and specific mannerisms. Avoid generic phrasing.`,
-      );
-    }
-  }
 
   const rules = ruleLines.join("\n");
   let finalPrompt = [...parts, rules].join("\n\n");
@@ -268,12 +253,11 @@ export async function loadChatContext(
   facts: string[];
   sceneState: SceneState | null;
   summary: string | null;
-  feedback: string[];
   userName: string | null;
   userPronouns: string | null;
   userDescription: string | null;
 } | null> {
-  // Parallelize initial database context fetches (chats, memories, feedback)
+  // Parallelize initial database context fetches (chats, memories)
   const chatQuery = supabase
     .from("chats")
     .select(
@@ -281,7 +265,7 @@ export async function loadChatContext(
     )
     .eq("id", chatId);
 
-  const [chatRes, memoryRes, feedbackRes] = await Promise.all([
+  const [chatRes, memoryRes] = await Promise.all([
     (userId ? chatQuery.eq("user_id", userId) : chatQuery).maybeSingle(),
     supabase
       .from("memories")
@@ -289,17 +273,10 @@ export async function loadChatContext(
       .eq("chat_id", chatId)
       .order("id", { ascending: false })
       .limit(60),
-    supabase
-      .from("message_feedback")
-      .select("feedback")
-      .eq("chat_id", chatId)
-      .order("id", { ascending: false })
-      .limit(10),
   ]);
 
   const chat = chatRes.data;
   const memoryRows = memoryRes.data;
-  const feedbackRows = feedbackRes.data;
 
   const character = (
     Array.isArray(chat?.character) ? chat?.character[0] : chat?.character
@@ -354,10 +331,6 @@ export async function loadChatContext(
       summaryUpTo = (rawM.up_to_message_id as number | null) ?? 0;
     }
   }
-
-  const feedback = Array.from(
-    new Set((feedbackRows ?? []).map((f) => f.feedback as string)),
-  );
 
   // Fetch recent messages newer than the summary, ordered most recent to oldest.
   const { data: rawMessages } = await supabase
@@ -446,7 +419,6 @@ export async function loadChatContext(
     facts: finalFacts,
     sceneState,
     summary,
-    feedback,
     userName,
     userPronouns,
     userDescription: effectiveUserDesc,

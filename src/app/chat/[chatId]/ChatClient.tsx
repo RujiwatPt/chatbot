@@ -173,8 +173,9 @@ export default function ChatClient({
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [now, setNow] = useState(0);
   const [keyboardInset, setKeyboardInset] = useState(0);
-  const [feedbackSent, setFeedbackSent] = useState<Record<string, string>>({});
-  const [feedbackLoading, setFeedbackLoading] = useState<Record<string, boolean>>({});
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<string>("");
+  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUpRef = useRef(false);
@@ -434,23 +435,48 @@ export default function ChatClient({
     }
   }
 
-  async function sendFeedback(messageId: string, feedback: string) {
-    if (feedbackSent[messageId] === feedback || feedbackLoading[messageId]) return;
-    setFeedbackLoading((prev) => ({ ...prev, [messageId]: true }));
+  function startEditing(messageId: string, currentContent: string) {
+    if (busy || isSavingEdit) return;
+    setEditingMessageId(messageId);
+    setEditDraft(currentContent);
+  }
+
+  function cancelEditing() {
+    setEditingMessageId(null);
+    setEditDraft("");
+  }
+
+  async function saveEdit(messageId: string) {
+    const trimmed = editDraft.trim();
+    if (!trimmed || isSavingEdit) return;
+
+    setIsSavingEdit(true);
+    setError(null);
     try {
-      const res = await fetch("/api/chat/feedback", {
+      const res = await fetch("/api/chat/edit", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           chatId,
           messageId: Number(messageId),
-          feedback,
+          content: trimmed,
         }),
       });
-      if (!res.ok) return;
-      setFeedbackSent((prev) => ({ ...prev, [messageId]: feedback }));
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to update message");
+      }
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content: trimmed } : m))
+      );
+      setEditingMessageId(null);
+      setEditDraft("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save edit");
     } finally {
-      setFeedbackLoading((prev) => ({ ...prev, [messageId]: false }));
+      setIsSavingEdit(false);
     }
   }
 
@@ -839,40 +865,78 @@ export default function ChatClient({
               <div
                 className={
                   m.role === "user"
-                    ? "user-bubble-header mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-2"
-                    : "muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-2"
+                    ? "user-bubble-header mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-3"
+                    : "muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-3"
                 }
               >
                 <span>{m.role === "assistant" ? chatbotName : "You"}</span>
-              </div>
-              <div className="chat-message-text whitespace-pre-wrap leading-relaxed">
-                {renderRoleplayText(m.content, m.role === "user") || (
-                  <span className="muted">…</span>
+                {/^\d+$/.test(m.id) && !busy && editingMessageId !== m.id && (
+                  <button
+                    type="button"
+                    onClick={() => startEditing(m.id, m.content)}
+                    className="btn-text opacity-60 hover:opacity-100 normal-case text-[11px] font-normal tracking-normal flex items-center gap-1 transition-opacity cursor-pointer"
+                    title="Edit response"
+                    aria-label="Edit response"
+                  >
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      <path d="m15 5 4 4" />
+                    </svg>
+                    <span>Edit</span>
+                  </button>
                 )}
               </div>
-              {m.role === "assistant" && /^\d+$/.test(m.id) && (
-                <div className="muted mt-2.5 flex flex-wrap gap-2 text-[11px] pt-1 border-t border-[var(--line)]">
-                  <button
-                    type="button"
-                    className="btn-text"
-                    onClick={() => sendFeedback(m.id, "more_in_character")}
-                  >
-                    {feedbackSent[m.id] === "more_in_character" ? "✓ More in character" : "More in character"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-text"
-                    onClick={() => sendFeedback(m.id, "too_generic")}
-                  >
-                    {feedbackSent[m.id] === "too_generic" ? "✓ Too generic" : "Too generic"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-text"
-                    onClick={() => sendFeedback(m.id, "too_verbose")}
-                  >
-                    {feedbackSent[m.id] === "too_verbose" ? "✓ Too verbose" : "Too verbose"}
-                  </button>
+              {editingMessageId === m.id ? (
+                <div className="flex flex-col gap-2 mt-1 min-w-[240px] sm:min-w-[320px]">
+                  <textarea
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        saveEdit(m.id);
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        cancelEditing();
+                      }
+                    }}
+                    rows={Math.min(12, Math.max(3, editDraft.split("\n").length + 1))}
+                    className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface-sunken)] p-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-1)] resize-y leading-relaxed font-inherit"
+                    disabled={isSavingEdit}
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-end gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={cancelEditing}
+                      disabled={isSavingEdit}
+                      className="btn-text muted hover:underline px-2 py-1 text-xs cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(m.id)}
+                      disabled={isSavingEdit || !editDraft.trim()}
+                      className="rounded-md bg-[var(--brand-1)] px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+                    >
+                      {isSavingEdit ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="chat-message-text whitespace-pre-wrap leading-relaxed">
+                  {renderRoleplayText(m.content, m.role === "user") || (
+                    <span className="muted">…</span>
+                  )}
                 </div>
               )}
             </div>
