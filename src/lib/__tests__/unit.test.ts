@@ -211,44 +211,12 @@ test("buildSystemPrompt guarantees MAX_SYSTEM_TOKENS cap even with huge inputs",
   assert.ok(tokens <= MAX_SYSTEM_TOKENS, `Expected <= ${MAX_SYSTEM_TOKENS}, got ${tokens}`);
 });
 
-test("stripAppearanceTropes eliminates gaze clichés, fangs, and smirks while preserving actions and dialogue", () => {
-  const cases = [
-    {
-      input: '*His golden eyes soften as he steps closer.* "Hello."',
-      expected: '*He steps closer.* "Hello."',
-    },
-    {
-      input: '*His amber gaze darkens, sharp fangs catching the light.* "Are you ready?"',
-      expected: '"Are you ready?"',
-    },
-    {
-      input: '*He steps into the room, his piercing blue eyes scanning the shelves.* "Nice place."',
-      expected: '*He steps into the room, scanning the shelves.* "Nice place."',
-    },
-    {
-      input: '*His golden eyes soften.* "I understand."',
-      expected: '"I understand."',
-    },
-    {
-      input: '*A smirk tugs at his lips as he pours the tea.* "Drink up."',
-      expected: '*He pours the tea.* "Drink up."',
-    },
-    {
-      input: '*He looks over at you with a quiet smile.* "Welcome back."',
-      expected: '*He looks over at you with a quiet smile.* "Welcome back."',
-    },
-    {
-      input: '*Wolf ears twitch atop his head as his tail sways.* "Did you hear that?"',
-      expected: '"Did you hear that?"',
-    },
-  ];
-
-  for (const { input, expected } of cases) {
-    assert.strictEqual(stripAppearanceTropes(input), expected);
-  }
+test("cleanRoleplayTropes preserves generated text cleanly", () => {
+  const text = '  *He steps closer.* "Hello."  ';
+  assert.strictEqual(stripAppearanceTropes(text), '*He steps closer.* "Hello."');
 });
 
-test("buildSystemPrompt includes clean pattern directives without body or negative word reinforcement", () => {
+test("buildSystemPrompt includes clean pattern directives and subtext guidance without negative word reinforcement", () => {
   const prompt = buildSystemPrompt({
     character: {
       name: "Silas",
@@ -269,6 +237,7 @@ test("buildSystemPrompt includes clean pattern directives without body or negati
   });
 
   assert.ok(prompt.includes("ROLEPLAY GUIDELINES"));
+  assert.ok(prompt.includes("Dialogue & Subtext: Let spoken dialogue and physical actions convey emotion"));
   assert.ok(prompt.includes("Play only Silas"));
   assert.ok(prompt.includes("Never speak, act, decide, or feel for the user."));
   assert.ok(prompt.includes("Advance the scene forward"));

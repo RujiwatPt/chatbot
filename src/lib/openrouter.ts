@@ -45,7 +45,7 @@ const openrouterFetch: typeof fetch = async (input, init) => {
       if (parsed && typeof parsed === "object") {
         let modified = false;
         if (parsed.repetition_penalty === undefined) {
-          parsed.repetition_penalty = 1.08;
+          parsed.repetition_penalty = 1.12;
           modified = true;
         }
         if (parsed.min_p === undefined) {

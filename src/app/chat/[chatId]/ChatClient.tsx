@@ -5,7 +5,6 @@ import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
 import { MODEL_OPTIONS, getModelNickname } from "@/lib/openrouter";
-import { cleanRoleplayTropes } from "@/lib/roleplay-cleaner";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
 
@@ -387,11 +386,11 @@ export default function ChatClient({
       if (finalFlushed) {
         acc += finalFlushed;
       }
-      const cleanedAcc = cleanRoleplayTropes(acc);
+      const finalMsgText = acc.trim();
       setMessages((m) =>
         m.map((x) =>
           x.id === assistantId || (serverMsgId && x.id === serverMsgId)
-            ? { ...x, id: serverMsgId || x.id, content: cleanedAcc }
+            ? { ...x, id: serverMsgId || x.id, content: finalMsgText }
             : x,
         ),
       );
@@ -548,11 +547,11 @@ export default function ChatClient({
       if (finalFlushed) {
         acc += finalFlushed;
       }
-      const cleanedAcc = cleanRoleplayTropes(acc);
+      const finalMsgText = acc.trim();
       setMessages((m) =>
         m.map((x) =>
           x.id === assistantId || (serverMsgId && x.id === serverMsgId)
-            ? { ...x, id: serverMsgId || x.id, content: cleanedAcc }
+            ? { ...x, id: serverMsgId || x.id, content: finalMsgText }
             : x,
         ),
       );

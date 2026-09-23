@@ -172,7 +172,8 @@ export function buildSystemPrompt(opts: {
 
   const ruleLines: string[] = [
     `ROLEPLAY GUIDELINES`,
-    `- Format: Dialogue in "double quotes", actions and expressions in *asterisks*. Keep prose vivid and natural.`,
+    `- Format: Dialogue in "double quotes", actions and expressions in *asterisks*.`,
+    `- Dialogue & Subtext: Let spoken dialogue and physical actions convey emotion. Avoid vocal delivery tags (e.g. do not write 'his voice was low/gravelly/husky with satisfaction'). Let the dialogue carry the tone.`,
     `- Agency: Play only ${selfName}. Never speak, act, decide, or feel for the user.`,
     `- Progression: Advance the scene forward with fresh actions, dialogue, or environmental interactions.`,
     userName
