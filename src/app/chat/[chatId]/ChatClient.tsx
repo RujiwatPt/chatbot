@@ -137,9 +137,10 @@ export default function ChatClient({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionState, setActionState] = useState<"none" | "sending" | "retrying" | "undoing">("none");
-  const [activeModelId, setActiveModelId] = useState<string>(
-    initialModelId || "sao10k/l3.3-euryale-70b",
-  );
+  const [activeModelId, setActiveModelId] = useState<string>(() => {
+    const raw = initialModelId || "sao10k/l3.1-euryale-70b";
+    return raw === "sao10k/l3.3-euryale-70b" ? "sao10k/l3.1-euryale-70b" : raw;
+  });
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [headerHidden, setHeaderHidden] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -388,6 +389,11 @@ export default function ChatClient({
         acc += finalFlushed;
       }
       const finalMsgText = acc.trim();
+      if (!finalMsgText) {
+        throw new Error(
+          "The model is experiencing high load or returned an empty response. Please try again or switch models.",
+        );
+      }
       setMessages((m) =>
         m.map((x) =>
           x.id === assistantId || (serverMsgId && x.id === serverMsgId)
@@ -574,6 +580,11 @@ export default function ChatClient({
         acc += finalFlushed;
       }
       const finalMsgText = acc.trim();
+      if (!finalMsgText) {
+        throw new Error(
+          "The model is experiencing high load or returned an empty response. Please try again or switch models.",
+        );
+      }
       setMessages((m) =>
         m.map((x) =>
           x.id === assistantId || (serverMsgId && x.id === serverMsgId)

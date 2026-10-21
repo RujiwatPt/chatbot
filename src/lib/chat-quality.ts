@@ -8,7 +8,7 @@ import {
 import { REWRITE_SYSTEM } from "@/lib/prompts";
 
 export function pickModelId(configuredModel?: string | null) {
-  return configuredModel || "sao10k/l3.3-euryale-70b";
+  return configuredModel || "sao10k/l3.1-euryale-70b";
 }
 
 /**
@@ -37,6 +37,9 @@ export async function streamAssistantText(params: {
     presencePenalty: 0.45,
     maxOutputTokens: 450,
     abortSignal: abortSignal || AbortSignal.timeout(110000),
+    onError({ error }) {
+      console.error("[streamAssistantText_error]", error);
+    },
   });
 
   return {

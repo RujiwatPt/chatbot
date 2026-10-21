@@ -2,7 +2,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export const DEFAULT_MODEL =
-  process.env.OPENROUTER_MODEL ?? "sao10k/l3.3-euryale-70b";
+  process.env.OPENROUTER_MODEL ?? "sao10k/l3.1-euryale-70b";
 
 export const SUMMARIZER_MODEL =
   process.env.SUMMARIZER_MODEL ?? "meta-llama/llama-3.3-70b-instruct";
@@ -77,7 +77,7 @@ export const openrouter = createOpenAICompatible({
 
 export const MODEL_OPTIONS = [
   {
-    id: "sao10k/l3.3-euryale-70b",
+    id: "sao10k/l3.1-euryale-70b",
     name: "Sao10K: Euryale 70B",
     tag: "Default Roleplay",
     speed: "Standard",
@@ -98,8 +98,8 @@ export const MODEL_OPTIONS = [
     description: "Balanced, immersive conversation & story development.",
   },
   {
-    id: "nousresearch/hermes-4-70b",
-    name: "Nous: Hermes 4 70B",
+    id: "nousresearch/hermes-3-llama-3.1-70b",
+    name: "Nous: Hermes 3 70B",
     tag: "Reasoning & RP",
     speed: "Standard",
     description: "Advanced reasoning and creative dialogue dynamics.",
@@ -133,8 +133,8 @@ export const MODEL_OPTIONS = [
     description: "Classic lightweight roleplay model with rapid generation.",
   },
   {
-    id: "thedrummer/rocinante-12b",
-    name: "TheDrummer: Rocinante 12B",
+    id: "thedrummer/cydonia-24b-v4.1",
+    name: "TheDrummer: Cydonia 24B",
     tag: "Storytelling",
     speed: "Fast",
     description: "Character-focused narrative storytelling model.",
@@ -165,6 +165,15 @@ export function sanitizeModel(
 ): string {
   if (id === "venice/uncensored") {
     return "cognitivecomputations/dolphin-mistral-24b-venice-edition";
+  }
+  if (id === "sao10k/l3.3-euryale-70b") {
+    return "sao10k/l3.1-euryale-70b";
+  }
+  if (id === "nousresearch/hermes-4-70b") {
+    return "nousresearch/hermes-3-llama-3.1-70b";
+  }
+  if (id === "thedrummer/rocinante-12b") {
+    return "thedrummer/cydonia-24b-v4.1";
   }
   const allowed = allowInternal ? ALL_ALLOWED_MODELS : ALLOWED_MODELS;
   if (id && allowed.has(id)) {

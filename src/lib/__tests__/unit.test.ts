@@ -152,7 +152,7 @@ test("buildSystemPrompt conditions intimate directives on character tags", () =>
     persona: "A caring wolfman companion.",
     scenario: null,
     greeting: '*smiles* "Welcome back."',
-    model: "sao10k/l3.3-euryale-70b",
+    model: "sao10k/l3.1-euryale-70b",
     tags: ["Romance", "NSFW"],
   };
 
@@ -173,7 +173,7 @@ test("buildSystemPrompt conditions intimate directives on character tags", () =>
     persona: "A licensed therapist practicing person-centered CBT.",
     scenario: "First session in office.",
     greeting: '*welcomes you* "What brings you in today?"',
-    model: "sao10k/l3.3-euryale-70b",
+    model: "sao10k/l3.1-euryale-70b",
     tags: ["Support", "Cozy"],
   };
 
@@ -200,7 +200,7 @@ test("buildSystemPrompt guarantees MAX_SYSTEM_TOKENS cap even with huge inputs",
       persona: hugePersona,
       scenario: "Test scenario",
       greeting: "Hello",
-      model: "sao10k/l3.3-euryale-70b",
+      model: "sao10k/l3.1-euryale-70b",
     },
     facts: hugeFacts,
     sceneState: null,
@@ -224,7 +224,7 @@ test("buildSystemPrompt includes clean pattern directives and subtext guidance w
       persona: "A brooding vampire with silver eyes and fangs.",
       scenario: "In a tavern.",
       greeting: '*glances over* "Evening."',
-      model: "sao10k/l3.3-euryale-70b",
+      model: "sao10k/l3.1-euryale-70b",
       tags: ["Fantasy"],
     },
     facts: [],
@@ -266,7 +266,9 @@ test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to D
   // When allowInternal is false (public user form input):
   assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, false), DEFAULT_MODEL);
   // Allowed public models:
-  assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "sao10k/l3.3-euryale-70b");
+  assert.strictEqual(sanitizeModel("sao10k/l3.1-euryale-70b"), "sao10k/l3.1-euryale-70b");
+  // Deprecated models seamlessly map to their active replacements:
+  assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "sao10k/l3.1-euryale-70b");
   // Arbitrary invalid models fall back to DEFAULT_MODEL:
   assert.strictEqual(sanitizeModel("invalid/random-model"), DEFAULT_MODEL);
 });
