@@ -7,6 +7,13 @@ export const DEFAULT_MODEL =
 export const SUMMARIZER_MODEL =
   process.env.SUMMARIZER_MODEL ?? "meta-llama/llama-3.3-70b-instruct";
 
+export const DEFAULT_FALLBACK_MODELS = [
+  "sao10k/l3.1-euryale-70b",
+  "anthracite-org/magnum-v4-72b",
+  "aion-labs/aion-3.5",
+  "meta-llama/llama-3.3-70b-instruct",
+] as const;
+
 async function getOpenRouterApiKey(): Promise<string> {
   let key = process.env.OPENROUTER_API_KEY;
   if (!key) {
@@ -52,6 +59,14 @@ const openrouterFetch: typeof fetch = async (input, init) => {
           parsed.min_p = 0.08;
           modified = true;
         }
+        if (parsed.model && typeof parsed.model === "string") {
+          const primary = parsed.model;
+          parsed.models = [
+            primary,
+            ...DEFAULT_FALLBACK_MODELS.filter((m) => m !== primary),
+          ];
+          modified = true;
+        }
         if (modified) {
           customInit.body = JSON.stringify(parsed);
         }
@@ -84,25 +99,39 @@ export const MODEL_OPTIONS = [
     description: "Rich, immersive prose & deep character adherence.",
   },
   {
-    id: "aion-labs/aion-3.0-mini",
-    name: "AionLabs: Aion 3.0 Mini",
+    id: "aion-labs/aion-3.5-mini",
+    name: "AionLabs: Aion 3.5 Mini",
     tag: "Fast RP",
     speed: "Fast",
-    description: "Lightweight, responsive roleplay model.",
+    description: "Latest lightweight, ultra-responsive roleplay model with 256k context.",
   },
   {
-    id: "aion-labs/aion-3.0",
-    name: "AionLabs: Aion 3.0",
+    id: "aion-labs/aion-3.5",
+    name: "AionLabs: Aion 3.5",
     tag: "Advanced RP",
     speed: "Standard",
-    description: "Balanced, immersive conversation & story development.",
+    description: "Latest balanced, immersive dialogue & story development.",
   },
   {
-    id: "nousresearch/hermes-3-llama-3.1-70b",
-    name: "Nous: Hermes 3 70B",
-    tag: "Reasoning & RP",
+    id: "anthracite-org/magnum-v4-72b",
+    name: "Anthracite: Magnum v4 72B",
+    tag: "Deep Creative",
     speed: "Standard",
-    description: "Advanced reasoning and creative dialogue dynamics.",
+    description: "High-capability creative writing and roleplay engine.",
+  },
+  {
+    id: "thedrummer/cydonia-24b-v4.1",
+    name: "TheDrummer: Cydonia 24B",
+    tag: "Storytelling",
+    speed: "Fast",
+    description: "Character-focused creative roleplay and rich dialogue model.",
+  },
+  {
+    id: "thedrummer/skyfall-36b-v2",
+    name: "TheDrummer: Skyfall 36B",
+    tag: "Narrative RP",
+    speed: "Fast",
+    description: "Multi-genre atmospheric storytelling and creative immersion.",
   },
   {
     id: "cognitivecomputations/dolphin-mistral-24b-venice-edition",
@@ -119,11 +148,11 @@ export const MODEL_OPTIONS = [
     description: "Trained to avoid repetitive tropes and cliché AI phrasing.",
   },
   {
-    id: "anthracite-org/magnum-v4-72b",
-    name: "Anthracite: Magnum v4 72B",
-    tag: "Deep Creative",
+    id: "nousresearch/hermes-3-llama-3.1-70b",
+    name: "Nous: Hermes 3 70B",
+    tag: "Reasoning & RP",
     speed: "Standard",
-    description: "High-capability creative writing and roleplay engine.",
+    description: "Advanced reasoning and creative dialogue dynamics.",
   },
   {
     id: "gryphe/mythomax-l2-13b",
@@ -131,13 +160,6 @@ export const MODEL_OPTIONS = [
     tag: "Classic Light",
     speed: "Fast",
     description: "Classic lightweight roleplay model with rapid generation.",
-  },
-  {
-    id: "thedrummer/cydonia-24b-v4.1",
-    name: "TheDrummer: Cydonia 24B",
-    tag: "Storytelling",
-    speed: "Fast",
-    description: "Character-focused narrative storytelling model.",
   },
 ] as const;
 
@@ -168,6 +190,12 @@ export function sanitizeModel(
   }
   if (id === "sao10k/l3.3-euryale-70b") {
     return "sao10k/l3.1-euryale-70b";
+  }
+  if (id === "aion-labs/aion-3.0-mini" || id === "aion-labs/aion-2.0-mini") {
+    return "aion-labs/aion-3.5-mini";
+  }
+  if (id === "aion-labs/aion-3.0" || id === "aion-labs/aion-2.0") {
+    return "aion-labs/aion-3.5";
   }
   if (id === "nousresearch/hermes-4-70b") {
     return "nousresearch/hermes-3-llama-3.1-70b";

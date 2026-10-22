@@ -1,5 +1,5 @@
 import { generateText, streamText } from "ai";
-import { model } from "@/lib/openrouter";
+import { model, DEFAULT_FALLBACK_MODELS } from "@/lib/openrouter";
 import type { Character, SceneState } from "@/lib/memory";
 import {
   looksRepetitive,
@@ -27,27 +27,42 @@ export async function streamAssistantText(params: {
   const { character, system, messages, abortSignal } = params;
   const routedModel = pickModelId(character.model);
 
-  const result = streamText({
-    model: model(routedModel),
-    system,
-    messages,
-    temperature: 0.85,
-    topP: 0.95,
-    frequencyPenalty: 0.35,
-    presencePenalty: 0.45,
-    maxOutputTokens: 450,
-    abortSignal: abortSignal || AbortSignal.timeout(110000),
-    onError({ error }) {
-      console.error("[streamAssistantText_error]", error);
-    },
-  });
+  const candidateModels = [
+    routedModel,
+    ...DEFAULT_FALLBACK_MODELS.filter((m) => m !== routedModel),
+  ];
 
-  return {
-    stream: result.textStream,
-    fullTextPromise: result.text,
-    modelId: routedModel,
-    toTextStreamResponse: (init?: ResponseInit) => result.toTextStreamResponse(init),
-  };
+  let lastError: unknown = null;
+  for (const candidate of candidateModels) {
+    try {
+      const result = streamText({
+        model: model(candidate),
+        system,
+        messages,
+        temperature: 0.85,
+        topP: 0.95,
+        frequencyPenalty: 0.35,
+        presencePenalty: 0.45,
+        maxOutputTokens: 450,
+        abortSignal: abortSignal || AbortSignal.timeout(110000),
+        onError({ error }) {
+          console.error(`[streamAssistantText_error on ${candidate}]`, error);
+        },
+      });
+
+      return {
+        stream: result.textStream,
+        fullTextPromise: result.text,
+        modelId: candidate,
+        toTextStreamResponse: (init?: ResponseInit) => result.toTextStreamResponse(init),
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn(`[streamAssistantText] Model ${candidate} stream setup failed, trying fallback:`, err);
+    }
+  }
+
+  throw lastError || new Error("Failed to initialize stream across all candidate models.");
 }
 
 export async function generateAssistantText(params: {
@@ -61,19 +76,40 @@ export async function generateAssistantText(params: {
   const { character, sceneState, system, messages, priorAssistant, userName } = params;
   const routedModel = pickModelId(character.model);
 
+  const candidateModels = [
+    routedModel,
+    ...DEFAULT_FALLBACK_MODELS.filter((m) => m !== routedModel),
+  ];
+
   let finalText = "";
-  const first = await generateText({
-    model: model(routedModel),
-    system,
-    messages,
-    temperature: 0.85,
-    topP: 0.95,
-    frequencyPenalty: 0.35,
-    presencePenalty: 0.45,
-    maxOutputTokens: 450,
-    abortSignal: AbortSignal.timeout(110000),
-  });
-  finalText = first.text.trim();
+  let successfulModelId = routedModel;
+  let lastError: unknown = null;
+
+  for (const candidate of candidateModels) {
+    try {
+      const first = await generateText({
+        model: model(candidate),
+        system,
+        messages,
+        temperature: 0.85,
+        topP: 0.95,
+        frequencyPenalty: 0.35,
+        presencePenalty: 0.45,
+        maxOutputTokens: 450,
+        abortSignal: AbortSignal.timeout(110000),
+      });
+      finalText = first.text.trim();
+      successfulModelId = candidate;
+      break;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[generateAssistantText] Model ${candidate} failed, trying fallback:`, err);
+    }
+  }
+
+  if (!finalText) {
+    throw lastError || new Error("All candidate models failed to generate response.");
+  }
 
   const selfName = character.alias?.trim() || character.name;
   let validation = validateInCharacterOutput({
@@ -102,7 +138,7 @@ export async function generateAssistantText(params: {
 
     try {
       const rewritten = await generateText({
-        model: model(routedModel),
+        model: model(successfulModelId),
         system: `${REWRITE_SYSTEM}\n\n${system}`,
         prompt: rewritePrompt,
         temperature: 0.88,
@@ -125,7 +161,7 @@ export async function generateAssistantText(params: {
 
   return {
     text: finalText,
-    modelId: routedModel,
+    modelId: successfulModelId,
     validation,
     repetitive,
   };

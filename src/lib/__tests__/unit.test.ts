@@ -267,8 +267,15 @@ test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to D
   assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, false), DEFAULT_MODEL);
   // Allowed public models:
   assert.strictEqual(sanitizeModel("sao10k/l3.1-euryale-70b"), "sao10k/l3.1-euryale-70b");
+  assert.strictEqual(sanitizeModel("aion-labs/aion-3.5-mini"), "aion-labs/aion-3.5-mini");
+  assert.strictEqual(sanitizeModel("aion-labs/aion-3.5"), "aion-labs/aion-3.5");
+  assert.strictEqual(sanitizeModel("thedrummer/skyfall-36b-v2"), "thedrummer/skyfall-36b-v2");
   // Deprecated models seamlessly map to their active replacements:
   assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "sao10k/l3.1-euryale-70b");
+  assert.strictEqual(sanitizeModel("aion-labs/aion-3.0-mini"), "aion-labs/aion-3.5-mini");
+  assert.strictEqual(sanitizeModel("aion-labs/aion-3.0"), "aion-labs/aion-3.5");
+  assert.strictEqual(sanitizeModel("nousresearch/hermes-4-70b"), "nousresearch/hermes-3-llama-3.1-70b");
+  assert.strictEqual(sanitizeModel("thedrummer/rocinante-12b"), "thedrummer/cydonia-24b-v4.1");
   // Arbitrary invalid models fall back to DEFAULT_MODEL:
   assert.strictEqual(sanitizeModel("invalid/random-model"), DEFAULT_MODEL);
 });
