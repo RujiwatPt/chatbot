@@ -11,8 +11,8 @@ import {
   stripAppearanceTropes,
   extractLastTurnRemix,
 } from "../memory.js";
-import { detectPreferredName } from "../../app/api/chat/route.js";
-import { sanitizeNext } from "../../app/auth/callback/route.js";
+import { detectPreferredName } from "../name-detection.js";
+import { sanitizeNext } from "../navigation.js";
 import { getDefaultCharacterAvatar } from "../avatar.js";
 import { getCleanPersonaDisplay } from "../persona.js";
 import { sanitizeModel, DEFAULT_MODEL, SUMMARIZER_MODEL } from "../openrouter.js";

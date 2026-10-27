@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
-import { MODEL_OPTIONS, getModelNickname } from "@/lib/openrouter";
+import { MODEL_OPTIONS, getModelNickname } from "@/lib/models";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
 
