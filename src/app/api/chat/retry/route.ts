@@ -197,6 +197,13 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[retry_generation_error]", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg.includes("Insufficient credits") || errMsg.includes("402")) {
+      return new Response(
+        "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits.",
+        { status: 402 },
+      );
+    }
     return new Response(
       "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
       { status: 503 },
@@ -228,7 +235,13 @@ export async function POST(request: Request) {
         await supabase.from("messages").delete().eq("id", inserted.id);
         return;
       }
-      const finalText = (await streamed.fullTextPromise).trim();
+      let rawText = "";
+      try {
+        rawText = await streamed.fullTextPromise;
+      } catch (streamErr) {
+        console.error("[retry_streamed_fullTextPromise_error]", streamErr);
+      }
+      const finalText = rawText.trim();
       if (finalText) {
         const cleanedFinalText = stripAppearanceTropes(finalText);
         await supabase

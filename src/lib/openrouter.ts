@@ -39,7 +39,8 @@ const openrouterFetch: typeof fetch = async (input, init) => {
   const apiKey = await getOpenRouterApiKey();
   if (apiKey) {
     const headers = new Headers(customInit.headers || {});
-    if (!headers.has("Authorization")) {
+    const currentAuth = headers.get("Authorization");
+    if (!currentAuth || currentAuth === "Bearer " || currentAuth === "Bearer") {
       headers.set("Authorization", `Bearer ${apiKey}`);
     }
     customInit.headers = headers;
@@ -64,7 +65,7 @@ const openrouterFetch: typeof fetch = async (input, init) => {
           parsed.models = [
             primary,
             ...DEFAULT_FALLBACK_MODELS.filter((m) => m !== primary),
-          ];
+          ].slice(0, 3);
           modified = true;
         }
         if (modified) {

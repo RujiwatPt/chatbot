@@ -420,10 +420,12 @@ export default function ChatClient({
       } else {
         const rawMsg = err instanceof Error ? err.message : "";
         const userFacingMessage =
-          rawMsg.includes("high load") ||
-          rawMsg.includes("503") ||
-          rawMsg.includes("500") ||
-          rawMsg.includes("429")
+          rawMsg.includes("credits") || rawMsg.includes("402")
+            ? "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits."
+            : rawMsg.includes("high load") ||
+              rawMsg.includes("503") ||
+              rawMsg.includes("500") ||
+              rawMsg.includes("429")
             ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
             : rawMsg ||
               "The model is experiencing some high load, try changing model or wait for a moment before trying again.";
@@ -608,10 +610,12 @@ export default function ChatClient({
       } else {
         const rawMsg = err instanceof Error ? err.message : "";
         const userFacingMessage =
-          rawMsg.includes("high load") ||
-          rawMsg.includes("503") ||
-          rawMsg.includes("500") ||
-          rawMsg.includes("429")
+          rawMsg.includes("credits") || rawMsg.includes("402")
+            ? "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits."
+            : rawMsg.includes("high load") ||
+              rawMsg.includes("503") ||
+              rawMsg.includes("500") ||
+              rawMsg.includes("429")
             ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
             : rawMsg || "Retry failed. Please try again.";
         setError(userFacingMessage);

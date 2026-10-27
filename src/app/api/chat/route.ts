@@ -219,6 +219,14 @@ export async function POST(request: Request) {
       .from("messages")
       .delete()
       .in("id", [userInserted.id, assistantInserted.id]);
+
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg.includes("Insufficient credits") || errMsg.includes("402")) {
+      return new Response(
+        "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits.",
+        { status: 402 },
+      );
+    }
     return new Response(
       "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
       { status: 503 },
@@ -232,7 +240,13 @@ export async function POST(request: Request) {
         await supabase.from("messages").delete().eq("id", assistantInserted.id);
         return;
       }
-      const finalText = (await streamed.fullTextPromise).trim();
+      let rawText = "";
+      try {
+        rawText = await streamed.fullTextPromise;
+      } catch (streamErr) {
+        console.error("[streamed_fullTextPromise_error]", streamErr);
+      }
+      const finalText = rawText.trim();
       if (finalText) {
         const cleanedFinalText = stripAppearanceTropes(finalText);
         await supabase
