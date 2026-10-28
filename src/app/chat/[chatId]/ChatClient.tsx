@@ -421,6 +421,8 @@ export default function ChatClient({
         const userFacingMessage =
           rawMsg.includes("credits") || rawMsg.includes("402")
             ? "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits."
+            : rawMsg.includes("API key") || rawMsg.includes("401") || rawMsg.includes("Unauthorized")
+            ? "OpenRouter API key is invalid or expired. Please check your API key in settings."
             : rawMsg.includes("high load") ||
               rawMsg.includes("503") ||
               rawMsg.includes("500") ||
@@ -611,6 +613,8 @@ export default function ChatClient({
         const userFacingMessage =
           rawMsg.includes("credits") || rawMsg.includes("402")
             ? "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits."
+            : rawMsg.includes("API key") || rawMsg.includes("401") || rawMsg.includes("Unauthorized")
+            ? "OpenRouter API key is invalid or expired. Please check your API key in settings."
             : rawMsg.includes("high load") ||
               rawMsg.includes("503") ||
               rawMsg.includes("500") ||

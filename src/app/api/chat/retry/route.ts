@@ -204,6 +204,18 @@ export async function POST(request: Request) {
         { status: 402 },
       );
     }
+    if (
+      errMsg.includes("401") ||
+      errMsg.includes("Unauthorized") ||
+      errMsg.includes("User not found") ||
+      errMsg.includes("Key not found") ||
+      errMsg.includes("auth credentials")
+    ) {
+      return new Response(
+        "OpenRouter API key is invalid or expired. Please check your API key in settings.",
+        { status: 401 },
+      );
+    }
     return new Response(
       "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
       { status: 503 },
