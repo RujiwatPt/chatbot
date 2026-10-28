@@ -18,6 +18,13 @@ export const MODEL_OPTIONS = [
     description: "Rich, immersive prose & deep character adherence.",
   },
   {
+    id: "google/gemma-4-31b-it:free",
+    name: "Google: Gemma 4 31B",
+    tag: "100% Free",
+    speed: "Fast",
+    description: "Google DeepMind 31B dense model. Works even with $0 account balance.",
+  },
+  {
     id: "aion-labs/aion-3.5-mini",
     name: "AionLabs: Aion 3.5 Mini",
     tag: "Fast RP",

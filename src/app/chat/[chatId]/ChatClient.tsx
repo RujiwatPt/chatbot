@@ -390,7 +390,7 @@ export default function ChatClient({
       const finalMsgText = acc.trim();
       if (!finalMsgText) {
         throw new Error(
-          "The model is experiencing high load or returned an empty response. Please try again or switch models.",
+          "OpenRouter account credits are depleted ($0.00 balance). Please top up credits at https://openrouter.ai/settings/credits or select a free model.",
         );
       }
       setMessages((m) =>
@@ -585,7 +585,7 @@ export default function ChatClient({
       const finalMsgText = acc.trim();
       if (!finalMsgText) {
         throw new Error(
-          "The model is experiencing high load or returned an empty response. Please try again or switch models.",
+          "OpenRouter account credits are depleted ($0.00 balance). Please top up credits at https://openrouter.ai/settings/credits or select a free model.",
         );
       }
       setMessages((m) =>
