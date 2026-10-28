@@ -262,20 +262,22 @@ test("extractLastTurnRemix quotes the last reply and retires stemmed verbs", () 
 
 test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to DEFAULT_MODEL", () => {
   // When allowInternal is true (internal services like summarizer):
-  assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, true), "meta-llama/llama-3.3-70b-instruct");
+  assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, true), "google/gemma-4-26b-a4b-it:free");
   // When allowInternal is false (public user form input):
-  assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, false), DEFAULT_MODEL);
-  // Allowed public models:
-  assert.strictEqual(sanitizeModel("sao10k/l3.1-euryale-70b"), "sao10k/l3.1-euryale-70b");
-  assert.strictEqual(sanitizeModel("aion-labs/aion-3.5-mini"), "aion-labs/aion-3.5-mini");
-  assert.strictEqual(sanitizeModel("aion-labs/aion-3.5"), "aion-labs/aion-3.5");
-  assert.strictEqual(sanitizeModel("thedrummer/skyfall-36b-v2"), "thedrummer/skyfall-36b-v2");
-  // Deprecated models seamlessly map to their active replacements:
-  assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "sao10k/l3.1-euryale-70b");
-  assert.strictEqual(sanitizeModel("aion-labs/aion-3.0-mini"), "aion-labs/aion-3.5-mini");
-  assert.strictEqual(sanitizeModel("aion-labs/aion-3.0"), "aion-labs/aion-3.5");
-  assert.strictEqual(sanitizeModel("nousresearch/hermes-4-70b"), "nousresearch/hermes-3-llama-3.1-70b");
-  assert.strictEqual(sanitizeModel("thedrummer/rocinante-12b"), "thedrummer/cydonia-24b-v4.1");
+  assert.strictEqual(sanitizeModel(SUMMARIZER_MODEL, false), "google/gemma-4-26b-a4b-it:free");
+  // Allowed public free models:
+  assert.strictEqual(sanitizeModel("google/gemma-4-31b-it:free"), "google/gemma-4-31b-it:free");
+  assert.strictEqual(sanitizeModel("google/gemma-4-26b-a4b-it:free"), "google/gemma-4-26b-a4b-it:free");
+  assert.strictEqual(sanitizeModel("nvidia/nemotron-3-ultra-550b-a55b:free"), "nvidia/nemotron-3-ultra-550b-a55b:free");
+  assert.strictEqual(sanitizeModel("openrouter/free"), "openrouter/free");
+  // Deprecated/paid models seamlessly map to their 100% free active replacements:
+  assert.strictEqual(sanitizeModel("sao10k/l3.1-euryale-70b"), "google/gemma-4-31b-it:free");
+  assert.strictEqual(sanitizeModel("sao10k/l3.3-euryale-70b"), "google/gemma-4-31b-it:free");
+  assert.strictEqual(sanitizeModel("aion-labs/aion-3.5-mini"), "google/gemma-4-26b-a4b-it:free");
+  assert.strictEqual(sanitizeModel("aion-labs/aion-3.5"), "google/gemma-4-31b-it:free");
+  assert.strictEqual(sanitizeModel("nousresearch/hermes-4-70b"), "nvidia/nemotron-3-ultra-550b-a55b:free");
+  assert.strictEqual(sanitizeModel("thedrummer/skyfall-36b-v2"), "dots-studio/dots-3-note-preview:free");
+  assert.strictEqual(sanitizeModel("thedrummer/rocinante-12b"), "thinkingmachines/inkling-small:free");
   // Arbitrary invalid models fall back to DEFAULT_MODEL:
   assert.strictEqual(sanitizeModel("invalid/random-model"), DEFAULT_MODEL);
 });

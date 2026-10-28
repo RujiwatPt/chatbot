@@ -1,91 +1,90 @@
-export const DEFAULT_MODEL = "sao10k/l3.1-euryale-70b";
+export const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
 
-export const SUMMARIZER_MODEL = "meta-llama/llama-3.3-70b-instruct";
+export const SUMMARIZER_MODEL = "google/gemma-4-26b-a4b-it:free";
 
 export const DEFAULT_FALLBACK_MODELS = [
-  "sao10k/l3.1-euryale-70b",
-  "anthracite-org/magnum-v4-72b",
-  "aion-labs/aion-3.5",
-  "meta-llama/llama-3.3-70b-instruct",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3.5-lightning:free",
+  "openrouter/free",
 ] as const;
 
 export const MODEL_OPTIONS = [
   {
-    id: "sao10k/l3.1-euryale-70b",
-    name: "Sao10K: Euryale 70B",
-    tag: "Default Roleplay",
-    speed: "Standard",
-    description: "Rich, immersive prose & deep character adherence.",
-  },
-  {
-    id: "aion-labs/aion-3.5-mini",
-    name: "AionLabs: Aion 3.5 Mini",
-    tag: "Fast RP",
+    id: "google/gemma-4-31b-it:free",
+    name: "Google: Gemma 4 31B",
+    tag: "Default Free RP",
     speed: "Fast",
-    description: "Latest lightweight, ultra-responsive roleplay model with 256k context.",
+    description: "Google DeepMind 31B dense model. Rich prose, character adherence & 256k context (100% Free).",
   },
   {
-    id: "aion-labs/aion-3.5",
-    name: "AionLabs: Aion 3.5",
-    tag: "Advanced RP",
+    id: "google/gemma-4-26b-a4b-it:free",
+    name: "Google: Gemma 4 26B MoE",
+    tag: "Ultra-Fast",
+    speed: "Fast",
+    description: "Google DeepMind lightweight MoE. Rapid response times & snappy dialogue (100% Free).",
+  },
+  {
+    id: "nvidia/nemotron-3-ultra-550b-a55b:free",
+    name: "NVIDIA: Nemotron 3 Ultra",
+    tag: "Frontier MoE",
     speed: "Standard",
-    description: "Latest balanced, immersive dialogue & story development.",
+    description: "Massive 550B MoE frontier model. Deep narrative depth and complex reasoning (100% Free).",
   },
   {
-    id: "anthracite-org/magnum-v4-72b",
-    name: "Anthracite: Magnum v4 72B",
+    id: "nvidia/nemotron-3.5-lightning:free",
+    name: "NVIDIA: Nemotron Lightning",
+    tag: "Fast Narrative",
+    speed: "Fast",
+    description: "High-throughput 30B MoE with 1M context for immersive storytelling (100% Free).",
+  },
+  {
+    id: "thinkingmachines/inkling:free",
+    name: "Thinking Machines: Inkling",
     tag: "Deep Creative",
     speed: "Standard",
-    description: "High-capability creative writing and roleplay engine.",
+    description: "High-parameter 975B MoE for imaginative worldbuilding & dynamic interaction (100% Free).",
   },
   {
-    id: "thedrummer/cydonia-24b-v4.1",
-    name: "TheDrummer: Cydonia 24B",
-    tag: "Storytelling",
+    id: "thinkingmachines/inkling-small:free",
+    name: "Thinking Machines: Inkling Small",
+    tag: "Story RP",
     speed: "Fast",
-    description: "Character-focused creative roleplay and rich dialogue model.",
+    description: "276B MoE with 1M context. Smooth conversational pacing and expressive dialogue (100% Free).",
   },
   {
-    id: "thedrummer/skyfall-36b-v2",
-    name: "TheDrummer: Skyfall 36B",
-    tag: "Narrative RP",
+    id: "dots-studio/dots-3-note-preview:free",
+    name: "Dots Studio: Dots3 Note",
+    tag: "Atmospheric",
     speed: "Fast",
-    description: "Multi-genre atmospheric storytelling and creative immersion.",
+    description: "280B MoE with 512k context. Character consistency and atmospheric prose (100% Free).",
   },
   {
-    id: "cognitivecomputations/dolphin-mistral-24b-venice-edition",
-    name: "Dolphin Mistral 24B",
-    tag: "Venice Uncensored",
+    id: "xingchen-agi/xing4.0-29b-a4b:free",
+    name: "TeleAI: Xing4.0 29B",
+    tag: "Conversational",
     speed: "Fast",
-    description: "Venice edition uncensored storytelling model.",
+    description: "Balanced 29B MoE language model for expressive, grounded dialogue (100% Free).",
   },
   {
-    id: "thedrummer/unslopnemo-12b",
-    name: "TheDrummer: UnslopNemo 12B",
-    tag: "Anti-Cliché",
+    id: "recursive/flint-v1.0:free",
+    name: "Recursive: Flint 40B",
+    tag: "Adaptive",
     speed: "Fast",
-    description: "Trained to avoid repetitive tropes and cliché AI phrasing.",
+    description: "Efficient 40B MoE model tuned for adaptive conversation and dialogue (100% Free).",
   },
   {
-    id: "nousresearch/hermes-3-llama-3.1-70b",
-    name: "Nous: Hermes 3 70B",
-    tag: "Reasoning & RP",
-    speed: "Standard",
-    description: "Advanced reasoning and creative dialogue dynamics.",
-  },
-  {
-    id: "gryphe/mythomax-l2-13b",
-    name: "MythoMax 13B",
-    tag: "Classic Light",
+    id: "openrouter/free",
+    name: "OpenRouter: Free Router",
+    tag: "Auto-Failover",
     speed: "Fast",
-    description: "Classic lightweight roleplay model with rapid generation.",
+    description: "Dynamic router that automatically connects to the highest-availability active free model (100% Free).",
   },
 ] as const;
 
 export const ALLOWED_MODELS = new Set<string>(MODEL_OPTIONS.map((m) => m.id));
 
 export const INTERNAL_MODELS = new Set<string>([
-  "meta-llama/llama-3.3-70b-instruct",
   SUMMARIZER_MODEL,
 ]);
 
@@ -97,31 +96,55 @@ export const ALL_ALLOWED_MODELS = new Set<string>([
 export function getModelNickname(id: string | null | undefined): string {
   const sanitized = sanitizeModel(id);
   const found = MODEL_OPTIONS.find((m) => m.id === sanitized);
-  return found?.name ?? "Sao10K: Euryale 70B";
+  return found?.name ?? "Google: Gemma 4 31B (Free)";
 }
 
 export function sanitizeModel(
   id: string | null | undefined,
   allowInternal = false,
 ): string {
-  if (id === "venice/uncensored") {
-    return "cognitivecomputations/dolphin-mistral-24b-venice-edition";
+  if (
+    id === "sao10k/l3.1-euryale-70b" ||
+    id === "sao10k/l3.3-euryale-70b" ||
+    id === "venice/uncensored" ||
+    id === "cognitivecomputations/dolphin-mistral-24b-venice-edition" ||
+    id === "aion-labs/aion-3.5" ||
+    id === "aion-labs/aion-3.0" ||
+    id === "aion-labs/aion-2.0"
+  ) {
+    return "google/gemma-4-31b-it:free";
   }
-  if (id === "sao10k/l3.3-euryale-70b") {
-    return "sao10k/l3.1-euryale-70b";
+
+  if (
+    id === "aion-labs/aion-3.5-mini" ||
+    id === "aion-labs/aion-3.0-mini" ||
+    id === "aion-labs/aion-2.0-mini" ||
+    id === "thedrummer/unslopnemo-12b" ||
+    id === "gryphe/mythomax-l2-13b" ||
+    id === "meta-llama/llama-3.3-70b-instruct"
+  ) {
+    return "google/gemma-4-26b-a4b-it:free";
   }
-  if (id === "aion-labs/aion-3.0-mini" || id === "aion-labs/aion-2.0-mini") {
-    return "aion-labs/aion-3.5-mini";
+
+  if (
+    id === "anthracite-org/magnum-v4-72b" ||
+    id === "nousresearch/hermes-3-llama-3.1-70b" ||
+    id === "nousresearch/hermes-4-70b"
+  ) {
+    return "nvidia/nemotron-3-ultra-550b-a55b:free";
   }
-  if (id === "aion-labs/aion-3.0" || id === "aion-labs/aion-2.0") {
-    return "aion-labs/aion-3.5";
+
+  if (
+    id === "thedrummer/cydonia-24b-v4.1" ||
+    id === "thedrummer/rocinante-12b"
+  ) {
+    return "thinkingmachines/inkling-small:free";
   }
-  if (id === "nousresearch/hermes-4-70b") {
-    return "nousresearch/hermes-3-llama-3.1-70b";
+
+  if (id === "thedrummer/skyfall-36b-v2") {
+    return "dots-studio/dots-3-note-preview:free";
   }
-  if (id === "thedrummer/rocinante-12b") {
-    return "thedrummer/cydonia-24b-v4.1";
-  }
+
   const allowed = allowInternal ? ALL_ALLOWED_MODELS : ALLOWED_MODELS;
   if (id && allowed.has(id)) {
     return id;

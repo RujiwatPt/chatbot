@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
-import { MODEL_OPTIONS, getModelNickname } from "@/lib/models";
+import { MODEL_OPTIONS, getModelNickname, sanitizeModel } from "@/lib/models";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
 
@@ -138,8 +138,7 @@ export default function ChatClient({
   const [busy, setBusy] = useState(false);
   const [actionState, setActionState] = useState<"none" | "sending" | "retrying" | "undoing">("none");
   const [activeModelId, setActiveModelId] = useState<string>(() => {
-    const raw = initialModelId || "sao10k/l3.1-euryale-70b";
-    return raw === "sao10k/l3.3-euryale-70b" ? "sao10k/l3.1-euryale-70b" : raw;
+    return sanitizeModel(initialModelId);
   });
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [headerHidden, setHeaderHidden] = useState<boolean>(() => {

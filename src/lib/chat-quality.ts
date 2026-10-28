@@ -1,5 +1,6 @@
 import { generateText, streamText } from "ai";
 import { model, DEFAULT_FALLBACK_MODELS } from "@/lib/openrouter";
+import { sanitizeModel } from "@/lib/models";
 import type { Character, SceneState } from "@/lib/memory";
 import {
   looksRepetitive,
@@ -8,7 +9,7 @@ import {
 import { REWRITE_SYSTEM } from "@/lib/prompts";
 
 export function pickModelId(configuredModel?: string | null) {
-  return configuredModel || "sao10k/l3.1-euryale-70b";
+  return sanitizeModel(configuredModel);
 }
 
 /**
