@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { encryptText } from "@/lib/encryption";
+import { sanitizeModel } from "@/lib/models";
 
 export async function startChat(characterId: string, formData?: FormData) {
   const supabase = await createClient();
@@ -23,7 +24,10 @@ export async function startChat(characterId: string, formData?: FormData) {
     .select("id, name, greeting, model")
     .eq("id", characterId)
     .maybeSingle();
-  if (cerr) throw new Error(cerr.message);
+  if (cerr) {
+    console.error("[startChat_fetch_character_error]", cerr);
+    throw new Error(cerr.message);
+  }
   if (!character) throw new Error("Character not found");
 
   const { data: chat, error } = await supabase
@@ -32,21 +36,27 @@ export async function startChat(characterId: string, formData?: FormData) {
       user_id: user.id,
       character_id: character.id,
       title: character.name,
-      model: character.model || null,
+      model: sanitizeModel(character.model),
       user_name: userName,
       user_pronouns: userPronouns,
       user_description: userDescription,
     })
     .select("id")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("[startChat_insert_chat_error]", error);
+    throw new Error(error.message);
+  }
 
   if (character.greeting) {
-    await supabase.from("messages").insert({
+    const { error: msgErr } = await supabase.from("messages").insert({
       chat_id: chat.id,
       role: "assistant",
       content: await encryptText(character.greeting, user.id),
     });
+    if (msgErr) {
+      console.error("[startChat_greeting_error]", msgErr);
+    }
   }
 
   revalidatePath("/chat");
