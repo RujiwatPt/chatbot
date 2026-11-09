@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCharacterAvatar } from "@/lib/avatar";
 import { decryptText } from "@/lib/encryption";
-import { DEFAULT_MODEL } from "@/lib/models";
+import { DEFAULT_MODEL, sanitizeModel } from "@/lib/models";
 import ChatClient from "./ChatClient";
 import { deleteChat } from "../actions";
 
@@ -74,7 +74,9 @@ export default async function ChatPage({
     }),
   );
 
-  const currentModelId = chat.model || character?.model || DEFAULT_MODEL;
+  const currentModelId = sanitizeModel(
+    chat.model || character?.model || DEFAULT_MODEL,
+  );
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-1 sm:py-2">

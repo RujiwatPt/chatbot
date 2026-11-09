@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateText } from "ai";
 import { model, SUMMARIZER_MODEL } from "@/lib/openrouter";
+import { DEFAULT_MODEL, sanitizeModel } from "@/lib/models";
 import { SCENE_STATE_SYSTEM, SUMMARIZER_SYSTEM } from "@/lib/prompts";
 import { decryptText, encryptText } from "@/lib/encryption";
 
@@ -283,9 +284,9 @@ export async function loadChatContext(
   ) as Character | undefined;
   if (!character) return null;
 
-  if (chat?.model) {
-    character.model = chat.model;
-  }
+  character.model = sanitizeModel(
+    chat?.model || character.model || DEFAULT_MODEL,
+  );
 
   const effectiveUserId = userId ?? (chat?.user_id as string | undefined);
   const userName = (chat?.user_name as string | null) ?? null;

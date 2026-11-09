@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { encryptText } from "@/lib/encryption";
-import { sanitizeModel } from "@/lib/models";
+import { sanitizeModel, DEFAULT_MODEL } from "@/lib/models";
 
 export async function startChat(characterId: string, formData?: FormData) {
   const supabase = await createClient();
@@ -18,6 +18,7 @@ export async function startChat(characterId: string, formData?: FormData) {
     String(formData?.get("user_pronouns") ?? "").trim() || null;
   const userDescription =
     String(formData?.get("user_description") ?? "").trim() || null;
+  const formModel = String(formData?.get("model") ?? "").trim();
 
   const { data: character, error: cerr } = await supabase
     .from("characters")
@@ -30,13 +31,17 @@ export async function startChat(characterId: string, formData?: FormData) {
   }
   if (!character) throw new Error("Character not found");
 
+  const effectiveModel = sanitizeModel(
+    formModel || character.model || DEFAULT_MODEL,
+  );
+
   const { data: chat, error } = await supabase
     .from("chats")
     .insert({
       user_id: user.id,
       character_id: character.id,
       title: character.name,
-      model: sanitizeModel(character.model),
+      model: effectiveModel,
       user_name: userName,
       user_pronouns: userPronouns,
       user_description: userDescription,

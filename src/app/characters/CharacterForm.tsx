@@ -7,6 +7,7 @@ import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
 import AvatarCropModal from "./AvatarCropModal";
 
 import { PRESET_TAGS } from "@/lib/tags";
+import { MODEL_OPTIONS, DEFAULT_MODEL, sanitizeModel } from "@/lib/models";
 
 type Character = {
   id?: string;
@@ -16,6 +17,7 @@ type Character = {
   greeting?: string | null;
   scenario?: string | null;
   avatar_url?: string | null;
+  model?: string | null;
   is_public?: boolean | null;
   tags?: string[] | null;
 };
@@ -310,6 +312,27 @@ export default function CharacterForm({
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="model" className="label">
+          Default Model
+        </label>
+        <select
+          id="model"
+          name="model"
+          defaultValue={sanitizeModel(initial?.model || DEFAULT_MODEL)}
+          className="field"
+        >
+          {MODEL_OPTIONS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({m.tag}) — {m.speed}
+            </option>
+          ))}
+        </select>
+        <p className="muted text-xs">
+          Default roleplay engine used when new chats are started with this character.
+        </p>
       </div>
 
       <label className="flex items-start gap-2 text-sm">

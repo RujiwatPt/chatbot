@@ -8,7 +8,7 @@ import { generatePersonaBio } from "@/lib/persona";
 import { ensureTagsExist } from "@/lib/tags";
 
 import { z } from "zod";
-import { sanitizeModel } from "@/lib/openrouter";
+import { sanitizeModel } from "@/lib/models";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const CharacterSchema = z.object({

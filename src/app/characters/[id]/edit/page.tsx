@@ -20,7 +20,7 @@ export default async function EditCharacterPage({
   } = await supabase.auth.getUser();
   const { data: character } = await supabase
     .from("characters")
-    .select("id, name, alias, persona, greeting, scenario, is_public, avatar_url, user_id, tags")
+    .select("id, name, alias, persona, greeting, scenario, is_public, avatar_url, user_id, tags, model")
     .eq("id", id)
     .maybeSingle();
 

@@ -147,16 +147,17 @@ export default function ChatClient({
   });
 
   async function handleModelSelect(modelId: string) {
-    setActiveModelId(modelId);
+    const sanitized = sanitizeModel(modelId);
+    setActiveModelId(sanitized);
     if (typeof window !== "undefined") {
-      localStorage.setItem("howly-selected-model", modelId);
+      localStorage.setItem("howly-selected-model", sanitized);
     }
     setModelPickerOpen(false);
     try {
       await fetch("/api/chat/model", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chatId, modelId }),
+        body: JSON.stringify({ chatId, modelId: sanitized }),
       });
     } catch {
       // ignore

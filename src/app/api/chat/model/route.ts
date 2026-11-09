@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { sanitizeModel } from "@/lib/openrouter";
+import { sanitizeModel } from "@/lib/models";
 
 const Body = z.object({
   chatId: z.string().uuid(),

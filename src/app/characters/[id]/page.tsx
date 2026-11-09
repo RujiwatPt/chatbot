@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startChat } from "../../chat/actions";
 import { getCleanPersonaDisplay } from "@/lib/persona";
+import { MODEL_OPTIONS, sanitizeModel, DEFAULT_MODEL } from "@/lib/models";
 
 import AvatarImage from "@/components/AvatarImage";
 import { getCharacterAvatar, getDefaultCharacterAvatar } from "@/lib/avatar";
@@ -29,7 +30,7 @@ export default async function CharacterDetailPage({
     supabase.auth.getUser(),
     supabase
       .from("characters")
-      .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id, tags")
+      .select("id, name, alias, persona, persona_display, scenario, avatar_url, is_public, user_id, tags, model")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -182,6 +183,26 @@ export default async function CharacterDetailPage({
             />
             <p className="muted text-[11px]">
               Provide background details or personality traits for {character.name} to remember.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="model" className="label">
+              Roleplay Model
+            </label>
+            <select
+              id="model"
+              name="model"
+              defaultValue={sanitizeModel(character.model || DEFAULT_MODEL)}
+              className="field"
+            >
+              {MODEL_OPTIONS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.tag}) — {m.speed}
+                </option>
+              ))}
+            </select>
+            <p className="muted text-[11px]">
+              Choose the AI model for this chat. You can switch models at any time.
             </p>
           </div>
           <StartChatSubmitButton />

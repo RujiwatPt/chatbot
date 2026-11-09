@@ -278,6 +278,9 @@ test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to D
   assert.strictEqual(sanitizeModel("thedrummer/rocinante-12b"), "thedrummer/cydonia-24b-v4.1");
   // Arbitrary invalid models fall back to DEFAULT_MODEL:
   assert.strictEqual(sanitizeModel("invalid/random-model"), DEFAULT_MODEL);
+  assert.strictEqual(sanitizeModel(null), DEFAULT_MODEL);
+  assert.strictEqual(sanitizeModel(undefined), DEFAULT_MODEL);
+  assert.strictEqual(sanitizeModel(""), DEFAULT_MODEL);
 });
 
 
