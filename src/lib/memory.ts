@@ -257,8 +257,10 @@ export async function loadChatContext(
   userName: string | null;
   userPronouns: string | null;
   userDescription: string | null;
+  estimatedTotalMessages: number;
 } | null> {
-  // Parallelize initial database context fetches (chats, memories)
+  // Parallelize ALL initial database context fetches (chats, memories, recent messages)
+  // in a single concurrent network round-trip.
   const chatQuery = supabase
     .from("chats")
     .select(
@@ -266,7 +268,7 @@ export async function loadChatContext(
     )
     .eq("id", chatId);
 
-  const [chatRes, memoryRes] = await Promise.all([
+  const [chatRes, memoryRes, messagesRes] = await Promise.all([
     (userId ? chatQuery.eq("user_id", userId) : chatQuery).maybeSingle(),
     supabase
       .from("memories")
@@ -274,10 +276,18 @@ export async function loadChatContext(
       .eq("chat_id", chatId)
       .order("id", { ascending: false })
       .limit(60),
+    supabase
+      .from("messages")
+      .select("id, role, content")
+      .eq("chat_id", chatId)
+      .neq("content", "")
+      .order("id", { ascending: false })
+      .limit(POST_SUMMARY_CAP),
   ]);
 
   const chat = chatRes.data;
   const memoryRows = memoryRes.data;
+  const allRawMessages = messagesRes.data ?? [];
 
   const character = (
     Array.isArray(chat?.character) ? chat?.character[0] : chat?.character
@@ -333,18 +343,13 @@ export async function loadChatContext(
     }
   }
 
-  // Fetch recent messages newer than the summary, ordered most recent to oldest.
-  const { data: rawMessages } = await supabase
-    .from("messages")
-    .select("role, content")
-    .eq("chat_id", chatId)
-    .neq("content", "")
-    .gt("id", summaryUpTo)
-    .order("id", { ascending: false })
-    .limit(POST_SUMMARY_CAP);
+  // Filter messages newer than the summary from the concurrently-fetched messages batch
+  const rawMessages = summaryUpTo > 0
+    ? allRawMessages.filter((m) => (m.id as number) > summaryUpTo)
+    : allRawMessages;
 
   const decryptedMessages = await Promise.all(
-    (rawMessages ?? []).map(async (m) => ({
+    rawMessages.map(async (m) => ({
       role: m.role as "user" | "assistant" | "system",
       content: effectiveUserId ? await decryptText(m.content, effectiveUserId) : m.content,
     })),
@@ -423,6 +428,7 @@ export async function loadChatContext(
     userName,
     userPronouns,
     userDescription: effectiveUserDesc,
+    estimatedTotalMessages: allRawMessages.length,
   };
 }
 
@@ -710,11 +716,13 @@ export async function refreshSceneState(
   ).join("\n");
 
   try {
+    const isFree = character.model.includes(":free");
+    const sceneModel = isFree ? character.model : SUMMARIZER_MODEL;
     const { text } = await generateText({
-      model: model(SUMMARIZER_MODEL),
+      model: model(sceneModel),
       system: SCENE_STATE_SYSTEM,
       prompt: `Character: ${character.name}\nPersona: ${character.persona}\nRecent turns:\n${tail}`,
-      abortSignal: AbortSignal.timeout(5000),
+      abortSignal: AbortSignal.timeout(8000),
     });
     const sceneRaw = extractJson(text);
     if (sceneRaw && typeof sceneRaw === "object") {

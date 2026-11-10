@@ -80,10 +80,16 @@ const openrouterFetch: typeof fetch = async (input, init) => {
         }
         if (parsed.model && typeof parsed.model === "string") {
           const primary = parsed.model;
-          parsed.models = [
-            primary,
-            ...DEFAULT_FALLBACK_MODELS.filter((m) => m !== primary),
-          ].slice(0, 3);
+          const isFree = primary.includes(":free");
+          if (isFree) {
+            // Free models must not fall back to paid models (prevents 402 Insufficient Credits on free accounts)
+            parsed.models = [primary];
+          } else {
+            parsed.models = [
+              primary,
+              ...DEFAULT_FALLBACK_MODELS.filter((m) => m !== primary),
+            ].slice(0, 3);
+          }
           modified = true;
         }
         if (modified) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
@@ -106,6 +106,145 @@ function StopIcon() {
     </svg>
   );
 }
+
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
+  chatbotName,
+  avatarUrl,
+  avatarFallbackUrl,
+  busy,
+  isEditing,
+  editDraft,
+  isSavingEdit,
+  onStartEditing,
+  onEditDraftChange,
+  onSaveEdit,
+  onCancelEditing,
+}: {
+  message: Msg;
+  chatbotName: string;
+  avatarUrl?: string;
+  avatarFallbackUrl: string;
+  busy: boolean;
+  isEditing: boolean;
+  editDraft: string;
+  isSavingEdit: boolean;
+  onStartEditing: (id: string, content: string) => void;
+  onEditDraftChange: (val: string) => void;
+  onSaveEdit: (id: string) => void;
+  onCancelEditing: () => void;
+}) {
+  const isContinueMsg =
+    message.role === "user" &&
+    (message.content === "*continue*" ||
+      message.content === "[Continue]" ||
+      message.content.startsWith("[Continue:"));
+
+  if (isContinueMsg) return null;
+
+  return (
+    <div
+      className={`${message.role === "user" ? "flex justify-end" : "flex justify-start gap-2.5 items-start"} message-in`}
+    >
+      {message.role === "assistant" && avatarUrl && (
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm mt-1">
+          <AvatarImage
+            src={avatarUrl}
+            fallbackSrc={avatarFallbackUrl}
+            alt={chatbotName}
+            sizes="32px"
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+      <div
+        className={
+          message.role === "user"
+            ? "user-bubble chat-bubble w-fit max-w-[92%] px-3.5 py-2.5 sm:max-w-[85%]"
+            : "chat-bubble chat-assistant-bubble w-fit max-w-[92%] p-3.5 sm:max-w-[85%]"
+        }
+      >
+        <div
+          className={
+            message.role === "user"
+              ? "user-bubble-header mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-3"
+              : "muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-3"
+          }
+        >
+          <span>{message.role === "assistant" ? chatbotName : "You"}</span>
+          {/^\d+$/.test(message.id) && !busy && !isEditing && (
+            <button
+              type="button"
+              onClick={() => onStartEditing(message.id, message.content)}
+              className="btn-text opacity-60 hover:opacity-100 normal-case text-[11px] font-normal tracking-normal flex items-center gap-1 transition-opacity cursor-pointer"
+              title="Edit response"
+              aria-label="Edit response"
+            >
+              <svg
+                className="h-3 w-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                <path d="m15 5 4 4" />
+              </svg>
+              <span>Edit</span>
+            </button>
+          )}
+        </div>
+        {isEditing ? (
+          <div className="flex flex-col gap-2 mt-1 min-w-[240px] sm:min-w-[320px]">
+            <textarea
+              value={editDraft}
+              onChange={(e) => onEditDraftChange(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  onSaveEdit(message.id);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  onCancelEditing();
+                }
+              }}
+              rows={Math.min(12, Math.max(3, editDraft.split("\n").length + 1))}
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface-sunken)] p-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-1)] resize-y leading-relaxed font-inherit"
+              disabled={isSavingEdit}
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={onCancelEditing}
+                disabled={isSavingEdit}
+                className="btn-text muted hover:underline px-2 py-1 text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => onSaveEdit(message.id)}
+                disabled={isSavingEdit || !editDraft.trim()}
+                className="rounded-md bg-[var(--brand-1)] px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+              >
+                {isSavingEdit ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="chat-message-text whitespace-pre-wrap leading-relaxed">
+            {renderRoleplayText(message.content, message.role === "user") || (
+              <span className="muted">…</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function ChatClient({
   chatId,
@@ -445,50 +584,58 @@ export default function ChatClient({
     }
   }
 
-  function startEditing(messageId: string, currentContent: string) {
-    if (busy || isSavingEdit) return;
-    setEditingMessageId(messageId);
-    setEditDraft(currentContent);
-  }
+  const startEditing = useCallback(
+    (messageId: string, currentContent: string) => {
+      if (busy || isSavingEdit) return;
+      setEditingMessageId(messageId);
+      setEditDraft(currentContent);
+    },
+    [busy, isSavingEdit],
+  );
 
-  function cancelEditing() {
+  const cancelEditing = useCallback(() => {
     setEditingMessageId(null);
     setEditDraft("");
-  }
+  }, []);
 
-  async function saveEdit(messageId: string) {
-    const trimmed = editDraft.trim();
-    if (!trimmed || isSavingEdit) return;
+  const saveEdit = useCallback(
+    async (messageId: string) => {
+      const trimmed = editDraft.trim();
+      if (!trimmed || isSavingEdit) return;
 
-    setIsSavingEdit(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/chat/edit", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          chatId,
-          messageId: Number(messageId),
-          content: trimmed,
-        }),
-      });
+      setIsSavingEdit(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/chat/edit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chatId,
+            messageId: Number(messageId),
+            content: trimmed,
+          }),
+        });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Failed to update message");
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || "Failed to update message");
+        }
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, content: trimmed } : m,
+          ),
+        );
+        setEditingMessageId(null);
+        setEditDraft("");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to save edit");
+      } finally {
+        setIsSavingEdit(false);
       }
-
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: trimmed } : m))
-      );
-      setEditingMessageId(null);
-      setEditDraft("");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to save edit");
-    } finally {
-      setIsSavingEdit(false);
-    }
-  }
+    },
+    [chatId, editDraft, isSavingEdit],
+  );
 
   async function retryLast() {
     if (busy || inFlightRef.current) return;
@@ -849,119 +996,23 @@ export default function ChatClient({
             Say something to begin.
           </p>
         )}
-        {messages.map((m) => {
-          const isContinueMsg =
-            m.role === "user" &&
-            (m.content === "*continue*" ||
-              m.content === "[Continue]" ||
-              m.content.startsWith("[Continue:"));
-
-          if (isContinueMsg) return null;
-
-          return (
-            <div
-              key={m.id}
-              className={`${m.role === "user" ? "flex justify-end" : "flex justify-start gap-2.5 items-start"} message-in`}
-            >
-            {m.role === "assistant" && avatarUrl && (
-              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[var(--line)] shadow-sm mt-1">
-                <AvatarImage
-                  src={avatarUrl}
-                  fallbackSrc={avatarFallbackUrl}
-                  alt={chatbotName}
-                  sizes="32px"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            )}
-            <div
-              className={
-                m.role === "user"
-                  ? "user-bubble chat-bubble w-fit max-w-[92%] px-3.5 py-2.5 sm:max-w-[85%]"
-                  : "chat-bubble chat-assistant-bubble w-fit max-w-[92%] p-3.5 sm:max-w-[85%]"
-              }
-            >
-              <div
-                className={
-                  m.role === "user"
-                    ? "user-bubble-header mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-3"
-                    : "muted mb-1 text-xs font-semibold uppercase tracking-wider flex items-center justify-between gap-3"
-                }
-              >
-                <span>{m.role === "assistant" ? chatbotName : "You"}</span>
-                {/^\d+$/.test(m.id) && !busy && editingMessageId !== m.id && (
-                  <button
-                    type="button"
-                    onClick={() => startEditing(m.id, m.content)}
-                    className="btn-text opacity-60 hover:opacity-100 normal-case text-[11px] font-normal tracking-normal flex items-center gap-1 transition-opacity cursor-pointer"
-                    title="Edit response"
-                    aria-label="Edit response"
-                  >
-                    <svg
-                      className="h-3 w-3"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                      <path d="m15 5 4 4" />
-                    </svg>
-                    <span>Edit</span>
-                  </button>
-                )}
-              </div>
-              {editingMessageId === m.id ? (
-                <div className="flex flex-col gap-2 mt-1 min-w-[240px] sm:min-w-[320px]">
-                  <textarea
-                    value={editDraft}
-                    onChange={(e) => setEditDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                        e.preventDefault();
-                        saveEdit(m.id);
-                      } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        cancelEditing();
-                      }
-                    }}
-                    rows={Math.min(12, Math.max(3, editDraft.split("\n").length + 1))}
-                    className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface-sunken)] p-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-1)] resize-y leading-relaxed font-inherit"
-                    disabled={isSavingEdit}
-                    autoFocus
-                  />
-                  <div className="flex items-center justify-end gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={cancelEditing}
-                      disabled={isSavingEdit}
-                      className="btn-text muted hover:underline px-2 py-1 text-xs cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => saveEdit(m.id)}
-                      disabled={isSavingEdit || !editDraft.trim()}
-                      className="rounded-md bg-[var(--brand-1)] px-3 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
-                    >
-                      {isSavingEdit ? "Saving…" : "Save"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="chat-message-text whitespace-pre-wrap leading-relaxed">
-                  {renderRoleplayText(m.content, m.role === "user") || (
-                    <span className="muted">…</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+        {messages.map((m) => (
+          <ChatMessageItem
+            key={m.id}
+            message={m}
+            chatbotName={chatbotName}
+            avatarUrl={avatarUrl}
+            avatarFallbackUrl={avatarFallbackUrl}
+            busy={busy}
+            isEditing={editingMessageId === m.id}
+            editDraft={editDraft}
+            isSavingEdit={isSavingEdit}
+            onStartEditing={startEditing}
+            onEditDraftChange={setEditDraft}
+            onSaveEdit={saveEdit}
+            onCancelEditing={cancelEditing}
+          />
+        ))}
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs sm:text-sm text-red-600 dark:text-red-400 flex items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-2 min-w-0">

@@ -46,18 +46,6 @@ export async function POST(request: Request) {
     return rateLimitResponse(rl.resetSeconds);
   }
 
-  // Durable DB rate-limit backstop (20 msg/min per user across chats)
-  const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-  const { count: recentMsgCount } = await supabase
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "user")
-    .gte("created_at", oneMinuteAgo);
-
-  if ((recentMsgCount ?? 0) >= RATE_LIMIT_PER_MINUTE) {
-    return rateLimitResponse(60);
-  }
-
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return new Response("bad_request", { status: 400 });
@@ -228,21 +216,17 @@ export async function POST(request: Request) {
           });
         }
 
-        // Fetch count in background for cadence check without delaying stream response
-        const { count: totalMsgCount } = await supabase
-          .from("messages")
-          .select("id", { count: "exact", head: true })
-          .eq("chat_id", chatId);
-
-        const count = totalMsgCount ?? 0;
-        // Stagger background tasks to avoid exceeding Cloudflare Worker CPU/duration limits
-        if (count >= 20 && count % 10 === 0) {
+        // Stagger background memory tasks without making an extra database round-trip for count:
+        // - Summarize every 20 turns (when enough messages accumulated)
+        // - Refresh scene state every 10 turns (alternating with summarization to avoid multiple LLM calls)
+        const count = (ctx.estimatedTotalMessages ?? 0) + 2;
+        if (count >= 20 && count % 20 === 0) {
           try {
             await maybeSummarize(supabase, chatId, ctx.character, user.id);
           } catch (sumErr) {
             console.error("[maybeSummarize_failed]", sumErr);
           }
-        } else if (count >= 5 && count % 5 === 0) {
+        } else if (count >= 10 && count % 10 === 0) {
           try {
             await refreshSceneState(supabase, chatId, ctx.character, user.id);
           } catch (sceneErr) {
