@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AvatarImage from "@/components/AvatarImage";
 import { getDefaultCharacterAvatar } from "@/lib/avatar";
+import { formatChatError, readApiErrorMessage } from "@/lib/chat-errors";
 import { MODEL_OPTIONS, getModelNickname, sanitizeModel } from "@/lib/models";
 import FontSizeControl from "./FontSizeControl";
 import DeleteChatButton from "./DeleteChatButton";
@@ -485,11 +486,7 @@ export default function ChatClient({
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(
-          errText ||
-            "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
-        );
+        throw new Error(await readApiErrorMessage(res));
       }
       const serverMsgId = res.headers.get("x-message-id");
       const reader = res.body.getReader();
@@ -557,20 +554,7 @@ export default function ChatClient({
           ),
         );
       } else {
-        const rawMsg = err instanceof Error ? err.message : "";
-        const userFacingMessage =
-          rawMsg.includes("credits") || rawMsg.includes("402")
-            ? "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits."
-            : rawMsg.includes("API key") || rawMsg.includes("401") || rawMsg.includes("Unauthorized")
-            ? "OpenRouter API key is invalid or expired. Please check your API key in settings."
-            : rawMsg.includes("high load") ||
-              rawMsg.includes("503") ||
-              rawMsg.includes("500") ||
-              rawMsg.includes("429")
-            ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
-            : rawMsg ||
-              "The model is experiencing some high load, try changing model or wait for a moment before trying again.";
-        setError(userFacingMessage);
+        setError(formatChatError(err));
         setMessages((m) => m.filter((x) => x.id !== assistantId && x.id !== userMsg.id));
         setInput((prev) => prev || text);
       }
@@ -617,8 +601,7 @@ export default function ChatClient({
         });
 
         if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || "Failed to update message");
+          throw new Error(await readApiErrorMessage(res, "Failed to update message"));
         }
 
         setMessages((prev) =>
@@ -629,7 +612,7 @@ export default function ChatClient({
         setEditingMessageId(null);
         setEditDraft("");
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to save edit");
+        setError(formatChatError(err, "Failed to save edit"));
       } finally {
         setIsSavingEdit(false);
       }
@@ -687,11 +670,7 @@ export default function ChatClient({
       });
 
       if (!res.ok || !res.body) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(
-          errText ||
-            "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
-        );
+        throw new Error(await readApiErrorMessage(res));
       }
 
       const serverMsgId = res.headers.get("x-message-id");
@@ -757,19 +736,7 @@ export default function ChatClient({
           ),
         );
       } else {
-        const rawMsg = err instanceof Error ? err.message : "";
-        const userFacingMessage =
-          rawMsg.includes("credits") || rawMsg.includes("402")
-            ? "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits."
-            : rawMsg.includes("API key") || rawMsg.includes("401") || rawMsg.includes("Unauthorized")
-            ? "OpenRouter API key is invalid or expired. Please check your API key in settings."
-            : rawMsg.includes("high load") ||
-              rawMsg.includes("503") ||
-              rawMsg.includes("500") ||
-              rawMsg.includes("429")
-            ? "The model is experiencing some high load, try changing model or wait for a moment before trying again."
-            : rawMsg || "Retry failed. Please try again.";
-        setError(userFacingMessage);
+        setError(formatChatError(err, "Retry failed. Please try again."));
         if (isLastAssistant && prevAssistantMsg) {
           setMessages((m) =>
             m.map((x) => (x.id === assistantId ? (acc ? x : prevAssistantMsg) : x)),
@@ -805,8 +772,7 @@ export default function ChatClient({
         body: JSON.stringify({ chatId }),
       });
       if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(errText || `Error ${res.status}`);
+        throw new Error(await readApiErrorMessage(res, `Error ${res.status}`));
       }
       setMessages((prev) => {
         const lastUserIndex = [...prev]
@@ -817,7 +783,7 @@ export default function ChatClient({
         return prev.slice(0, lastUserIndex);
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Undo failed");
+      setError(formatChatError(err, "Undo failed"));
     } finally {
       setBusy(false);
       setActionState("none");

@@ -34,6 +34,12 @@ export async function streamAssistantText(params: {
       ];
 
   let lastError: unknown = null;
+  const timeoutSignal = AbortSignal.timeout(80000);
+  const effectiveSignal =
+    abortSignal && typeof AbortSignal.any === "function"
+      ? AbortSignal.any([abortSignal, timeoutSignal])
+      : abortSignal || timeoutSignal;
+
   for (const candidate of candidateModels) {
     try {
       const result = streamText({
@@ -45,7 +51,7 @@ export async function streamAssistantText(params: {
         frequencyPenalty: 0.35,
         presencePenalty: 0.45,
         maxOutputTokens: 450,
-        abortSignal: abortSignal || AbortSignal.timeout(110000),
+        abortSignal: effectiveSignal,
         onError({ error }) {
           console.error(`[streamAssistantText_error on ${candidate}]`, error);
         },

@@ -16,6 +16,17 @@ import { sanitizeNext } from "../navigation.js";
 import { getDefaultCharacterAvatar } from "../avatar.js";
 import { getCleanPersonaDisplay } from "../persona.js";
 import { sanitizeModel, DEFAULT_MODEL, SUMMARIZER_MODEL } from "../openrouter.js";
+import {
+  isHtmlErrorPayload,
+  sanitizeHttpErrorMessage,
+  formatChatError,
+  DEFAULT_HIGH_LOAD_MESSAGE,
+  CREDITS_DEPLETED_MESSAGE,
+  INVALID_API_KEY_MESSAGE,
+  SESSION_EXPIRED_MESSAGE,
+  TIMEOUT_ERROR_MESSAGE,
+  CHALLENGE_ERROR_MESSAGE,
+} from "../chat-errors.js";
 
 test("isFactRedundant detects identical and similar facts", () => {
   assert.strictEqual(
@@ -281,6 +292,41 @@ test("sanitizeModel allows SUMMARIZER_MODEL internally without falling back to D
   assert.strictEqual(sanitizeModel(null), DEFAULT_MODEL);
   assert.strictEqual(sanitizeModel(undefined), DEFAULT_MODEL);
   assert.strictEqual(sanitizeModel(""), DEFAULT_MODEL);
+});
+
+test("chat-errors detects and sanitizes raw Cloudflare HTML error pages", () => {
+  const cloudflare524Html =
+    '<!DOCTYPE html> <!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]--><head><title>howly.howlingheaven.com | 524: A timeout occurred</title></head><body><h1>Error 524</h1></body></html>';
+  assert.strictEqual(isHtmlErrorPayload(cloudflare524Html), true);
+  assert.strictEqual(
+    sanitizeHttpErrorMessage(cloudflare524Html, 524, "text/html"),
+    TIMEOUT_ERROR_MESSAGE,
+  );
+  assert.strictEqual(
+    formatChatError(new Error("<!DOCTYPE html> <!--[if lt IE 7]> <html...")),
+    DEFAULT_HIGH_LOAD_MESSAGE,
+  );
+
+  const cloudflareChallenge =
+    '<!DOCTYPE html><html><head><title>Just a moment...</title></head><body>cf-challenge</body></html>';
+  assert.strictEqual(
+    sanitizeHttpErrorMessage(cloudflareChallenge, 403, "text/html; charset=UTF-8"),
+    CHALLENGE_ERROR_MESSAGE,
+  );
+
+  assert.strictEqual(
+    sanitizeHttpErrorMessage("unauthenticated", 401, "text/plain"),
+    SESSION_EXPIRED_MESSAGE,
+  );
+  assert.strictEqual(
+    sanitizeHttpErrorMessage("Invalid API key", 401, "text/plain"),
+    INVALID_API_KEY_MESSAGE,
+  );
+  assert.strictEqual(
+    sanitizeHttpErrorMessage("Insufficient credits", 402, "text/plain"),
+    CREDITS_DEPLETED_MESSAGE,
+  );
+  assert.strictEqual(isHtmlErrorPayload("Plain text error message"), false);
 });
 
 

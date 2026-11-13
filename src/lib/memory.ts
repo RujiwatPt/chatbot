@@ -258,6 +258,8 @@ export async function loadChatContext(
   userPronouns: string | null;
   userDescription: string | null;
   estimatedTotalMessages: number;
+  unbudgetedMessages: number;
+  messagesSinceScene: number;
 } | null> {
   // Parallelize ALL initial database context fetches (chats, memories, recent messages)
   // in a single concurrent network round-trip.
@@ -313,6 +315,7 @@ export async function loadChatContext(
 
   const facts: string[] = [];
   let sceneState: SceneState | null = null;
+  let sceneUpTo = 0;
   let summary: string | null = null;
   let summaryUpTo = 0;
   for (const rawM of decryptedMemories) {
@@ -333,6 +336,7 @@ export async function loadChatContext(
             relationship: parsed.relationship,
             goal: parsed.goal,
           };
+          sceneUpTo = (rawM.up_to_message_id as number | null) ?? 0;
         }
       } catch {
         // ignore malformed scene rows
@@ -419,6 +423,15 @@ export async function loadChatContext(
   nonIdentityFacts.sort((a, b) => rank(a) - rank(b));
   const finalFacts = nonIdentityFacts.slice(0, 30);
 
+  const unbudgetedMessages = Math.max(
+    0,
+    decryptedMessages.length - budgetedMessages.length,
+  );
+  const messagesSinceScene =
+    sceneUpTo > 0
+      ? allRawMessages.filter((m) => (m.id as number) > sceneUpTo).length
+      : allRawMessages.length;
+
   return {
     character,
     recent,
@@ -429,6 +442,8 @@ export async function loadChatContext(
     userPronouns,
     userDescription: effectiveUserDesc,
     estimatedTotalMessages: allRawMessages.length,
+    unbudgetedMessages,
+    messagesSinceScene,
   };
 }
 
@@ -756,5 +771,46 @@ export async function refreshSceneState(
     }
   } catch (err) {
     console.error("[refresh_scene_state_error]", err);
+  }
+}
+
+/**
+ * Stagger background memory maintenance so at most one LLM call runs after a turn:
+ * summarize once overflow messages exceed the recent token budget, otherwise refresh scene state every ~10 messages.
+ */
+export async function runStaggeredMemoryUpdate(params: {
+  supabase: SupabaseClient;
+  chatId: string;
+  character: Character;
+  userId: string;
+  unbudgetedMessages: number;
+  messagesSinceScene: number;
+  newMessagesAdded: number;
+  logPrefix?: string;
+}): Promise<void> {
+  const {
+    supabase,
+    chatId,
+    character,
+    userId,
+    unbudgetedMessages,
+    messagesSinceScene,
+    newMessagesAdded,
+    logPrefix = "",
+  } = params;
+  const tag = logPrefix ? `${logPrefix}_` : "";
+
+  if (unbudgetedMessages >= SUMMARIZE_MIN_NEW) {
+    try {
+      await maybeSummarize(supabase, chatId, character, userId);
+    } catch (sumErr) {
+      console.error(`[${tag}maybeSummarize_failed]`, sumErr);
+    }
+  } else if (messagesSinceScene + newMessagesAdded >= 10) {
+    try {
+      await refreshSceneState(supabase, chatId, character, userId);
+    } catch (sceneErr) {
+      console.error(`[${tag}refreshSceneState_failed]`, sceneErr);
+    }
   }
 }

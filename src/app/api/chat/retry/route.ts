@@ -4,12 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import {
   buildSystemPrompt,
   loadChatContext,
-  maybeSummarize,
-  refreshSceneState,
+  runStaggeredMemoryUpdate,
   stripAppearanceTropes,
   validateInCharacterOutput,
 } from "@/lib/memory";
 import { streamAssistantText } from "@/lib/chat-quality";
+import { DEFAULT_HIGH_LOAD_MESSAGE, mapLlmErrorToResponse } from "@/lib/chat-errors";
 import { decryptText, encryptText } from "@/lib/encryption";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { CONTINUE_NUDGE, RETRY_MANDATE } from "@/lib/prompts";
@@ -23,271 +23,261 @@ const Body = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
+  let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
+  let assistantPlaceholderId: number | null = null;
 
-  const rl = checkRateLimit({
-    identifier: user.id,
-    namespace: "chat_retry",
-    limit: 10,
-    windowSeconds: 60,
-  });
-  if (!rl.success) {
-    return rateLimitResponse(rl.resetSeconds);
-  }
+  try {
+    supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return new Response("unauthorized", { status: 401 });
 
-  const parsed = Body.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return new Response("bad_request", { status: 400 });
-  const { chatId, rejectedContent: clientRejectedContent } = parsed.data;
+    const rl = checkRateLimit({
+      identifier: user.id,
+      namespace: "chat_retry",
+      limit: 10,
+      windowSeconds: 60,
+    });
+    if (!rl.success) {
+      return rateLimitResponse(rl.resetSeconds);
+    }
 
-  const { data: latestUser } = await supabase
-    .from("messages")
-    .select("id, content")
-    .eq("chat_id", chatId)
-    .eq("role", "user")
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!latestUser) return new Response("no_user_message", { status: 400 });
+    const parsed = Body.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return new Response("bad_request", { status: 400 });
+    const { chatId, rejectedContent: clientRejectedContent } = parsed.data;
 
-  const decryptedUserMsg = await decryptText(latestUser.content, user.id);
-  const isContinueNudge =
-    !decryptedUserMsg ||
-    decryptedUserMsg === "[Continue]" ||
-    decryptedUserMsg === "*continue*";
-
-  const { data: latestAssistants } = await supabase
-    .from("messages")
-    .select("id, content")
-    .eq("chat_id", chatId)
-    .eq("role", "assistant")
-    .gt("id", latestUser.id)
-    .order("id", { ascending: false });
-
-  let rejectedAssistantContent: string | null = clientRejectedContent || null;
-  if (latestAssistants && latestAssistants.length > 0) {
-    const mostRecent = latestAssistants[0];
-    const decrypted = await decryptText(mostRecent.content, user.id);
-    if (decrypted) rejectedAssistantContent = decrypted;
-
-    const idsToDelete = latestAssistants.map((a) => a.id);
-    const minDeletedId = Math.min(...idsToDelete);
-    const { error: delErr } = await supabase
+    const { data: latestUser } = await supabase
       .from("messages")
-      .delete()
-      .in("id", idsToDelete);
-    if (delErr) return new Response(delErr.message, { status: 500 });
-
-    // Clean up any memory rows derived from the rejected assistant message
-    await supabase
-      .from("memories")
-      .delete()
+      .select("id, content")
       .eq("chat_id", chatId)
-      .gte("up_to_message_id", minDeletedId);
-  }
+      .eq("role", "user")
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!latestUser) return new Response("no_user_message", { status: 400 });
 
-  // If active summary contains retried turn IDs, purge it to prevent empty recent context
-  const { data: summaryRow } = await supabase
-    .from("memories")
-    .select("id, up_to_message_id")
-    .eq("chat_id", chatId)
-    .eq("kind", "summary")
-    .maybeSingle();
+    const decryptedUserMsg = await decryptText(latestUser.content, user.id);
+    const isContinueNudge =
+      !decryptedUserMsg ||
+      decryptedUserMsg === "[Continue]" ||
+      decryptedUserMsg === "*continue*";
 
-  if (summaryRow && (summaryRow.up_to_message_id ?? 0) >= latestUser.id) {
-    await supabase.from("memories").delete().eq("id", summaryRow.id);
-  }
+    const { data: latestAssistants } = await supabase
+      .from("messages")
+      .select("id, content")
+      .eq("chat_id", chatId)
+      .eq("role", "assistant")
+      .gt("id", latestUser.id)
+      .order("id", { ascending: false });
 
-  const ctx = await loadChatContext(supabase, chatId, user.id);
-  if (!ctx) return new Response("not_found", { status: 404 });
+    let rejectedAssistantContent: string | null = clientRejectedContent || null;
+    if (latestAssistants && latestAssistants.length > 0) {
+      const mostRecent = latestAssistants[0];
+      const decrypted = await decryptText(mostRecent.content, user.id);
+      if (decrypted) rejectedAssistantContent = decrypted;
 
-  const priorAssistant = ctx.recent
-    .filter((m) => m.role === "assistant")
-    .map((m) => m.content);
+      const idsToDelete = latestAssistants.map((a) => a.id);
+      const minDeletedId = Math.min(...idsToDelete);
+      const { error: delErr } = await supabase
+        .from("messages")
+        .delete()
+        .in("id", idsToDelete);
+      if (delErr) return new Response(delErr.message, { status: 500 });
 
-  if (rejectedAssistantContent) {
-    priorAssistant.push(rejectedAssistantContent);
-  }
+      // Clean up any memory rows derived from the rejected assistant message
+      await supabase
+        .from("memories")
+        .delete()
+        .eq("chat_id", chatId)
+        .gte("up_to_message_id", minDeletedId);
+    }
 
-  let system = buildSystemPrompt({
-    character: ctx.character,
-    facts: ctx.facts,
-    sceneState: ctx.sceneState,
-    summary: ctx.summary,
-    userName: ctx.userName,
-    userPronouns: ctx.userPronouns,
-    userDescription: ctx.userDescription,
-    priorAssistant,
-  });
+    // If active summary contains retried turn IDs, purge it to prevent empty recent context
+    const { data: summaryRow } = await supabase
+      .from("memories")
+      .select("id, up_to_message_id")
+      .eq("chat_id", chatId)
+      .eq("kind", "summary")
+      .maybeSingle();
 
-  if (rejectedAssistantContent) {
-    system += `\n\n${RETRY_MANDATE}`;
-  }
+    if (summaryRow && (summaryRow.up_to_message_id ?? 0) >= latestUser.id) {
+      await supabase.from("memories").delete().eq("id", summaryRow.id);
+    }
 
-  if (isContinueNudge) {
-    system += `\n\n${CONTINUE_NUDGE}`;
-  }
+    const ctx = await loadChatContext(supabase, chatId, user.id);
+    if (!ctx) return new Response("not_found", { status: 404 });
 
-  // Ensure prompt messages array strictly ends with a user turn for correct LLM conversation alignment
-  const lastUserIndex = ctx.recent.reduce(
-    (lastIdx, m, idx) => (m.role === "user" ? idx : lastIdx),
-    -1,
-  );
-  let alignedRecent = lastUserIndex >= 0 ? ctx.recent.slice(0, lastUserIndex + 1) : ctx.recent;
+    const priorAssistant = ctx.recent
+      .filter((m) => m.role === "assistant")
+      .map((m) => m.content);
 
-  const userTurnText = isContinueNudge
-    ? "[Continue the scene]"
-    : (decryptedUserMsg || "*continue*");
+    if (rejectedAssistantContent) {
+      priorAssistant.push(rejectedAssistantContent);
+    }
 
-  // Guarantee that the prompt contains the user turn being retried and ends with a user message
-  if (alignedRecent.length === 0 || alignedRecent[alignedRecent.length - 1].role !== "user") {
-    alignedRecent = [
-      ...alignedRecent.filter((m) => m.role === "user" || m.role === "assistant"),
-      { role: "user", content: userTurnText },
-    ];
-  }
+    let system = buildSystemPrompt({
+      character: ctx.character,
+      facts: ctx.facts,
+      sceneState: ctx.sceneState,
+      summary: ctx.summary,
+      userName: ctx.userName,
+      userPronouns: ctx.userPronouns,
+      userDescription: ctx.userDescription,
+      priorAssistant,
+    });
 
-  const messages = alignedRecent.map((m, idx) => {
-    if (idx === alignedRecent.length - 1 && m.role === "user") {
+    if (rejectedAssistantContent) {
+      system += `\n\n${RETRY_MANDATE}`;
+    }
+
+    if (isContinueNudge) {
+      system += `\n\n${CONTINUE_NUDGE}`;
+    }
+
+    // Ensure prompt messages array strictly ends with a user turn for correct LLM conversation alignment
+    const lastUserIndex = ctx.recent.reduce(
+      (lastIdx, m, idx) => (m.role === "user" ? idx : lastIdx),
+      -1,
+    );
+    let alignedRecent = lastUserIndex >= 0 ? ctx.recent.slice(0, lastUserIndex + 1) : ctx.recent;
+
+    const userTurnText = isContinueNudge
+      ? "[Continue the scene]"
+      : (decryptedUserMsg || "*continue*");
+
+    // Guarantee that the prompt contains the user turn being retried and ends with a user message
+    if (alignedRecent.length === 0 || alignedRecent[alignedRecent.length - 1].role !== "user") {
+      alignedRecent = [
+        ...alignedRecent.filter((m) => m.role === "user" || m.role === "assistant"),
+        { role: "user", content: userTurnText },
+      ];
+    }
+
+    const messages = alignedRecent.map((m, idx) => {
+      if (idx === alignedRecent.length - 1 && m.role === "user") {
+        return {
+          role: m.role,
+          content: userTurnText,
+        };
+      }
       return {
         role: m.role,
-        content: userTurnText,
+        content: m.content,
       };
-    }
-    return {
-      role: m.role,
-      content: m.content,
-    };
-  });
-
-  let streamed;
-  try {
-    streamed = await streamAssistantText({
-      character: ctx.character,
-      sceneState: ctx.sceneState,
-      system,
-      messages,
-      priorAssistant,
-      userName: ctx.userName,
-      abortSignal: request.signal,
     });
-  } catch (err) {
-    console.error("[retry_generation_error]", err);
-    const errMsg = err instanceof Error ? err.message : String(err);
-    if (errMsg.includes("Insufficient credits") || errMsg.includes("402")) {
-      return new Response(
-        "OpenRouter account credits are depleted. Please top up credits at https://openrouter.ai/settings/credits.",
-        { status: 402 },
-      );
-    }
-    if (
-      errMsg.includes("401") ||
-      errMsg.includes("Unauthorized") ||
-      errMsg.includes("User not found") ||
-      errMsg.includes("Key not found") ||
-      errMsg.includes("auth credentials")
-    ) {
-      return new Response(
-        "OpenRouter API key is invalid or expired. Please check your API key in settings.",
-        { status: 401 },
-      );
-    }
-    return new Response(
-      "The model is experiencing some high load, try changing model or wait for a moment before trying again.",
-      { status: 503 },
-    );
-  }
 
-  // Synchronously persist initial assistant message row to obtain durable DB message ID
-  const { data: inserted, error: assistantInsertErr } = await supabase
-    .from("messages")
-    .insert({
-      chat_id: chatId,
-      role: "assistant",
-      content: "",
-    })
-    .select("id")
-    .single();
-
-  if (assistantInsertErr || !inserted) {
-    console.error("[retry_assistant_initial_insert_failed]", assistantInsertErr);
-    return new Response("failed_to_initialize_message", { status: 500 });
-  }
-
-  const assistantMsgId = String(inserted.id);
-
-  after(async () => {
+    let streamed;
     try {
-      if (request.signal.aborted) {
-        console.log("[retry_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
-        await supabase.from("messages").delete().eq("id", inserted.id);
-        return;
-      }
-      let rawText = "";
-      try {
-        rawText = await streamed.fullTextPromise;
-      } catch (streamErr) {
-        console.error("[retry_streamed_fullTextPromise_error]", streamErr);
-      }
-      const finalText = rawText.trim();
-      if (finalText) {
-        const cleanedFinalText = stripAppearanceTropes(finalText);
-        await supabase
-          .from("messages")
-          .update({ content: await encryptText(cleanedFinalText, user.id) })
-          .eq("id", inserted.id);
-
-        const validation = validateInCharacterOutput({
-          output: cleanedFinalText,
-          selfName: ctx.character.alias?.trim() || ctx.character.name,
-          sceneState: ctx.sceneState,
-          userName: ctx.userName,
-        });
-        if (!validation.ok) {
-          console.warn("[retry_character_drift_detected]", {
-            chatId,
-            messageId: assistantMsgId,
-            reasons: validation.reasons,
-          });
-        }
-
-        // Stagger background memory tasks without making an extra database round-trip for count:
-        // - Summarize every 20 turns (when enough messages accumulated)
-        // - Refresh scene state every 10 turns (alternating with summarization to avoid multiple LLM calls)
-        const count = (ctx.estimatedTotalMessages ?? 0) + 1;
-        if (count >= 20 && count % 20 === 0) {
-          try {
-            await maybeSummarize(supabase, chatId, ctx.character, user.id);
-          } catch (sumErr) {
-            console.error("[retry_maybeSummarize_failed]", sumErr);
-          }
-        } else if (count >= 10 && count % 10 === 0) {
-          try {
-            await refreshSceneState(supabase, chatId, ctx.character, user.id);
-          } catch (sceneErr) {
-            console.error("[retry_refreshSceneState_failed]", sceneErr);
-          }
-        }
-      } else {
-        await supabase.from("messages").delete().eq("id", inserted.id);
-      }
-      console.log("[retry_generation_complete]", {
-        chatId,
-        messageId: assistantMsgId,
-        model: streamed.modelId,
-        length: finalText.length,
+      streamed = await streamAssistantText({
+        character: ctx.character,
+        sceneState: ctx.sceneState,
+        system,
+        messages,
+        priorAssistant,
+        userName: ctx.userName,
+        abortSignal: request.signal,
       });
     } catch (err) {
-      console.error("[after_retry_stream_save_error]", err);
+      console.error("[retry_generation_error]", err);
+      return mapLlmErrorToResponse(err);
     }
-  });
 
-  return streamed.toTextStreamResponse({
-    headers: {
-      "x-message-id": assistantMsgId,
-    },
-  });
+    // Synchronously persist initial assistant message row to obtain durable DB message ID
+    const { data: inserted, error: assistantInsertErr } = await supabase
+      .from("messages")
+      .insert({
+        chat_id: chatId,
+        role: "assistant",
+        content: "",
+      })
+      .select("id")
+      .single();
+
+    if (assistantInsertErr || !inserted) {
+      console.error("[retry_assistant_initial_insert_failed]", assistantInsertErr);
+      return new Response("failed_to_initialize_message", { status: 500 });
+    }
+
+    assistantPlaceholderId = inserted.id as number;
+    const assistantMsgId = String(inserted.id);
+    const db = supabase;
+
+    after(async () => {
+      try {
+        if (request.signal.aborted) {
+          console.log("[retry_generation_aborted_by_client]", { chatId, messageId: assistantMsgId });
+          await db.from("messages").delete().eq("id", inserted.id);
+          return;
+        }
+        let rawText = "";
+        try {
+          rawText = await streamed.fullTextPromise;
+        } catch (streamErr) {
+          console.error("[retry_streamed_fullTextPromise_error]", streamErr);
+        }
+        const finalText = rawText.trim();
+        if (finalText) {
+          const cleanedFinalText = stripAppearanceTropes(finalText);
+          await db
+            .from("messages")
+            .update({ content: await encryptText(cleanedFinalText, user.id) })
+            .eq("id", inserted.id);
+
+          const validation = validateInCharacterOutput({
+            output: cleanedFinalText,
+            selfName: ctx.character.alias?.trim() || ctx.character.name,
+            sceneState: ctx.sceneState,
+            userName: ctx.userName,
+          });
+          if (!validation.ok) {
+            console.warn("[retry_character_drift_detected]", {
+              chatId,
+              messageId: assistantMsgId,
+              reasons: validation.reasons,
+            });
+          }
+
+          await runStaggeredMemoryUpdate({
+            supabase: db,
+            chatId,
+            character: ctx.character,
+            userId: user.id,
+            unbudgetedMessages: ctx.unbudgetedMessages,
+            messagesSinceScene: ctx.messagesSinceScene,
+            newMessagesAdded: 1,
+            logPrefix: "retry",
+          });
+        } else {
+          await db.from("messages").delete().eq("id", inserted.id);
+        }
+        console.log("[retry_generation_complete]", {
+          chatId,
+          messageId: assistantMsgId,
+          model: streamed.modelId,
+          length: finalText.length,
+        });
+      } catch (err) {
+        console.error("[after_retry_stream_save_error]", err);
+      }
+    });
+
+    const response = streamed.toTextStreamResponse({
+      headers: {
+        "x-message-id": assistantMsgId,
+      },
+    });
+    assistantPlaceholderId = null;
+    return response;
+  } catch (err) {
+    console.error("[retry_route_unexpected_error]", err);
+    if (supabase && assistantPlaceholderId !== null) {
+      try {
+        await supabase.from("messages").delete().eq("id", assistantPlaceholderId);
+      } catch {
+        // ignore cleanup failure during error handling
+      }
+    }
+    return new Response(DEFAULT_HIGH_LOAD_MESSAGE, { status: 500 });
+  }
 }

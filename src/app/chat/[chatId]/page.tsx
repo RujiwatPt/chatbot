@@ -36,6 +36,7 @@ export default async function ChatPage({
       .select("id, role, content")
       .eq("chat_id", chatId)
       .in("role", ["user", "assistant"])
+      .neq("content", "")
       .order("id", { ascending: false })
       .limit(30),
   ]);

@@ -46,11 +46,18 @@ async function getOpenRouterApiKey(): Promise<string> {
   return key || "";
 }
 
+const OPENROUTER_TIMEOUT_MS = 80000;
+
 const openrouterFetch: typeof fetch = async (input, init) => {
   const customInit = { ...init };
 
-  if (!customInit.signal) {
-    customInit.signal = AbortSignal.timeout(110000);
+  // Enforce an 80s upstream deadline even when callers pass request.signal so
+  // OpenRouter hangs fail cleanly before Cloudflare's 100s proxy timeout (524).
+  const timeoutSignal = AbortSignal.timeout(OPENROUTER_TIMEOUT_MS);
+  if (customInit.signal && typeof AbortSignal.any === "function") {
+    customInit.signal = AbortSignal.any([customInit.signal, timeoutSignal]);
+  } else if (!customInit.signal) {
+    customInit.signal = timeoutSignal;
   }
 
   // Ensure Authorization header is present if process.env.OPENROUTER_API_KEY was empty at init
